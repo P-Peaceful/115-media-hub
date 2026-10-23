@@ -1,0 +1,4 @@
+/* Application-specific layout tokens; semantic colors inherit HeroUI themes. */
+@theme {
+  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}

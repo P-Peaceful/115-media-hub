@@ -1,0 +1,32 @@
+name: 115-media-hub
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: 115-media-hub:local
+    init: true
+    restart: unless-stopped
+    ports:
+      - '127.0.0.1:8080:8080'
+    environment:
+      TZ: Asia/Shanghai
+      MEDIA_HUB_HTTP_ADDR: 0.0.0.0:8080
+      MEDIA_HUB_DATABASE_PATH: /data/115-media-hub.db
+      MEDIA_HUB_LOG_DIR: /logs
+      MEDIA_HUB_SHUTDOWN_TIMEOUT: 10s
+    volumes:
+      - data:/data
+      - strm:/storage/strm
+      - quarantine:/storage/quarantine
+      - cache:/cache
+      - logs:/logs
+      - backups:/backups
+    stop_grace_period: 15s
+volumes:
+  data:
+  strm:
+  quarantine:
+  cache:
+  logs:
+  backups:

@@ -1,0 +1,5 @@
+# Relative paths resolve from the process working directory (backend/ in development).
+http_addr: 127.0.0.1:8080
+database_path: ./data/115-media-hub.db
+log_dir: ./logs
+shutdown_timeout: 10s

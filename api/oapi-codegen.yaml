@@ -1,0 +1,5 @@
+package: generated
+generate:
+  models: true
+  gin-server: true
+output: internal/http/generated/api.gen.go

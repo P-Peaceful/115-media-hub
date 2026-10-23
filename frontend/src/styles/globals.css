@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+@import "./tokens.css";
+
+@layer base {
+  body { margin: 0; min-width: 320px; }
+}

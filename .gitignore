@@ -1,0 +1,25 @@
+.env
+.env.*
+!.env.example
+node_modules/
+frontend/dist/
+backend/internal/webui/dist/
+backend/bin/
+*.tsbuildinfo
+coverage/
+playwright-report/
+test-results/
+/data/
+/cache/
+/logs/
+/backups/
+/storage/
+*.db
+*.db-shm
+*.db-wal
+
+backend/data/
+backend/logs/
+
+# Local IDE configuration
+.idea/

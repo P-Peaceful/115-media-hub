@@ -1,0 +1,43 @@
+openapi: 3.0.3
+info:
+  title: 115-media-hub Infrastructure API
+  version: 0.1.0
+  description: Infrastructure endpoints only. Business APIs are not implemented.
+paths:
+  /health/live:
+    get:
+      operationId: getLiveness
+      summary: Process liveness
+      responses:
+        '200':
+          description: Process is alive
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /health/ready:
+    get:
+      operationId: getReadiness
+      summary: Database readiness
+      responses:
+        '200':
+          description: Database is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: Database is unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+components:
+  schemas:
+    Health:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, unavailable]

@@ -1,0 +1,17 @@
+.git
+.agents
+.aws
+.codex
+**/node_modules
+**/dist
+**/bin
+.env
+.env.*
+**/*.db*
+data
+logs
+backups
+storage
+
+backend/data/
+backend/logs/
