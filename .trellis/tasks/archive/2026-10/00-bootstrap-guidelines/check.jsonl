@@ -1,4 +1,4 @@
 {"file": ".trellis/spec/project-context.md", "reason": "Source map and implementation gap verification"}
 {"file": ".trellis/spec/backend/index.md", "reason": "Backend guideline completeness and quality gates"}
 {"file": ".trellis/spec/frontend/index.md", "reason": "Frontend guideline completeness and quality gates"}
-{"file": ".trellis/tasks/00-bootstrap-guidelines/research/source-summary.md", "reason": "Cross-check all Notion sources and future-versus-current distinctions"}
+{"file": ".trellis/tasks/archive/2026-10/00-bootstrap-guidelines/research/source-summary.md", "reason": "Cross-check all Notion sources and future-versus-current distinctions"}

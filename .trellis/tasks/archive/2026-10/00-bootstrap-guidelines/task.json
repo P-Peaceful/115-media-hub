@@ -3,7 +3,7 @@
   "name": "00-bootstrap-guidelines",
   "title": "Bootstrap Guidelines",
   "description": "Fill in project development guidelines for AI agents",
-  "status": "in_progress",
+  "status": "completed",
   "dev_type": "docs",
   "scope": null,
   "package": null,
@@ -11,11 +11,11 @@
   "creator": "P_Peaceful",
   "assignee": "P_Peaceful",
   "createdAt": "2026-10-22",
-  "completedAt": null,
+  "completedAt": "2026-10-24",
   "branch": "main",
   "base_branch": null,
   "worktree_path": null,
-  "commit": null,
+  "commit": "5cfba314c21ff28e459c01057172b83cd097a135",
   "pr_url": null,
   "subtasks": [],
   "children": [],
@@ -25,6 +25,6 @@
     ".trellis/spec/frontend/",
     ".trellis/spec/project-context.md"
   ],
-  "notes": "First-time setup task created by trellis init (fullstack project); Guidelines and source evidence verified; documentation-only scope; user approved the scoped commit and archive/journal wrap-up on 2026-10-24.",
+  "notes": "First-time setup task created by trellis init (fullstack project); Guidelines and source evidence verified; documentation-only scope; user approved the scoped commit and archive/journal wrap-up on 2026-10-24. Work commit recorded; archive references rebased to the archived task path.",
   "meta": {}
 }

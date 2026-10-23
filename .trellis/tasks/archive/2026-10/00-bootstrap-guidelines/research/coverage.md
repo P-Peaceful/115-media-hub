@@ -2,7 +2,7 @@
 
 ## Scope
 
-This is guideline bootstrap, not V1.0 business implementation. All permanent spec text is English per the existing backend/frontend indexes. Shared source attribution and implemented-versus-required distinctions live in [project context](../../../spec/project-context.md).
+This is guideline bootstrap, not V1.0 business implementation. All permanent spec text is English per the existing backend/frontend indexes. Shared source attribution and implemented-versus-required distinctions live in [project context](../../../../../spec/project-context.md).
 
 | Notion source | Captured constraints | Permanent destination |
 | --- | --- | --- |

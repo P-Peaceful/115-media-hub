@@ -1,0 +1,5 @@
+{"file": ".trellis/spec/project-context.md", "reason": "Reviewed source map and current-versus-required boundary"}
+{"file": "docs/development.md", "reason": "Existing implementation and build conventions"}
+{"file": ".trellis/tasks/archive/2026-10/00-bootstrap-guidelines/research/backend-architecture.md", "reason": "Notion adopted backend architecture"}
+{"file": ".trellis/tasks/archive/2026-10/00-bootstrap-guidelines/research/frontend-architecture.md", "reason": "Notion adopted frontend architecture"}
+{"file": ".trellis/tasks/archive/2026-10/00-bootstrap-guidelines/research/source-summary.md", "reason": "All four Notion sources, product/UI boundaries and current-versus-planned distinctions; full snapshots available on demand"}
