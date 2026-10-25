@@ -3,3 +3,8 @@ http_addr: 127.0.0.1:8080
 database_path: ./data/115-media-hub.db
 log_dir: ./logs
 shutdown_timeout: 10s
+
+# Required before the server can start. Prefer environment variables for secrets.
+admin_username: your-admin-name
+admin_password: replace-with-a-long-random-password
+# cookie_secure: false  # Set true when served over HTTPS.

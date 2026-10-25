@@ -17,6 +17,9 @@ type Config struct {
 	DatabasePath    string        `yaml:"database_path"`
 	LogDir          string        `yaml:"log_dir"`
 	ShutdownTimeout time.Duration `yaml:"shutdown_timeout"`
+	AdminUsername   string        `yaml:"admin_username"`
+	AdminPassword   string        `yaml:"admin_password"`
+	CookieSecure    bool          `yaml:"cookie_secure"`
 }
 
 // Load applies defaults, an optional YAML file, and finally environment overrides.
@@ -38,7 +41,7 @@ func Load(path string) (Config, error) {
 			return c, fmt.Errorf("config must contain exactly one YAML document")
 		}
 	}
-	for key, dest := range map[string]*string{"MEDIA_HUB_HTTP_ADDR": &c.HTTPAddr, "MEDIA_HUB_DATABASE_PATH": &c.DatabasePath, "MEDIA_HUB_LOG_DIR": &c.LogDir} {
+	for key, dest := range map[string]*string{"MEDIA_HUB_HTTP_ADDR": &c.HTTPAddr, "MEDIA_HUB_DATABASE_PATH": &c.DatabasePath, "MEDIA_HUB_LOG_DIR": &c.LogDir, "MEDIA_HUB_ADMIN_USERNAME": &c.AdminUsername, "MEDIA_HUB_ADMIN_PASSWORD": &c.AdminPassword} {
 		if v, ok := os.LookupEnv(key); ok {
 			*dest = v
 		}
@@ -49,6 +52,19 @@ func Load(path string) (Config, error) {
 			return c, fmt.Errorf("invalid MEDIA_HUB_SHUTDOWN_TIMEOUT")
 		}
 		c.ShutdownTimeout = d
+	}
+	if v, ok := os.LookupEnv("MEDIA_HUB_COOKIE_SECURE"); ok {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return c, fmt.Errorf("invalid MEDIA_HUB_COOKIE_SECURE")
+		}
+		c.CookieSecure = b
+	}
+	if strings.TrimSpace(c.AdminUsername) == "" {
+		return c, fmt.Errorf("admin_username must not be empty")
+	}
+	if strings.TrimSpace(c.AdminPassword) == "" {
+		return c, fmt.Errorf("admin_password must not be empty")
 	}
 	_, port, err := net.SplitHostPort(c.HTTPAddr)
 	n, portErr := strconv.Atoi(port)

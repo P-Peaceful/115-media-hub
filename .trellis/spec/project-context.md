@@ -2,7 +2,7 @@
 
 ## Sources
 
-Reviewed on 2026-10-23 for the Bootstrap Guidelines task:
+Reviewed for the 2026-10-23 Bootstrap Guidelines task and updated for administrator authentication on 2026-10-25:
 
 | Source | Authority and use |
 | --- | --- |
@@ -15,7 +15,7 @@ Local source code defines current behavior. Notion defines adopted requirements 
 
 ## Implemented baseline
 
-`backend/` is a Go module with Gin HTTP routing, GORM/SQLite, goose migrations, YAML/environment startup configuration, slog rotation and graceful shutdown. `frontend/` is a React SPA with a foundation page, router, theme preference, Query provider and request helper. The shared contract in [api/openapi.yaml](../../api/openapi.yaml) contains only liveness and readiness endpoints. The baseline migration creates no business tables.
+`backend/` is a Go module with Gin HTTP routing, GORM/SQLite, goose migrations, YAML/environment startup configuration, slog rotation and graceful shutdown. It now requires one configured administrator and holds 24-hour sessions in memory. `frontend/` is a React SPA with administrator login, a protected shared shell, a foundation page, router, theme preference, Query provider and request helper. The shared contract in [api/openapi.yaml](../../api/openapi.yaml) contains liveness, readiness and administrator authentication endpoints. The baseline migration creates no business tables, users, roles or sessions. See the [authentication contract](backend/auth-contract.md).
 
 See [development notes](../../docs/development.md), [architecture](../../docs/architecture.md), [backend entry point](../../backend/cmd/server/main.go) and [frontend entry point](../../frontend/src/main.tsx).
 
@@ -25,9 +25,9 @@ See [development notes](../../docs/development.md), [architecture](../../docs/ar
 | Background work | Jobs directories exist without a scheduler or executor | Persist plans/runs/items/effects, claim conditionally, make retries bounded, cancel cooperatively, verify uncertain effects before restart recovery; use output/target locks and connection-level 115 throttling |
 | Identity and filesystem | Filesystem adapter is a placeholder | Stable connection/file identity, explicit source/output/media-service/metadata path roles, containment and symlink checks, collision handling, content hashes and ownership |
 | Destructive operations | No cleanup, overwrite, recovery or business APIs exist | Incomplete scans cannot imply deletion; cleanup defaults off and uses preview plus quarantine; preserve user modifications; verify upload results and restore state before enabling destructive automation |
-| Playback and credentials | No playback resolution, admin login or credential storage | Stable application URL instead of expiring link in STRM; separate playback credentials and admin sessions; encrypt external credentials with an independently configured master key |
+| Playback and credentials | Administrator login uses deployment credentials and in-memory sessions; no playback resolution or external credential storage | Stable application URL instead of expiring link in STRM; separate playback credentials and admin sessions; encrypt external credentials with an independently configured master key |
 | Media wall and metadata | Feature directories are placeholders | Both remain in V1.0; media-service APIs do not prove sidecars exist on disk; metadata mapping/baselines, conditional writes and conflict decisions require explicit evidence |
-| UI and state | Router, theme store, Query provider, request helper | Single-directory navigation, URL-preserved scope, Query-owned server data, bounded loaded lists, explicit partial/unknown/conflict states and accessible controls |
+| UI and state | Protected router, login, shared shell, theme store, Query provider, request helper | Single-directory navigation, URL-preserved scope, Query-owned server data, bounded loaded lists, explicit partial/unknown/conflict states and accessible controls |
 | Delivery | Frontend builds are embedded with `embedui`; Docker uses CGO and Debian | One application instance and local SQLite; `/storage/quarantine` stays outside media scan roots; configure actual shared paths before media integration |
 
 These are implementation constraints for later tasks, not permission to implement all of V1.0 during guideline bootstrap. P1 features and suggested colors, viewport sizes, polling intervals or performance goals are not already-shipped or independently verified commitments.

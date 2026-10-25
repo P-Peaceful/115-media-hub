@@ -10,6 +10,7 @@ Read [project context](../project-context.md) and the adopted [frontend architec
 | Connection/directory/library scope, filters, paging, detail deep link | URL / React Router | Root and wildcard routes only |
 | Permitted UI preferences | Zustand persistence | Theme only |
 | Form/wizard drafts, temporary page selection | Local/page state | No business forms or selection yet |
+| Administrator session status and CSRF token | AuthProvider and module memory | Session queried at startup; token never persisted |
 
 Do not store the same fact in multiple owners. Derive values instead of maintaining synchronized copies. [AppProviders](../../../frontend/src/app/providers/AppProviders.tsx) owns one client with query `staleTime: 30_000`, query `retry: 1` and mutation `retry: false`. These are application overrides, not a complete list of Query library defaults; no polling interval or SSE behavior is configured.
 
@@ -29,7 +30,7 @@ It starts with `theme: 'light'`, persists only `theme` under `115-media-hub-pref
 
 ## Future scope and safety
 
-The UI source requires single-directory navigation, stable-ID scope, current-page selection and deep-link detail history. Keep credentials out of URL/localStorage/Zustand. A detail drawer must derive from URL and work for direct entry as well as list navigation; no drawer exists today.
+The UI source requires single-directory navigation, stable-ID scope, current-page selection and deep-link detail history. Keep credentials out of URL/localStorage/Zustand. The current auth guard preserves only a validated same-origin return route in navigation state; see [authentication contract](../backend/auth-contract.md). A detail drawer must derive from URL and work for direct entry as well as list navigation; no drawer exists today.
 
 Represent successful empty, loading, failed, partial, stale, conflicting and unknown states separately. Unknown totals are not zero and cannot produce invented progress percentages. Keep records from partial results with affected scope and show cache age when relevant. Requests, connection state, object state and run state are different facts.
 

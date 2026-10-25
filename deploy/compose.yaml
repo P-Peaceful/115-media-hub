@@ -15,6 +15,9 @@ services:
       MEDIA_HUB_DATABASE_PATH: /data/115-media-hub.db
       MEDIA_HUB_LOG_DIR: /logs
       MEDIA_HUB_SHUTDOWN_TIMEOUT: 10s
+      MEDIA_HUB_ADMIN_USERNAME: ${MEDIA_HUB_ADMIN_USERNAME:?Set MEDIA_HUB_ADMIN_USERNAME in .env}
+      MEDIA_HUB_ADMIN_PASSWORD: ${MEDIA_HUB_ADMIN_PASSWORD:?Set MEDIA_HUB_ADMIN_PASSWORD in .env}
+      MEDIA_HUB_COOKIE_SECURE: ${MEDIA_HUB_COOKIE_SECURE:-false}
     volumes:
       - data:/data
       - strm:/storage/strm

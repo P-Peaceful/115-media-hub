@@ -2,7 +2,7 @@
 
 ## 1. Scope / Trigger
 
-Read for API, DTO, request or external-data changes. [Project context](../project-context.md) defines the current health-only contract. [tsconfig.json](../../../frontend/tsconfig.json) enables strict mode, unused-local/parameter checks, isolated modules and no emit. Runtime validation is a separate concern.
+Read for API, DTO, request or external-data changes. [Project context](../project-context.md) defines the current health and administrator-authentication contract. [tsconfig.json](../../../frontend/tsconfig.json) enables strict mode, unused-local/parameter checks, isolated modules and no emit. Runtime validation is a separate concern.
 
 ## 2. Signatures
 
@@ -22,16 +22,16 @@ The constructor signature above is abbreviated; the implementation sets message 
 
 ## 3. Contracts
 
-[OpenAPI](../../../api/openapi.yaml) generates [schema.d.ts](../../../frontend/src/shared/api/generated/schema.d.ts) through `make generate`. It currently defines health `status: 'ok' | 'unavailable'` only. These are compile-time declarations; `response.json() as Promise<T>` does not verify the server body. No Zod/Yup/runtime schema library or validation adapter is installed in [package.json](../../../frontend/package.json).
+[OpenAPI](../../../api/openapi.yaml) generates [schema.d.ts](../../../frontend/src/shared/api/generated/schema.d.ts) through `make generate`. It defines health responses plus login, session and logout payloads. These are compile-time declarations; `response.json() as Promise<T>` does not verify the server body. No Zod/Yup/runtime schema library or validation adapter is installed in [package.json](../../../frontend/package.json).
 
-Use same-origin absolute paths with a single leading `/`. Before fetch, the current guard requires a leading slash and an origin of `http://same-origin.invalid` when resolved against that synthetic base. It rejects ordinary external/protocol-relative URLs, but `//same-origin.invalid/...` passes that guard; do not treat it as blanket rejection of every protocol-relative input. The helper normalizes the method to uppercase, sets `Accept: application/json`, and forces `credentials: 'same-origin'`. `RequestInit` passes options such as body and signal; JSON serialization and Content-Type are the caller's responsibility. A supplied `csrfToken` becomes `X-CSRF-Token` only for methods outside GET/HEAD/OPTIONS. This is client header support only: token acquisition, server sessions/authentication and CSRF validation do not exist.
+Use same-origin absolute paths with a single leading `/`. Before fetch, the guard rejects `//` and backslashes, then requires the resolved origin to equal its synthetic base `http://same-origin.invalid`; this prevents a protocol-relative target from carrying the in-memory CSRF header outside the app. The helper normalizes the method to uppercase, sets `Accept: application/json`, and forces `credentials: 'same-origin'`. `RequestInit` passes options such as body and signal; JSON serialization and Content-Type are the caller's responsibility. An explicit or in-memory `csrfToken` becomes `X-CSRF-Token` only for methods outside GET/HEAD/OPTIONS. A 401 clears the in-memory token and announces session expiry. Token issuance and validation belong to the [authentication contract](../backend/auth-contract.md).
 
 ## 4. Validation & Error Matrix
 
 | Input / response | Result |
 | --- | --- |
 | `'/health/live'`, successful JSON | Parsed value typed by caller, without runtime validation |
-| No leading slash, or URL resolving to a different origin than the synthetic base | Error before fetch |
+| No leading slash, `//`, backslash, or URL resolving to a different origin than the synthetic base | Error before fetch |
 | Non-2xx response | `ApiError(status)`; body is not exposed |
 | Successful 204 or HEAD | `undefined`; never parse JSON |
 | Other successful response with invalid/empty JSON | JSON parsing rejects |
@@ -46,7 +46,7 @@ Good: consume a health response with an explicit generated type and handle the p
 
 ## 6. Tests Required
 
-[client.test.ts](../../../frontend/src/shared/api/client.test.ts) asserts JSON, cookie credentials, 204, status-only errors, explicit mutation CSRF and external URL rejection. For changes assert fetch arguments, HEAD/no-body behavior, safe-method CSRF omission, parse failure and abort behavior where affected; those latter cases are not all covered today. Run `pnpm --dir frontend typecheck`, `pnpm --dir frontend test`, and `make check` before completion.
+[client.test.ts](../../../frontend/src/shared/api/client.test.ts) asserts JSON, cookie credentials, 204, status-only errors, explicit and in-memory mutation CSRF, and external URL rejection. For changes assert fetch arguments, protocol-relative rejection, 401 token clearing, HEAD/no-body behavior, safe-method CSRF omission, parse failure and abort behavior where affected; those latter cases are not all covered today. Run `pnpm --dir frontend typecheck`, `pnpm --dir frontend test`, and `make check` before completion.
 
 ## 7. Wrong vs Correct
 

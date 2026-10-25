@@ -17,7 +17,7 @@ pnpm --dir frontend build
 
 ## Test evidence and limits
 
-[client.test.ts](../../../frontend/src/shared/api/client.test.ts) uses Vitest with stubbed fetch and restores globals using `afterEach(() => vi.unstubAllGlobals())`. Its five tests verify JSON/credentials, 204, private error-body exclusion, explicit CSRF header and external URL rejection. A representative privacy assertion is:
+[client.test.ts](../../../frontend/src/shared/api/client.test.ts) uses Vitest with stubbed fetch and restores globals using `afterEach(() => vi.unstubAllGlobals())`. It covers JSON/credentials, 204, private error-body exclusion, explicit and in-memory CSRF headers, and external URL rejection. [auth-state.test.ts](../../../frontend/src/features/auth/auth-state.test.ts) covers expiry delay and safe return paths. A representative privacy assertion is:
 
 ```ts
 await expect(request('/health/ready')).rejects.toMatchObject({
@@ -34,6 +34,10 @@ await expect(request('/health/ready')).rejects.toMatchObject({
 - Preserve [request return/error behavior](type-safety.md); compiled types do not validate JSON.
 - For API changes run `make generate` and review contract plus both generated outputs. Do not edit generated schema or commit `dist` build products.
 - For embedded build/proxy/deep-link changes run `make smoke`. The backend reserves `/api`, `/p`, `/health` and rejects missing assets instead of returning the SPA shell; [router tests](../../../backend/internal/http/router/router_test.go) exercise those boundaries.
+
+## Visual reference checks
+
+When implementing or correcting a screen from a design file, open the exact reference view and the local page in a browser before changing layout. Compare the same screen regions and inspect their internal hierarchy, spacing, typography, colors and responsive behavior; text extraction or a scaled thumbnail alone can hide structural differences. After edits, inspect the local page again at a comparable viewport and report any remaining viewport-driven differences.
 
 ## Future feature acceptance
 

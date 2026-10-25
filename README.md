@@ -1,6 +1,6 @@
 # 115-media-hub
 
-围绕 115 网盘媒体文件的 STRM 与元数据管理项目。目前仅完成前后端基础架构初始化，尚未实现业务功能。
+围绕 115 网盘媒体文件的 STRM 与元数据管理项目。目前已完成前后端基础架构和单管理员登录，媒体业务功能尚未实现。
 
 ## 工程结构
 
@@ -19,9 +19,11 @@
 make install
 ```
 
-在两个终端分别运行：
+先配置管理员用户名和密码。在两个终端分别运行：
 
 ```sh
+export MEDIA_HUB_ADMIN_USERNAME=your-admin-name
+export MEDIA_HUB_ADMIN_PASSWORD=replace-with-a-long-random-password
 make dev-backend
 ```
 
@@ -44,12 +46,16 @@ make smoke          # 联合构建并运行真实服务冒烟测试（需要 Pyt
 
 ```sh
 cd backend
-./bin/115-media-hub -config configs/config.example.yaml
+MEDIA_HUB_ADMIN_USERNAME=your-admin-name \
+MEDIA_HUB_ADMIN_PASSWORD=replace-with-a-long-random-password \
+./bin/115-media-hub
 ```
 
-`GET /health/live` 检查进程，`GET /health/ready` 检查数据库。所有业务 API 暂未实现，返回 404。管理端尚无认证，仅应在本机开发使用。
+`GET /health/live` 检查进程，`GET /health/ready` 检查数据库。管理端使用配置凭据登录，服务端会话自创建起固定 24 小时过期；没有内置默认凭据。也可以用 `-config` 指定包含 `admin_username` 和 `admin_password` 的 YAML 文件，详见[开发说明](docs/development.md)。媒体业务 API 暂未实现。
 
 ## Docker
+
+先复制 `.env.example` 为 `.env`，填写 `MEDIA_HUB_ADMIN_USERNAME` 和 `MEDIA_HUB_ADMIN_PASSWORD`，再运行：
 
 ```sh
 docker compose -f deploy/compose.yaml up --build -d

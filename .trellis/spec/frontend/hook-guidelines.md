@@ -2,7 +2,7 @@
 
 ## Current examples
 
-[AppProviders](../../../frontend/src/app/providers/AppProviders.tsx) creates the QueryClient once with lazy `useState`, reads a Zustand selector and updates document theme in `useEffect`. [preferences.ts](../../../frontend/src/shared/stores/preferences.ts) exports `usePreferences`; [AppLayout](../../../frontend/src/app/layouts/AppLayout.tsx) consumes it. These are the only current stateful hook patterns. `shared/hooks` is empty; no custom query hook, session hook or SSE hook exists. See [project context](../project-context.md).
+[AppProviders](../../../frontend/src/app/providers/AppProviders.tsx) creates the QueryClient once with lazy `useState`, reads a Zustand selector and updates document theme in `useEffect`. [preferences.ts](../../../frontend/src/shared/stores/preferences.ts) exports `usePreferences`; [AppLayout](../../../frontend/src/app/layouts/AppLayout.tsx) consumes it. [AuthProvider](../../../frontend/src/features/auth/AuthProvider.tsx) owns the session request, expiry timer and runtime CSRF token exposed through `useAuth`. `shared/hooks` is empty; no custom query or SSE hook exists. See [project context](../project-context.md) and [authentication contract](../backend/auth-contract.md).
 
 ```tsx
 const [queryClient] = useState(() => new QueryClient({

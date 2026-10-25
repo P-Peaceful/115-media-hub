@@ -16,7 +16,7 @@ English guidelines for the React foundation, reviewed on 2026-10-23. [Project co
 
 1. Read the active task PRD, [project context](../project-context.md) and [shared guides](../guides/index.md).
 2. Read directory structure and quality; use feature workflows for product behavior, components for UI work, hooks/state for data flow, and types for API boundaries.
-3. Inspect [package.json](../../../frontend/package.json), [router](../../../frontend/src/app/router/router.tsx) and [providers](../../../frontend/src/app/providers/AppProviders.tsx). Only foundation pages are implemented; feature folders are placeholders.
+3. Inspect [package.json](../../../frontend/package.json), [router](../../../frontend/src/app/router/router.tsx) and [providers](../../../frontend/src/app/providers/AppProviders.tsx). Login and the shared workspace shell are implemented; media business pages remain placeholders.
 4. Define the owning state layer, loading/error/partial behavior and keyboard interactions before implementing a screen. Confirm the pinned HeroUI exports before adopting examples from another version.
 
 ## Quality Check

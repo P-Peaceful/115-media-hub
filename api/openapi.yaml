@@ -1,9 +1,54 @@
 openapi: 3.0.3
 info:
-  title: 115-media-hub Infrastructure API
+  title: 115 Media Hub API
   version: 0.1.0
-  description: Infrastructure endpoints only. Business APIs are not implemented.
+  description: Infrastructure and single-admin authentication endpoints.
 paths:
+  /api/auth/login:
+    post:
+      operationId: loginAdmin
+      summary: Start an administrator session
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated; sets an HttpOnly session cookie
+          headers:
+            Set-Cookie:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthenticatedSession'
+        '400': { description: Invalid request }
+        '401': { description: Invalid username or password }
+  /api/auth/session:
+    get:
+      operationId: getAdminSession
+      summary: Read current administrator session
+      responses:
+        '200':
+          description: Session state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionState'
+  /api/auth/logout:
+    post:
+      operationId: logoutAdmin
+      summary: Revoke current administrator session
+      description: Requires X-CSRF-Token header and the session cookie.
+      security:
+        - SessionCookie: []
+          CsrfHeader: []
+      responses:
+        '204': { description: Session revoked }
+        '401': { description: No valid session }
+        '403': { description: Invalid CSRF token }
   /health/live:
     get:
       operationId: getLiveness
@@ -33,7 +78,36 @@ paths:
               schema:
                 $ref: '#/components/schemas/Health'
 components:
+  securitySchemes:
+    SessionCookie:
+      type: apiKey
+      in: cookie
+      name: media_hub_session
+    CsrfHeader:
+      type: apiKey
+      in: header
+      name: X-CSRF-Token
   schemas:
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string, format: password }
+    AuthenticatedSession:
+      type: object
+      required: [authenticated, csrfToken, expiresAt]
+      properties:
+        authenticated: { type: boolean, enum: [true] }
+        csrfToken: { type: string }
+        expiresAt: { type: string, format: date-time }
+    SessionState:
+      type: object
+      required: [authenticated]
+      properties:
+        authenticated: { type: boolean }
+        csrfToken: { type: string }
+        expiresAt: { type: string, format: date-time }
     Health:
       type: object
       required: [status]

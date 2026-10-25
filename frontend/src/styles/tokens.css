@@ -1,4 +1,24 @@
-/* Application-specific layout tokens; semantic colors inherit HeroUI themes. */
+/* Application typography and light palette; dark colors inherit HeroUI. */
 @theme {
-  --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: "Noto Sans SC", "PingFang SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+:root:not(.dark):not([data-theme="dark"]) {
+  --background: #f5f7fb;
+  --foreground: #1c2839;
+  --surface: #fff;
+  --surface-secondary: #f1f4f9;
+  --surface-tertiary: #eaf0f8;
+  --muted: #52647b;
+  --default: #edf2f8;
+  --default-foreground: #26364f;
+  --accent: #214dd8;
+  --accent-foreground: #fff;
+  --accent-soft: #e9f1ff;
+  --accent-soft-foreground: #1b4ac4;
+  --border: #d9e2ee;
+  --separator: #e3eaf4;
+  --success: #17804c;
+  --success-soft: #e8f7ee;
+  --success-soft-foreground: #0e6b3d;
 }

@@ -2,9 +2,9 @@
 
 ## 初始化边界
 
-已有：前后端工程配置、健康检查、SQLite 连接与 goose 迁移、JSON 日志与轮转、信号退出、静态资源与 SPA 回退、主题切换、React Router、TanStack Query Provider、Zustand 界面偏好、请求基础设施、OpenAPI 生成、Docker 联合构建。
+已有：前后端工程配置、健康检查、SQLite 连接与 goose 迁移、JSON 日志与轮转、信号退出、静态资源与 SPA 回退、单管理员登录/内存会话/CSRF 校验、受保护路由基础、主题切换、React Router、TanStack Query Provider、Zustand 界面偏好、OpenAPI 生成、Docker 联合构建。
 
-未实现：登录/Session/CSRF 服务端校验、115 授权和浏览、媒体库、扫描、STRM、播放解析、任务调度/持久化执行/SSE 事件、海报墙、元数据回传、审计、备份恢复。对应目录只有 `.gitkeep`，无业务数据表和成功占位接口。cron 等业务阶段依赖届时再引入；Motion、TanStack Table/Virtual 按需引入。
+未实现：115 授权和浏览、媒体库、扫描、STRM、播放解析、任务调度/持久化执行/SSE 事件、海报墙、元数据回传、审计、备份恢复。对应目录只有 `.gitkeep`，无业务数据表和成功占位接口。cron 等业务阶段依赖届时再引入；Motion、TanStack Table/Virtual 按需引入。
 
 ## 配置
 
@@ -16,10 +16,15 @@
 | `MEDIA_HUB_DATABASE_PATH` | `./data/115-media-hub.db` |
 | `MEDIA_HUB_LOG_DIR` | `./logs` |
 | `MEDIA_HUB_SHUTDOWN_TIMEOUT` | `10s` |
+| `MEDIA_HUB_ADMIN_USERNAME` | 必填；也可在 YAML 配置 `admin_username` |
+| `MEDIA_HUB_ADMIN_PASSWORD` | 必填；也可在 YAML 配置 `admin_password` |
+| `MEDIA_HUB_COOKIE_SECURE` | `false`；HTTPS 部署设置为 `true` |
 
 相对路径以进程工作目录为基准。根目录 `.env.example` 是配置说明；Go 不自动加载 `.env`。Vite 代理目标通过启动环境变量 `MEDIA_HUB_DEV_API_URL` 指定，例如 `MEDIA_HUB_DEV_API_URL=http://127.0.0.1:9090 make dev-frontend`。
 
-YAML 使用严格字段校验，未知字段、非法端口、空数据库路径和非正退出超时会阻止启动。
+YAML 使用严格字段校验，未知字段、非法端口、空数据库路径、非正退出超时和缺失/全空白的管理员用户名或密码会阻止启动。用户名和密码没有默认值。ENV 按字段覆盖 YAML；显式设置为空仍会覆盖 YAML 并导致启动失败。密码以原文验证，首尾空格也属于密码内容，但全空白密码不允许。修改凭据需更新部署配置并重启，重启会清空全部内存会话。
+
+本地可设置 `MEDIA_HUB_ADMIN_USERNAME` 和 `MEDIA_HUB_ADMIN_PASSWORD` 后运行 `make dev-backend`，或在 `backend/configs/config.example.yaml` 复制并填写 YAML 字段。Docker Compose 通过必填环境变量注入用户名和密码：复制 `.env.example` 为 `.env`，取消凭据变量注释并填写强密码，再运行 `docker compose -f deploy/compose.yaml up -d`。修改 `.env` 后重建容器以应用配置。默认 Cookie Secure 关闭以支持回环 HTTP；通过 HTTPS 提供服务时设置 `MEDIA_HUB_COOKIE_SECURE=true`，应用不根据转发头推断 TLS。凭据不要提交到版本库。
 
 ## 数据库和日志
 
@@ -31,11 +36,11 @@ YAML 使用严格字段校验，未知字段、非法端口、空数据库路径
 
 HeroUI v3 使用 `@heroui/react` 与 `@heroui/styles`，不需要 v2 的 Provider。CSS 导入顺序为 Tailwind → HeroUI → 应用变量。主题仅存储在 Zustand 偏好中；服务端数据归 TanStack Query；导航目录、筛选、分页应使用 URL。
 
-请求封装只接受同源绝对路径，使用 same-origin Cookie；变更请求可显式传入 CSRF token。此能力不是完整认证方案，需后续会话服务提供 token 和后端校验。未实现的 SSE 连接与会话逻辑暂不添加。
+请求封装只接受同源绝对路径，使用 same-origin Cookie；登录后 CSRF token 仅保存在运行时内存并自动附加到变更请求。管理员会话为单实例内存态，随机会话 ID 通过 HttpOnly、SameSite=Lax Cookie 传输，自创建后固定 24 小时过期且不滑动续期；活动请求不延长寿命，重启或退出立即失效。`/api/auth/login`、`/api/auth/session`、`/api/auth/logout` 是认证端点；未来管理 API 应通过 `RegisterManagementRoutes` 注册以要求有效会话和 CSRF token。健康探针保持公开；115 播放认证不在此范围内。
 
 ## 契约与构建
 
-修改 `api/openapi.yaml` 后运行 `make generate`，提交契约及两端生成文件。Go 健康检查实现通过生成的 ServerInterface 注册，避免手工路由与契约漂移。
+修改 `api/openapi.yaml` 后运行 `make generate`，提交契约及两端生成文件。Go 健康检查和认证路由通过生成的 ServerInterface 注册，避免手工路由与契约漂移。
 
 `make build` 将 `frontend/dist` 复制到 `backend/internal/webui/dist`，以 `embedui` build tag 构建生产程序。默认 Go 开发构建无此前端资源依赖。产物目录不提交。
 

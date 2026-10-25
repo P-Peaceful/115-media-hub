@@ -1,0 +1,17 @@
+{"file":".trellis/spec/project-context.md","reason":"Current-versus-required boundary, module constraints, existing API and deployment invariants"}
+{"file":".trellis/spec/backend/index.md","reason":"Backend pre-development checklist and quality gates for config, HTTP, logging and tests"}
+{"file":".trellis/spec/backend/go-coding-guidelines.md","reason":"Go boundaries, security, errors, context and test conventions"}
+{"file":".trellis/spec/backend/directory-structure.md","reason":"Composition and ownership of config, auth service, handlers and generated API"}
+{"file":".trellis/spec/backend/error-handling.md","reason":"Startup configuration failures and HTTP response conventions"}
+{"file":".trellis/spec/backend/logging-guidelines.md","reason":"Credential, cookie, request-body and token logging privacy"}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Backend validation commands and generated contract checks"}
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend pre-development checklist and quality gates for auth state, routes and UI"}
+{"file":".trellis/spec/frontend/directory-structure.md","reason":"Frontend route, provider and API module ownership"}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Login form semantics, HeroUI v3 usage, focus and accessibility expectations"}
+{"file":".trellis/spec/frontend/feature-guidelines.md","reason":"Feature boundaries, redirects, session failure states and credential handling"}
+{"file":".trellis/spec/frontend/hook-guidelines.md","reason":"Auth provider lifecycle and request/session state ownership"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Runtime auth state, URL state and persistence boundaries"}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"OpenAPI-generated request and response contracts"}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Frontend lint, typecheck, tests and build checks"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"API/config/backend/frontend data flow and generated contract alignment"}
+{"file":"docs/development.md","reason":"Existing ENV/YAML precedence, same-origin request behavior, logging, build and smoke checks"}

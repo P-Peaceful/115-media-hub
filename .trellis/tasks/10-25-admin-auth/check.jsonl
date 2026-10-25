@@ -1,0 +1,15 @@
+{"file":".trellis/spec/backend/index.md","reason":"Review implementation against backend pre-development and quality requirements"}
+{"file":".trellis/spec/backend/go-coding-guidelines.md","reason":"Review auth service and middleware boundaries, randomness, error handling and security"}
+{"file":".trellis/spec/backend/logging-guidelines.md","reason":"Verify no credentials, cookie values, request bodies or CSRF tokens reach logs"}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Run backend tests, vet, generation checks and smoke validation"}
+{"file":".trellis/spec/frontend/index.md","reason":"Review frontend routing, loading behavior, accessibility and quality checks"}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"Review login field semantics, focus, keyboard access and HeroUI patterns"}
+{"file":".trellis/spec/frontend/feature-guidelines.md","reason":"Review auth feature boundaries, redirects and expired-session UX"}
+{"file":".trellis/spec/frontend/hook-guidelines.md","reason":"Review auth lifecycle, state ownership, and event/timer cleanup"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Verify auth and CSRF state is runtime-only and route context remains URL-owned"}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Verify generated API schemas and typed request handling match OpenAPI"}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Run frontend typecheck, lint, test and build checks"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Review request/response, session, CSRF and route protection end-to-end"}
+{"file":".trellis/tasks/10-25-admin-auth/prd.md","reason":"Check each acceptance criterion, 24-hour fixed expiry, no-persistence and scope boundaries"}
+{"file":".trellis/tasks/10-25-admin-auth/design.md","reason":"Check auth route contracts, cookie policy, middleware coverage and startup configuration design"}
+{"file":".trellis/tasks/10-25-admin-auth/implement.md","reason":"Check ordered execution, coverage, generated outputs and rollback points"}

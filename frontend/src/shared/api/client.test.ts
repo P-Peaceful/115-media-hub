@@ -24,6 +24,15 @@ describe('request', () => {
     await request('/api/v1/example', { method: 'POST', csrfToken: 'test-token' })
     expect(new Headers(fetcher.mock.calls[0][1].headers).get('X-CSRF-Token')).toBe('test-token')
   })
+  it('automatically attaches the in-memory CSRF token to mutations', async () => {
+    const fetcher = vi.fn().mockResolvedValue(new Response('{}'))
+    vi.stubGlobal('fetch', fetcher)
+    const { setCsrfToken } = await import('../../features/auth/auth-state')
+    setCsrfToken('csrf-secret')
+    await request('/api/admin/example', { method: 'POST', body: '{}' })
+    expect(new Headers(fetcher.mock.calls[0][1]?.headers).get('X-CSRF-Token')).toBe('csrf-secret')
+    setCsrfToken(null)
+  })
   it('rejects external URLs to keep credentials and CSRF tokens same-origin', async () => {
     await expect(request('https://example.com/api')).rejects.toThrow('same-origin')
     await expect(request('//example.com/api')).rejects.toThrow('same-origin')

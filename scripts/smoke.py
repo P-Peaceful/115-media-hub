@@ -19,7 +19,8 @@ with tempfile.TemporaryDirectory(prefix="115-media-hub-smoke-") as directory:
         port = sock.getsockname()[1]
     env = dict(os.environ, MEDIA_HUB_HTTP_ADDR=f"127.0.0.1:{port}",
                MEDIA_HUB_DATABASE_PATH=str(temporary / "app.db"),
-               MEDIA_HUB_LOG_DIR=str(temporary / "logs"))
+               MEDIA_HUB_LOG_DIR=str(temporary / "logs"),
+               MEDIA_HUB_ADMIN_USERNAME="smoke-admin", MEDIA_HUB_ADMIN_PASSWORD="smoke-password")
     with (temporary / "process.log").open("w+") as output:
         process = subprocess.Popen([str(ROOT / "backend/bin/115-media-hub")], env=env,
                                    stdout=output, stderr=subprocess.STDOUT)
@@ -41,6 +42,13 @@ with tempfile.TemporaryDirectory(prefix="115-media-hub-smoke-") as directory:
                     assert response.status == 200, path
                     if path != "/health/live":
                         assert '<div id="root">' in response.read().decode(), path
+            with urlopen(base + "/api/auth/session", timeout=2) as response:
+                assert json.load(response) == {"authenticated": False}
+            login = Request(base + "/api/auth/login", data=json.dumps({"username":"smoke-admin", "password":"smoke-password"}).encode(), headers={"Content-Type":"application/json"}, method="POST")
+            with urlopen(login, timeout=2) as response:
+                session = json.load(response)
+                assert session["authenticated"] is True and session["csrfToken"]
+                assert "HttpOnly" in response.headers.get("Set-Cookie", "")
             for path in ["/api/v1/unknown", "/p/unknown", "/assets/missing.js"]:
                 try:
                     urlopen(Request(base + path, headers={"Accept": "text/html"}), timeout=2)
@@ -53,7 +61,7 @@ with tempfile.TemporaryDirectory(prefix="115-media-hub-smoke-") as directory:
                 assert tables <= {"goose_db_version", "sqlite_sequence"}, tables
             process.send_signal(signal.SIGTERM)
             assert process.wait(timeout=15) == 0
-            print("PASS: health, embedded SPA, reserved route 404, infrastructure-only schema, graceful shutdown")
+            print("PASS: health, auth session/login cookie, embedded SPA, reserved route 404, infrastructure-only schema, graceful shutdown")
         finally:
             if process.poll() is None:
                 process.terminate()

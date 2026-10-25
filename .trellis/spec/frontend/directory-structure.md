@@ -17,7 +17,7 @@ frontend/src/
   assets/                currently .gitkeep only
 ```
 
-Concrete navigation examples are [router.tsx](../../../frontend/src/app/router/router.tsx) and [FoundationPages.tsx](../../../frontend/src/app/router/FoundationPages.tsx). `/` renders the foundation page, `*` renders not-found, and the layout supplies `errorElement`. No drive/task/settings feature route is implemented. A server deep-link shell response does not imply that React has a matching business page.
+Concrete navigation examples are [router.tsx](../../../frontend/src/app/router/router.tsx) and [FoundationPages.tsx](../../../frontend/src/app/router/FoundationPages.tsx). `/login` renders the administrator login; authenticated `/` renders the foundation page, while `*` renders not-found inside the shared layout. No drive/task/settings feature route is implemented. A server deep-link shell response does not imply that React has a matching business page.
 
 ## Placement and naming
 

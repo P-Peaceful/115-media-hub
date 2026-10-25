@@ -4,8 +4,25 @@
 package generated
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 )
+
+// Defines values for AuthenticatedSessionAuthenticated.
+const (
+	True AuthenticatedSessionAuthenticated = true
+)
+
+// Valid indicates whether the value is a known member of the AuthenticatedSessionAuthenticated enum.
+func (e AuthenticatedSessionAuthenticated) Valid() bool {
+	switch e {
+	case True:
+		return true
+	default:
+		return false
+	}
+}
 
 // Defines values for HealthStatus.
 const (
@@ -25,6 +42,16 @@ func (e HealthStatus) Valid() bool {
 	}
 }
 
+// AuthenticatedSession defines model for AuthenticatedSession.
+type AuthenticatedSession struct {
+	Authenticated AuthenticatedSessionAuthenticated `json:"authenticated"`
+	CsrfToken     string                            `json:"csrfToken"`
+	ExpiresAt     time.Time                         `json:"expiresAt"`
+}
+
+// AuthenticatedSessionAuthenticated defines model for AuthenticatedSession.Authenticated.
+type AuthenticatedSessionAuthenticated bool
+
 // Health defines model for Health.
 type Health struct {
 	Status HealthStatus `json:"status"`
@@ -33,8 +60,33 @@ type Health struct {
 // HealthStatus defines model for Health.Status.
 type HealthStatus string
 
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	Password string `json:"password"`
+	Username string `json:"username"`
+}
+
+// SessionState defines model for SessionState.
+type SessionState struct {
+	Authenticated bool       `json:"authenticated"`
+	CsrfToken     *string    `json:"csrfToken,omitempty"`
+	ExpiresAt     *time.Time `json:"expiresAt,omitempty"`
+}
+
+// LoginAdminJSONRequestBody defines body for LoginAdmin for application/json ContentType.
+type LoginAdminJSONRequestBody = LoginRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// LoginAdmin Start an administrator session
+	// (POST /api/auth/login)
+	LoginAdmin(c *gin.Context)
+	// LogoutAdmin Revoke current administrator session
+	// (POST /api/auth/logout)
+	LogoutAdmin(c *gin.Context)
+	// GetAdminSession Read current administrator session
+	// (GET /api/auth/session)
+	GetAdminSession(c *gin.Context)
 	// GetLiveness Process liveness
 	// (GET /health/live)
 	GetLiveness(c *gin.Context)
@@ -51,6 +103,45 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(c *gin.Context)
+
+// LoginAdmin operation middleware
+func (siw *ServerInterfaceWrapper) LoginAdmin(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.LoginAdmin(c)
+}
+
+// LogoutAdmin operation middleware
+func (siw *ServerInterfaceWrapper) LogoutAdmin(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.LogoutAdmin(c)
+}
+
+// GetAdminSession operation middleware
+func (siw *ServerInterfaceWrapper) GetAdminSession(c *gin.Context) {
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.GetAdminSession(c)
+}
 
 // GetLiveness operation middleware
 func (siw *ServerInterfaceWrapper) GetLiveness(c *gin.Context) {
@@ -105,6 +196,9 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 		ErrorHandler:       errorHandler,
 	}
 
+	router.POST(options.BaseURL+"/api/auth/login", wrapper.LoginAdmin)
+	router.GET(options.BaseURL+"/api/auth/session", wrapper.GetAdminSession)
+	router.POST(options.BaseURL+"/api/auth/logout", wrapper.LogoutAdmin)
 	router.GET(options.BaseURL+"/health/live", wrapper.GetLiveness)
 	router.GET(options.BaseURL+"/health/ready", wrapper.GetReadiness)
 }

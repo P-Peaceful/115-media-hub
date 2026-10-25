@@ -10,8 +10,6 @@ import (
 
 type Health struct{ Ping func(context.Context) error }
 
-var _ generated.ServerInterface = Health{}
-
 func (h Health) GetLiveness(c *gin.Context) {
 	c.JSON(200, generated.Health{Status: generated.Ok})
 }
