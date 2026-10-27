@@ -49,6 +49,113 @@ paths:
         '204': { description: Session revoked }
         '401': { description: No valid session }
         '403': { description: Invalid CSRF token }
+  /api/admin/connections/115:
+    get:
+      operationId: get115Connection
+      summary: Read the configured 115 connection summary
+      security: [{ SessionCookie: [] }]
+      responses:
+        '200':
+          description: Connection summary, or configured false when absent
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConnectionSummary' }
+        '401': { description: No valid administrator session }
+  /api/admin/connections/115/qr-sessions:
+    post:
+      operationId: create115QRCodeSession
+      summary: Start a short-lived 115 QR authorization session
+      security: [{ SessionCookie: [], CsrfHeader: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CreateQRCodeSessionRequest' }
+      responses:
+        '201':
+          description: QR session metadata; retrieve the image from its protected image endpoint
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QRCodeSession' }
+        '400': { description: Invalid device, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '401': { description: No valid administrator session }
+        '403': { description: Invalid CSRF token }
+        '503': { description: Authorization service unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+  /api/admin/connections/115/qr-sessions/{sessionId}:
+    get:
+      operationId: get115QRCodeSession
+      summary: Read normalized QR authorization status
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Normalized session status
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/QRCodeSession' }
+        '401': { description: No valid administrator session }
+        '404': { description: Session missing or expired from memory, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+  /api/admin/connections/115/qr-sessions/{sessionId}/qr:
+    get:
+      operationId: get115QRCodeImage
+      summary: Retrieve QR image for an active session
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string } }
+      responses:
+        '200': { description: QR image, content: { image/png: { schema: { type: string, format: binary } } } }
+        '401': { description: No valid administrator session }
+        '404': { description: Session missing or expired from memory, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+  /api/admin/connections/115/qr-sessions/{sessionId}/complete:
+    post:
+      operationId: complete115QRCodeSession
+      summary: Complete authorization and persist verified credentials
+      security: [{ SessionCookie: [], CsrfHeader: [] }]
+      parameters:
+        - { in: path, name: sessionId, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Safe connection summary
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Connection' }
+        '401': { description: No valid administrator session }
+        '403': { description: Invalid CSRF token }
+        '404': { description: Session missing or expired from memory, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '409': { description: Authorized account differs from existing connection, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '422': { description: Session is not authorized or cannot be completed, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '503': { description: Verification or credential storage unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+  /api/admin/connections/115/test:
+    post:
+      operationId: test115Connection
+      summary: Perform a read-only connection and root-directory capability check
+      security: [{ SessionCookie: [], CsrfHeader: [] }]
+      responses:
+        '200':
+          description: Connection check evidence
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConnectionTestResult' }
+        '401': { description: No valid administrator session }
+        '403': { description: Invalid CSRF token }
+        '404': { description: No configured connection, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '503': { description: Connection is not usable with current configuration, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+  /api/admin/connections/115/profile/refresh:
+    post:
+      operationId: refresh115AccountProfile
+      summary: Refresh the safe 115 account and storage profile snapshot
+      security: [{ SessionCookie: [], CsrfHeader: [] }]
+      responses:
+        '200':
+          description: Updated connection and profile snapshot
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Connection' }
+        '401': { description: No valid administrator session }
+        '403': { description: Invalid CSRF token }
+        '404': { description: No configured connection, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '503': { description: Profile refresh unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
   /health/live:
     get:
       operationId: getLiveness
@@ -115,3 +222,80 @@ components:
         status:
           type: string
           enum: [ok, unavailable]
+    CreateQRCodeSessionRequest:
+      type: object
+      required: [device]
+      properties:
+        device: { $ref: '#/components/schemas/QRCodeDevice' }
+    QRCodeDevice:
+      type: string
+      enum: [web, alipaymini, wechatmini]
+    QRCodeSession:
+      type: object
+      required: [sessionId, device, expiresAt, status]
+      properties:
+        sessionId: { type: string }
+        device: { $ref: '#/components/schemas/QRCodeDevice' }
+        expiresAt: { type: string, format: date-time }
+        status: { type: string, enum: [creating, waiting, scanned, allowed, expired, canceled, failed] }
+        message: { type: string }
+        upstreamCode: { type: string }
+    ConnectionSummary:
+      type: object
+      required: [configured]
+      properties:
+        configured: { type: boolean }
+        connection: { $ref: '#/components/schemas/Connection' }
+    Connection:
+      type: object
+      required: [id, name, externalAccountId, status, capabilities, profile, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        externalAccountId: { type: string }
+        status: { type: string, enum: [unchecked, available, invalid, limited, unreachable, unknown] }
+        capabilities:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEvidence' }
+        profile: { $ref: '#/components/schemas/AccountProfile' }
+        updatedAt: { type: string, format: date-time }
+    AccountProfile:
+      type: object
+      required: [accountName, membershipStatus, membershipLevel]
+      properties:
+        accountName: { type: string }
+        avatarUrl: { type: string, format: uri, nullable: true, description: HTTPS avatar URL from the Cookie profile API; clients must validate host and use no-referrer }
+        authorizationType: { type: string, enum: [cookie] }
+        membershipStatus: { type: string, enum: [active, ordinary, unknown] }
+        membershipLevel: { type: integer, minimum: 0 }
+        membershipExpiresAt: { type: string, format: date-time, nullable: true }
+        storageTotalBytes: { type: integer, format: int64, minimum: 0, nullable: true }
+        storageUsedBytes: { type: integer, format: int64, minimum: 0, nullable: true }
+        storageFreeBytes: { type: integer, format: int64, minimum: 0, nullable: true }
+        deviceCount: { type: integer, minimum: 0, nullable: true, description: Number of logged-in devices when exposed by the Cookie SDK }
+        retrievedAt: { type: string, format: date-time, nullable: true }
+    CapabilityEvidence:
+      type: object
+      required: [name, status]
+      properties:
+        name: { type: string, enum: [account_identity, root_directory_read] }
+        status: { type: string, enum: [available, unavailable, unknown] }
+        detail: { type: string }
+    ConnectionTestResult:
+      type: object
+      required: [status, capabilities, checkedAt]
+      properties:
+        status: { type: string, enum: [available, invalid, limited, unreachable, unknown] }
+        capabilities:
+          type: array
+          items: { $ref: '#/components/schemas/CapabilityEvidence' }
+        checkedAt: { type: string, format: date-time }
+        message: { type: string, description: Sanitized 115 upstream message }
+        upstreamCode: { type: string, description: Extracted 115 upstream code }
+    ErrorResponse:
+      type: object
+      required: [category, message]
+      properties:
+        category: { type: string, enum: [invalid_request, unauthorized, forbidden, not_found, conflict, unavailable, internal] }
+        message: { type: string }
+        upstreamCode: { type: string, description: Extracted 115 upstream code; never contains response body or credentials }

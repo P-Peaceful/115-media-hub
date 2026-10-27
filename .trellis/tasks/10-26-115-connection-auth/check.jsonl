@@ -1,0 +1,7 @@
+{"file":".trellis/spec/project-context.md","reason":"Review scope against the project source of truth and future media workflow dependencies."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Run the repository quality gate and distinguish executed checks from deferred acceptance scenarios."}
+{"file":".trellis/spec/backend/logging-guidelines.md","reason":"Check that HTTP and business logs redact QR parameters, cookies, tokens, and encryption keys."}
+{"file":".trellis/spec/backend/database-guidelines.md","reason":"Verify migration shape, no foreign keys/CHECK constraints, transaction rollback, and singleton behavior."}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Review frontend typecheck, lint, tests, accessibility, and generated schema consistency."}
+{"file":".trellis/spec/frontend/state-management.md","reason":"Verify Query ownership, in-memory QR state, refresh behavior, and no credential persistence."}
+{"file":".trellis/tasks/10-26-115-connection-auth/research/github-115-auth.md","reason":"Cross-check implementation against researched upstream statuses, device choices, and license constraints."}

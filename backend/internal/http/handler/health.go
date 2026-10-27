@@ -11,14 +11,14 @@ import (
 type Health struct{ Ping func(context.Context) error }
 
 func (h Health) GetLiveness(c *gin.Context) {
-	c.JSON(200, generated.Health{Status: generated.Ok})
+	c.JSON(200, generated.Health{Status: generated.HealthStatusOk})
 }
 func (h Health) GetReadiness(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 	defer cancel()
 	if err := h.Ping(ctx); err != nil {
-		c.JSON(503, generated.Health{Status: generated.Unavailable})
+		c.JSON(503, generated.Health{Status: generated.HealthStatusUnavailable})
 		return
 	}
-	c.JSON(200, generated.Health{Status: generated.Ok})
+	c.JSON(200, generated.Health{Status: generated.HealthStatusOk})
 }

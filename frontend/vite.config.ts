@@ -12,5 +12,5 @@ export default defineConfig({
       prefix, { target: backend, changeOrigin: true },
     ])),
   },
-  test: { environment: 'node', include: ['src/**/*.test.ts'] },
+  test: { environment: 'node', include: ['src/**/*.test.{ts,tsx}'] },
 })

@@ -6,13 +6,23 @@ Read [project context](../project-context.md) and the adopted [frontend architec
 
 | State | Owner | Current implementation |
 | --- | --- | --- |
-| Server objects, runs, counts and request status | TanStack Query | Provider/defaults only; no queries |
+| Server objects, runs, counts and request status | TanStack Query | Provider/defaults; 115 connection summary and QR status use Query |
 | Connection/directory/library scope, filters, paging, detail deep link | URL / React Router | Root and wildcard routes only |
 | Permitted UI preferences | Zustand persistence | Theme only |
-| Form/wizard drafts, temporary page selection | Local/page state | No business forms or selection yet |
+| Form/wizard drafts, temporary page selection | Local/page state | 115 device choice and current QR session are component-local |
 | Administrator session status and CSRF token | AuthProvider and module memory | Session queried at startup; token never persisted |
 
-Do not store the same fact in multiple owners. Derive values instead of maintaining synchronized copies. [AppProviders](../../../frontend/src/app/providers/AppProviders.tsx) owns one client with query `staleTime: 30_000`, query `retry: 1` and mutation `retry: false`. These are application overrides, not a complete list of Query library defaults; no polling interval or SSE behavior is configured.
+Do not store the same fact in multiple owners. Derive values instead of maintaining synchronized copies. [AppProviders](../../../frontend/src/app/providers/AppProviders.tsx) owns one client with query `staleTime: 30_000`, query `retry: 1` and mutation `retry: false`. These are application overrides, not a complete list of Query library defaults. Individual features own bounded polling intervals; no SSE behavior is configured.
+
+## 115 QR session state
+
+The connection summary is server data and belongs in TanStack Query. The selected device, opaque local session ID, expiry display value, QR image load state, and per-session completion guard stay in page memory. Do not put any QR data in route params, navigation state, local/session storage, Zustand, or logs. The QR graphic is fetched from the same-origin protected `/api/admin/connections/115/qr-sessions/{sessionId}/qr` endpoint; JSON status responses contain only local session metadata and normalized state. Load the image before starting status polling so a terminal poll cannot clear the backend challenge while the browser is still fetching the QR. A refresh discards the session and requires a new QR.
+
+The connection summary query is also consumed by the settings-area sidebar card so both surfaces show the same server-owned profile snapshot. Keep the card as a feature component and reuse the same query key; refreshing account profile replaces that cached summary with the response. The connection page remains directly routable even though it is not a primary navigation item.
+
+For membership display, render the confirmed VIP status and expiry supplied by the connection profile. Do not show a raw SDK numeric `vip` value as an official level name or infer labels from it; the current Cookie SDK does not provide `level_name`. Missing or ambiguous membership evidence displays as unknown rather than ordinary.
+
+Poll at a bounded interval and stop for `allowed`, `expired`, `canceled`, or `failed`. Submit completion once per local session ID; an error must not trigger automatic completion retries. After successful completion, invalidate the connection summary. Reauthorization must expose the device selector before creating a session and keep the Web device warning visible while Web is selected.
 
 ## Existing preference contract
 

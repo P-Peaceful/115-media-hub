@@ -1,11 +1,12 @@
 import { Button, Tooltip } from '@heroui/react'
 import {
-  Activity, Archive, Boxes, CircleHelp, Clapperboard, FolderOpen,
-  LayoutDashboard, ListTodo, Moon, Settings, Sun, Tags, Wifi,
+  Activity, Archive, Boxes, Clapperboard, FolderOpen,
+  LayoutDashboard, ListTodo, Moon, Settings, Sun, Tags,
 } from 'lucide-react'
 import { useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router'
 import { useAuth } from '../../features/auth/auth-context'
+import { ConnectionSidebarCard } from '../../features/connections/ConnectionSidebarCard'
 import { usePreferences } from '../../shared/stores/preferences'
 
 const navigation = [
@@ -33,7 +34,7 @@ export function AppLayout() {
 
   const active = navigation.find((item) => item.path === location.pathname
     || (item.path !== '/' && location.pathname.startsWith(`${item.path}/`)))
-    ?? navigation[0]
+    ?? (location.pathname === '/connections' ? { label: '连接管理' } : navigation[0])
   const themeActionLabel = theme === 'dark' ? '切换浅色主题' : '切换深色主题'
   return (
     <div className="flex min-h-screen bg-background text-foreground">
@@ -49,10 +50,10 @@ export function AppLayout() {
         </div>
 
         <nav aria-label="主导航" className="flex flex-1 flex-col gap-1">
-          {navigation.map(({ label, icon: Icon }) => {
+          {navigation.map(({ label, icon: Icon, path }) => {
             const selected = active.label === label
             return (
-              <button key={label} type="button" aria-current={selected ? 'page' : undefined}
+              <button key={label} type="button" aria-current={selected ? 'page' : undefined} onClick={() => navigate(path)}
                 className={`flex h-10 items-center gap-3 rounded-lg px-3 text-left text-sm font-medium max-[720px]:w-11 max-[720px]:justify-center max-[720px]:px-0 ${selected ? 'bg-accent-soft text-accent-soft-foreground' : 'text-muted transition-colors hover:bg-surface-secondary hover:text-foreground'}`}
                 title={label}>
                 <Icon size={18} strokeWidth={1.9} />
@@ -66,16 +67,7 @@ export function AppLayout() {
           <button type="button" className="flex h-10 w-full items-center gap-3 rounded-lg px-3 text-sm font-medium text-muted hover:bg-surface-secondary max-[720px]:w-11 max-[720px]:justify-center max-[720px]:px-0" title="设置">
             <Settings size={18} strokeWidth={1.9} /><span className="max-[720px]:hidden">设置</span>
           </button>
-          <div className="mt-4 rounded-xl border border-separator bg-surface-secondary p-3 max-[720px]:hidden">
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-8 items-center justify-center rounded-lg bg-success-soft text-success-soft-foreground"><Wifi size={16} /></span>
-              <div className="min-w-0">
-                <div className="text-xs font-semibold text-foreground">115 网盘连接</div>
-                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted"><span className="size-1.5 rounded-full bg-success" />待授权</div>
-              </div>
-              <CircleHelp size={15} className="ml-auto shrink-0 text-muted" />
-            </div>
-          </div>
+          <ConnectionSidebarCard />
         </div>
       </aside>
 

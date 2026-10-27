@@ -1,8 +1,12 @@
 package database
 
 import (
+	"context"
 	"path/filepath"
 	"testing"
+
+	"github.com/pressly/goose/v3"
+	"github.com/wenzhengcheng/115-media-hub/backend/migrations"
 )
 
 func TestOpenEnablesSQLiteSafetyAndMigrations(t *testing.T) {
@@ -36,8 +40,15 @@ func TestOpenEnablesSQLiteSafetyAndMigrations(t *testing.T) {
 		if err := sqlDB.QueryRow("SELECT MAX(version_id) FROM goose_db_version WHERE is_applied = 1").Scan(&version); err != nil {
 			t.Fatal(err)
 		}
-		if version != 1 {
-			t.Fatalf("migration version = %d", version)
+		if version != 3 {
+			t.Fatalf("migration version = %d, want 3", version)
+		}
+		var profileColumn int
+		if err := sqlDB.QueryRow("SELECT COUNT(*) FROM pragma_table_info('connections') WHERE name = 'profile_json'").Scan(&profileColumn); err != nil {
+			t.Fatal(err)
+		}
+		if profileColumn != 1 {
+			t.Fatal("profile_json column was not migrated")
 		}
 		if sqlDB.Stats().MaxOpenConnections != 1 {
 			t.Fatal("expected single write connection")
@@ -45,5 +56,41 @@ func TestOpenEnablesSQLiteSafetyAndMigrations(t *testing.T) {
 		if err := sqlDB.Close(); err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestConnectionMigrationsRollbackAndReapply(t *testing.T) {
+	db, err := Open(filepath.Join(t.TempDir(), "rollback.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	sqlDB, err := db.DB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sqlDB.Close() })
+
+	provider, err := goose.NewProvider(goose.DialectSQLite3, sqlDB, migrations.Files)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := provider.DownTo(context.Background(), 1); err != nil {
+		t.Fatalf("rollback connection migrations: %v", err)
+	}
+	var tableCount int
+	if err := sqlDB.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'connections'").Scan(&tableCount); err != nil {
+		t.Fatal(err)
+	}
+	if tableCount != 0 {
+		t.Fatal("connections table still exists after rolling back its migrations")
+	}
+	if _, err := provider.UpTo(context.Background(), 3); err != nil {
+		t.Fatalf("reapply connection migrations: %v", err)
+	}
+	if err := sqlDB.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'connections'").Scan(&tableCount); err != nil {
+		t.Fatal(err)
+	}
+	if tableCount != 1 {
+		t.Fatal("connections table was not restored after reapplying migrations")
 	}
 }

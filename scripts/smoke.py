@@ -58,10 +58,14 @@ with tempfile.TemporaryDirectory(prefix="115-media-hub-smoke-") as directory:
                     raise AssertionError(f"Expected 404: {path}")
             with sqlite3.connect(temporary / "app.db") as database:
                 tables = {row[0] for row in database.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-                assert tables <= {"goose_db_version", "sqlite_sequence"}, tables
+                assert {"goose_db_version", "connections"} <= tables, tables
+                columns = {row[1] for row in database.execute("PRAGMA table_info(connections)")}
+                assert {"credential_json", "capabilities_json", "profile_json"} <= columns, columns
+                connection_count = database.execute("SELECT COUNT(*) FROM connections").fetchone()[0]
+                assert connection_count == 0, connection_count
             process.send_signal(signal.SIGTERM)
             assert process.wait(timeout=15) == 0
-            print("PASS: health, auth session/login cookie, embedded SPA, reserved route 404, infrastructure-only schema, graceful shutdown")
+            print("PASS: health, auth session/login cookie, embedded SPA, reserved route 404, connection schema, graceful shutdown")
         finally:
             if process.poll() is None:
                 process.terminate()

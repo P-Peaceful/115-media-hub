@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useLayoutEffect, useState, type ReactNode } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { usePreferences } from '../../shared/stores/preferences'
 import { AuthProvider } from '../../features/auth/AuthProvider'
@@ -8,7 +8,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
     defaultOptions: { queries: { staleTime: 30_000, retry: 1 }, mutations: { retry: false } },
   }))
   const theme = usePreferences((state) => state.theme)
-  useEffect(() => {
+  useLayoutEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
     document.documentElement.dataset.theme = theme
     document.documentElement.style.colorScheme = theme

@@ -9,6 +9,7 @@ These English guidelines describe the Go foundation as reviewed on 2026-10-23. R
 | [Database](database-guidelines.md) | SQLite, migrations and future transaction rules |
 | [Error handling](error-handling.md) | Startup configuration, health responses and SPA failures |
 | [Administrator authentication](auth-contract.md) | Required deployment credentials, 24-hour sessions, Cookie/CSRF and management API boundary |
+| [115 connection contract](connection-guidelines.md) | QR lifecycle, server-side credential persistence, connection status, API and failure handling |
 | [Logging](logging-guidelines.md) | Structured events, rotation and privacy |
 | [Quality](quality-guidelines.md) | Checks, review boundaries and future acceptance tests |
 

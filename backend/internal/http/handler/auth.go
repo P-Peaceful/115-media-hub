@@ -96,6 +96,10 @@ func (h Auth) clearCookie(c *gin.Context) {
 
 func (h Auth) Middleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if h.Service == nil {
+			c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "authentication unavailable"})
+			return
+		}
 		id, err := c.Cookie(sessionCookieName)
 		if err != nil {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})

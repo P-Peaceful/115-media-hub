@@ -20,6 +20,10 @@ type Config struct {
 	AdminUsername   string        `yaml:"admin_username"`
 	AdminPassword   string        `yaml:"admin_password"`
 	CookieSecure    bool          `yaml:"cookie_secure"`
+	// These YAML-only legacy fields let older ignored local config files continue
+	// to load; they have no effect and are cleared immediately after decoding.
+	LegacyCredentialMasterKey  string `yaml:"credential_master_key"`
+	LegacyCredentialKeyVersion string `yaml:"credential_key_version"`
 }
 
 // Load applies defaults, an optional YAML file, and finally environment overrides.
@@ -36,6 +40,8 @@ func Load(path string) (Config, error) {
 		if err := d.Decode(&c); err != nil {
 			return c, fmt.Errorf("decode config: %w", err)
 		}
+		c.LegacyCredentialMasterKey = ""
+		c.LegacyCredentialKeyVersion = ""
 		var extra any
 		if err := d.Decode(&extra); err != io.EOF {
 			return c, fmt.Errorf("config must contain exactly one YAML document")

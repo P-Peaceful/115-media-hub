@@ -1,8 +1,8 @@
 import { getCsrfToken, setCsrfToken } from '../../features/auth/auth-state'
 
 export class ApiError extends Error {
-  constructor(public readonly status: number) {
-    super(`HTTP ${status}`)
+  constructor(public readonly status: number, public readonly message: string, public readonly upstreamCode?: string) {
+    super(message)
     this.name = 'ApiError'
   }
 }
@@ -29,7 +29,19 @@ export async function request<T = unknown>(path: string, options: RequestOptions
       setCsrfToken(null)
       if (typeof window !== 'undefined') window.dispatchEvent(new Event('auth:expired'))
     }
-    throw new ApiError(response.status)
+    let message = `HTTP ${response.status}`
+    let upstreamCode: string | undefined
+    try {
+      const payload: unknown = await response.json()
+      if (payload && typeof payload === 'object') {
+        const body = payload as { message?: unknown; upstreamCode?: unknown }
+        if (typeof body.message === 'string') message = body.message
+        if (typeof body.upstreamCode === 'string') upstreamCode = body.upstreamCode
+      }
+    } catch {
+      // Keep the stable HTTP fallback when the server did not return JSON.
+    }
+    throw new ApiError(response.status, message, upstreamCode)
   }
   if (response.status === 204 || method === 'HEAD') return undefined
   return response.json() as Promise<T>

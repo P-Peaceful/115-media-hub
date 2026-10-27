@@ -12,15 +12,20 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/http/generated"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/http/handler"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/security"
+	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/connections"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/webui"
 )
 
 func New(ping func(context.Context) error, files fs.FS) *gin.Engine {
-	return newRouter(ping, files, nil, false)
+	return newRouter(ping, files, nil, false, nil)
 }
 
 func NewWithAuth(ping func(context.Context) error, files fs.FS, service *security.Service, cookieSecure bool) *gin.Engine {
-	return newRouter(ping, files, service, cookieSecure)
+	return newRouter(ping, files, service, cookieSecure, nil)
+}
+
+func NewWithConnections(ping func(context.Context) error, files fs.FS, authService *security.Service, cookieSecure bool, connectionService *connections.Service) *gin.Engine {
+	return newRouter(ping, files, authService, cookieSecure, connectionService)
 }
 
 func RegisterManagementRoutes(r *gin.Engine, auth handler.Auth, register func(*gin.RouterGroup)) {
@@ -29,7 +34,7 @@ func RegisterManagementRoutes(r *gin.Engine, auth handler.Auth, register func(*g
 	register(group)
 }
 
-func newRouter(ping func(context.Context) error, files fs.FS, service *security.Service, cookieSecure bool) *gin.Engine {
+func newRouter(ping func(context.Context) error, files fs.FS, service *security.Service, cookieSecure bool, connectionService *connections.Service) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	_ = r.SetTrustedProxies(nil)
@@ -46,7 +51,17 @@ func newRouter(ping func(context.Context) error, files fs.FS, service *security.
 		}()
 		c.Next()
 	})
-	generated.RegisterHandlers(r, apiHandler{Health: handler.Health{Ping: ping}, Auth: handler.Auth{Service: service, CookieSecure: cookieSecure}})
+	auth := handler.Auth{Service: service, CookieSecure: cookieSecure}
+	// Generated route registration is flat, so protect the management prefix before
+	// registering it. Auth middleware also enforces CSRF on every mutation.
+	r.Use(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api/admin/") || c.Request.URL.Path == "/api/admin" {
+			auth.Middleware()(c)
+			return
+		}
+		c.Next()
+	})
+	generated.RegisterHandlers(r, apiHandler{Health: handler.Health{Ping: ping}, Auth: auth, Connections: handler.Connections{Service: connectionService}})
 	ui := webui.Handler(files)
 	r.NoRoute(func(c *gin.Context) {
 		p := c.Request.URL.Path
@@ -68,10 +83,21 @@ func newRouter(ping func(context.Context) error, files fs.FS, service *security.
 type apiHandler struct {
 	handler.Health
 	handler.Auth
+	handler.Connections
 }
 
 func (h apiHandler) LoginAdmin(c *gin.Context)      { h.Auth.Login(c) }
 func (h apiHandler) GetAdminSession(c *gin.Context) { h.Auth.Session(c) }
 func (h apiHandler) LogoutAdmin(c *gin.Context)     { h.Auth.Logout(c) }
+
+func (h apiHandler) Get115Connection(c *gin.Context)               { h.Connections.Get(c) }
+func (h apiHandler) Create115QRCodeSession(c *gin.Context)         { h.Connections.Start(c) }
+func (h apiHandler) Get115QRCodeSession(c *gin.Context, id string) { h.Connections.Poll(c, id) }
+func (h apiHandler) Get115QRCodeImage(c *gin.Context, id string)   { h.Connections.QR(c, id) }
+func (h apiHandler) Complete115QRCodeSession(c *gin.Context, id string) {
+	h.Connections.Complete(c, id)
+}
+func (h apiHandler) Test115Connection(c *gin.Context)        { h.Connections.Test(c) }
+func (h apiHandler) Refresh115AccountProfile(c *gin.Context) { h.Connections.RefreshProfile(c) }
 
 var _ generated.ServerInterface = apiHandler{}

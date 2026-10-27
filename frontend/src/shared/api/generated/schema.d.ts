@@ -58,6 +58,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/connections/115": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the configured 115 connection summary */
+        get: operations["get115Connection"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/connections/115/qr-sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Start a short-lived 115 QR authorization session */
+        post: operations["create115QRCodeSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/connections/115/qr-sessions/{sessionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read normalized QR authorization status */
+        get: operations["get115QRCodeSession"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/connections/115/qr-sessions/{sessionId}/qr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Retrieve QR image for an active session */
+        get: operations["get115QRCodeImage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/connections/115/qr-sessions/{sessionId}/complete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Complete authorization and persist verified credentials */
+        post: operations["complete115QRCodeSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/connections/115/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Perform a read-only connection and root-directory capability check */
+        post: operations["test115Connection"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/connections/115/profile/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh the safe 115 account and storage profile snapshot */
+        post: operations["refresh115AccountProfile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -117,6 +236,86 @@ export interface components {
         Health: {
             /** @enum {string} */
             status: "ok" | "unavailable";
+        };
+        CreateQRCodeSessionRequest: {
+            device: components["schemas"]["QRCodeDevice"];
+        };
+        /** @enum {string} */
+        QRCodeDevice: "web" | "alipaymini" | "wechatmini";
+        QRCodeSession: {
+            sessionId: string;
+            device: components["schemas"]["QRCodeDevice"];
+            /** Format: date-time */
+            expiresAt: string;
+            /** @enum {string} */
+            status: "creating" | "waiting" | "scanned" | "allowed" | "expired" | "canceled" | "failed";
+            message?: string;
+            upstreamCode?: string;
+        };
+        ConnectionSummary: {
+            configured: boolean;
+            connection?: components["schemas"]["Connection"];
+        };
+        Connection: {
+            id: string;
+            name: string;
+            externalAccountId: string;
+            /** @enum {string} */
+            status: "unchecked" | "available" | "invalid" | "limited" | "unreachable" | "unknown";
+            capabilities: components["schemas"]["CapabilityEvidence"][];
+            profile: components["schemas"]["AccountProfile"];
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        AccountProfile: {
+            accountName: string;
+            /**
+             * Format: uri
+             * @description HTTPS avatar URL from the Cookie profile API; clients must validate host and use no-referrer
+             */
+            avatarUrl?: string | null;
+            /** @enum {string} */
+            authorizationType?: "cookie";
+            /** @enum {string} */
+            membershipStatus: "active" | "ordinary" | "unknown";
+            membershipLevel: number;
+            /** Format: date-time */
+            membershipExpiresAt?: string | null;
+            /** Format: int64 */
+            storageTotalBytes?: number | null;
+            /** Format: int64 */
+            storageUsedBytes?: number | null;
+            /** Format: int64 */
+            storageFreeBytes?: number | null;
+            /** @description Number of logged-in devices when exposed by the Cookie SDK */
+            deviceCount?: number | null;
+            /** Format: date-time */
+            retrievedAt?: string | null;
+        };
+        CapabilityEvidence: {
+            /** @enum {string} */
+            name: "account_identity" | "root_directory_read";
+            /** @enum {string} */
+            status: "available" | "unavailable" | "unknown";
+            detail?: string;
+        };
+        ConnectionTestResult: {
+            /** @enum {string} */
+            status: "available" | "invalid" | "limited" | "unreachable" | "unknown";
+            capabilities: components["schemas"]["CapabilityEvidence"][];
+            /** Format: date-time */
+            checkedAt: string;
+            /** @description Sanitized 115 upstream message */
+            message?: string;
+            /** @description Extracted 115 upstream code */
+            upstreamCode?: string;
+        };
+        ErrorResponse: {
+            /** @enum {string} */
+            category: "invalid_request" | "unauthorized" | "forbidden" | "not_found" | "conflict" | "unavailable" | "internal";
+            message: string;
+            /** @description Extracted 115 upstream code; never contains response body or credentials */
+            upstreamCode?: string;
         };
     };
     responses: never;
@@ -215,6 +414,341 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    get115Connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection summary, or configured false when absent */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionSummary"];
+                };
+            };
+            /** @description No valid administrator session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    create115QRCodeSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateQRCodeSessionRequest"];
+            };
+        };
+        responses: {
+            /** @description QR session metadata; retrieve the image from its protected image endpoint */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QRCodeSession"];
+                };
+            };
+            /** @description Invalid device */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No valid administrator session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid CSRF token */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Authorization service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get115QRCodeSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Normalized session status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["QRCodeSession"];
+                };
+            };
+            /** @description No valid administrator session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Session missing or expired from memory */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get115QRCodeImage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description QR image */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                };
+            };
+            /** @description No valid administrator session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Session missing or expired from memory */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    complete115QRCodeSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sessionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Safe connection summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Connection"];
+                };
+            };
+            /** @description No valid administrator session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid CSRF token */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Session missing or expired from memory */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authorized account differs from existing connection */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Session is not authorized or cannot be completed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Verification or credential storage unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    test115Connection: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Connection check evidence */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionTestResult"];
+                };
+            };
+            /** @description No valid administrator session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid CSRF token */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No configured connection */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Connection is not usable with current configuration */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    refresh115AccountProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated connection and profile snapshot */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Connection"];
+                };
+            };
+            /** @description No valid administrator session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid CSRF token */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No configured connection */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Profile refresh unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
         };
     };
