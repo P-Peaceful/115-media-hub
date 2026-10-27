@@ -22,6 +22,7 @@ func Run(ctx context.Context, cfg config.Config) error {
 	if err != nil {
 		return err
 	}
+	slog.Info("database initialized", "path", cfg.DatabasePath)
 	sqlDB, err := db.DB()
 	if err != nil {
 		return err

@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -44,8 +45,8 @@ func newRouter(ping func(context.Context) error, files fs.FS, service *security.
 		slog.Info("http request", "method", c.Request.Method, "route", c.FullPath(), "status", c.Writer.Status(), "duration_ms", time.Since(start).Milliseconds())
 	}, func(c *gin.Context) {
 		defer func() {
-			if recover() != nil {
-				slog.Error("http handler panic")
+			if recovered := recover(); recovered != nil {
+				slog.ErrorContext(c.Request.Context(), "http handler panic", "stack", string(debug.Stack()))
 				c.AbortWithStatusJSON(500, gin.H{"error": "internal server error"})
 			}
 		}()

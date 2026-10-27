@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,6 +18,7 @@ func (h Health) GetReadiness(c *gin.Context) {
 	ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 	defer cancel()
 	if err := h.Ping(ctx); err != nil {
+		slog.ErrorContext(c.Request.Context(), "readiness check failed", "error", err)
 		c.JSON(503, generated.Health{Status: generated.HealthStatusUnavailable})
 		return
 	}

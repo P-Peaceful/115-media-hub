@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,7 @@ type Auth struct {
 func (h Auth) Login(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
 	if h.Service == nil {
+		slog.ErrorContext(c.Request.Context(), "admin login unavailable", "reason", "service_not_configured")
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "authentication unavailable"})
 		return
 	}
@@ -31,21 +33,25 @@ func (h Auth) Login(c *gin.Context) {
 	id, csrf, expires, err := h.Service.Login(body.Username, body.Password)
 	if err != nil {
 		if errors.Is(err, security.ErrInvalidCredentials) {
+			slog.WarnContext(c.Request.Context(), "admin login rejected", "reason", "invalid_credentials")
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid username or password"})
 			return
 		}
+		slog.ErrorContext(c.Request.Context(), "admin login failed", "error", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "authentication failed"})
 		return
 	}
 	maxAge := int(security.SessionLifetime.Seconds())
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie(sessionCookieName, id, maxAge, "/", "", h.CookieSecure, true)
+	slog.InfoContext(c.Request.Context(), "admin login succeeded", "expires_at", expires)
 	c.JSON(http.StatusOK, generated.AuthenticatedSession{Authenticated: generated.True, CsrfToken: csrf, ExpiresAt: expires})
 }
 
 func (h Auth) Session(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
 	if h.Service == nil {
+		slog.ErrorContext(c.Request.Context(), "admin session check unavailable", "reason", "service_not_configured")
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "authentication unavailable"})
 		return
 	}
@@ -66,6 +72,7 @@ func (h Auth) Session(c *gin.Context) {
 func (h Auth) Logout(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
 	if h.Service == nil {
+		slog.ErrorContext(c.Request.Context(), "admin logout unavailable", "reason", "service_not_configured")
 		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "authentication unavailable"})
 		return
 	}
@@ -86,6 +93,7 @@ func (h Auth) Logout(c *gin.Context) {
 	}
 	h.Service.Logout(id)
 	h.clearCookie(c)
+	slog.InfoContext(c.Request.Context(), "admin logout succeeded")
 	c.Status(http.StatusNoContent)
 }
 

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/adapter/drive115"
@@ -57,8 +58,12 @@ func New(db *gorm.DB, adapter drive115.Adapter) *Service {
 
 func (s *Service) Current(ctx context.Context) (*Connection, error) {
 	row, err := s.repo.Active115(ctx)
-	if err != nil || row == nil {
+	if err != nil {
+		slog.ErrorContext(ctx, "115 connection lookup failed", "error", err)
 		return nil, err
+	}
+	if row == nil {
+		return nil, nil
 	}
 	return summary(row), nil
 }
@@ -70,12 +75,15 @@ func (s *Service) Start(ctx context.Context, device drive115.Device) (Session, e
 	}
 	ch, err := s.driver.StartQRCode(ctx, device)
 	if err != nil {
+		slog.ErrorContext(ctx, "115 QR session creation failed", "device", device, "stage", "upstream_start", "error", err)
 		return Session{}, err
 	}
 	q, err := s.sessions.add(device, ch)
 	if err != nil {
+		slog.ErrorContext(ctx, "115 QR session creation failed", "device", device, "stage", "session_store", "error", err)
 		return Session{}, err
 	}
+	slog.InfoContext(ctx, "115 QR session created", "device", device, "expires_at", q.expires)
 	return sessionSummary(q), nil
 }
 func (s *Service) QRImage(id string) ([]byte, error) {
@@ -102,8 +110,10 @@ func (s *Service) Poll(ctx context.Context, id string) (Session, error) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	if !time.Now().Before(q.expires) {
+		previous := q.status
 		q.status = drive115.Expired
 		s.sessions.removeChallenge(q)
+		slog.Info("115 QR session status changed", "from_status", previous, "to_status", q.status)
 		return sessionSummary(q), nil
 	}
 	if q.status == drive115.Allowed || q.status == drive115.Expired || q.status == drive115.Canceled || q.status == drive115.Failed {
@@ -115,11 +125,16 @@ func (s *Service) Poll(ctx context.Context, id string) (Session, error) {
 		if upstream, ok := drive115.AsUpstreamError(err); ok {
 			q.message, q.upstreamCode = upstream.Message, upstream.Code
 		}
+		slog.ErrorContext(ctx, "115 QR session polling failed", "status", q.status, "error", err)
 		return sessionSummary(q), nil
 	}
+	previous := q.status
 	q.status = status
 	if status == drive115.Expired || status == drive115.Canceled {
 		s.sessions.removeChallenge(q)
+	}
+	if status != previous {
+		slog.InfoContext(ctx, "115 QR session status changed", "from_status", previous, "to_status", status)
 	}
 	return sessionSummary(q), nil
 }
@@ -139,21 +154,26 @@ func (s *Service) Complete(ctx context.Context, id string) (*Connection, error) 
 	cr, err := s.driver.CompleteQRCode(ctx, q.challenge, q.device)
 	if err != nil {
 		s.failSession(q)
+		slog.ErrorContext(ctx, "115 QR authorization completion failed", "device", q.device, "stage", "upstream_complete", "error", err)
 		return nil, err
 	}
 	defer func() { cr = drive115.Credential{} }()
 	evidence, err := s.driver.VerifyCredential(ctx, cr)
 	if err != nil {
 		s.failSession(q)
+		slog.ErrorContext(ctx, "115 QR authorization completion failed", "device", q.device, "stage", "credential_verify", "error", err)
 		return nil, err
 	}
 	if evidence.AccountID == "" || !evidence.RootReadable {
 		s.failSession(q)
-		return nil, errors.New("115 verification incomplete")
+		err = errors.New("115 verification incomplete")
+		slog.ErrorContext(ctx, "115 QR authorization completion failed", "device", q.device, "stage", "verification_evidence", "root_readable", evidence.RootReadable, "error", err)
+		return nil, err
 	}
 	old, err := s.repo.Active115(ctx)
 	if err != nil {
 		s.failSession(q)
+		slog.ErrorContext(ctx, "115 QR authorization completion failed", "device", q.device, "stage", "load_existing_connection", "error", err)
 		return nil, err
 	}
 	idValue := q.id
@@ -161,20 +181,25 @@ func (s *Service) Complete(ctx context.Context, id string) (*Connection, error) 
 		idValue = old.ID
 		if old.ExternalAccountID != evidence.AccountID {
 			s.failSession(q)
+			slog.WarnContext(ctx, "115 QR authorization rejected", "device", q.device, "reason", "account_conflict")
 			return nil, ErrAccountConflict
 		}
 	}
 	plain, err := json.Marshal(cr)
 	if err != nil {
 		s.failSession(q)
-		return nil, fmt.Errorf("encode 115 credential: %w", err)
+		err = fmt.Errorf("encode 115 credential: %w", err)
+		slog.ErrorContext(ctx, "115 QR authorization completion failed", "device", q.device, "stage", "encode_credential", "error", err)
+		return nil, err
 	}
 	defer clear(plain)
 	caps, _ := json.Marshal([]Capability{{Name: "account_identity", Status: "available"}, {Name: "root_directory_read", Status: "available"}})
 	profile, err := marshalProfile(evidence.Profile)
 	if err != nil {
 		s.failSession(q)
-		return nil, fmt.Errorf("encode 115 account profile: %w", err)
+		err = fmt.Errorf("encode 115 account profile: %w", err)
+		slog.ErrorContext(ctx, "115 QR authorization completion failed", "device", q.device, "stage", "encode_profile", "error", err)
+		return nil, err
 	}
 	now := time.Now().UTC()
 	row := &model.Connection{ID: idValue, Kind: "115", Name: evidence.AccountName, ExternalAccountID: evidence.AccountID, CredentialJSON: string(plain), CapabilitiesJSON: string(caps), ProfileJSON: string(profile), IsActive: true, Status: "available", CreatedAt: now, UpdatedAt: now}
@@ -194,11 +219,17 @@ func (s *Service) Complete(ctx context.Context, id string) (*Connection, error) 
 	})
 	if err != nil {
 		s.failSession(q)
+		slog.ErrorContext(ctx, "115 QR authorization persistence failed", "device", q.device, "error", err)
 		return nil, err
 	}
 	s.sessions.removeChallenge(q)
 	q.status = drive115.Allowed
 	q.completed = summary(row)
+	action := "created"
+	if old != nil {
+		action = "updated"
+	}
+	slog.InfoContext(ctx, "115 connection authorized", "device", q.device, "action", action, "capabilities", len(q.completed.Capabilities))
 	return q.completed, nil
 }
 
@@ -253,7 +284,14 @@ func normalizeMembershipStatus(profile drive115.AccountProfile, now time.Time) s
 }
 
 // RefreshProfile updates only the safe profile snapshot; failure does not alter connection status or credentials.
-func (s *Service) RefreshProfile(ctx context.Context) (*Connection, error) {
+func (s *Service) RefreshProfile(ctx context.Context) (connection *Connection, err error) {
+	defer func() {
+		if err != nil {
+			slog.ErrorContext(ctx, "115 account profile refresh failed", "error", err)
+			return
+		}
+		slog.InfoContext(ctx, "115 account profile refreshed")
+	}()
 	row, err := s.repo.Active115(ctx)
 	if err != nil {
 		return nil, err
@@ -296,7 +334,12 @@ type TestResult struct {
 	UpstreamCode string
 }
 
-func (s *Service) Test(ctx context.Context) (TestResult, error) {
+func (s *Service) Test(ctx context.Context) (result TestResult, err error) {
+	defer func() {
+		if err != nil {
+			slog.ErrorContext(ctx, "115 connection test failed", "error", err)
+		}
+	}()
 	at := time.Now().UTC()
 	row, err := s.repo.Active115(ctx)
 	if err != nil {
@@ -311,7 +354,7 @@ func (s *Service) Test(ctx context.Context) (TestResult, error) {
 	}
 	defer func() { cr = drive115.Credential{} }()
 	_, verifyErr := s.driver.VerifyCredential(ctx, cr)
-	result := TestResult{Status: "available", Capabilities: []Capability{{Name: "account_identity", Status: "available"}, {Name: "root_directory_read", Status: "available"}}, CheckedAt: at}
+	result = TestResult{Status: "available", Capabilities: []Capability{{Name: "account_identity", Status: "available"}, {Name: "root_directory_read", Status: "available"}}, CheckedAt: at}
 	if verifyErr != nil {
 		if upstream, ok := drive115.AsUpstreamError(verifyErr); ok {
 			result.Message, result.UpstreamCode = upstream.Message, upstream.Code
@@ -334,6 +377,11 @@ func (s *Service) Test(ctx context.Context) (TestResult, error) {
 	}
 	if err = s.persistCheck(ctx, row.ID, result); err != nil {
 		return TestResult{}, err
+	}
+	if result.Status == "available" {
+		slog.InfoContext(ctx, "115 connection test completed", "status", result.Status)
+	} else {
+		slog.WarnContext(ctx, "115 connection test completed", "status", result.Status, "upstream_code", result.UpstreamCode)
 	}
 	return result, nil
 }
