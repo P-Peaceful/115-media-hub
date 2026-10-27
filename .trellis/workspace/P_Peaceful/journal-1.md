@@ -63,3 +63,25 @@ Completed backend/frontend Trellis guidelines from four Notion documents and act
 ### Status
 
 [OK] **Completed**
+
+
+## Session 3: 115 扫码授权与连接管理
+<!-- trellis-session: v=2 fp=7f7bce249c70301b -->
+
+**Date**: 2026-10-27
+**Task**: 115 扫码授权与连接管理
+**Branch**: `codex/admin-auth`
+
+### Summary
+
+完成 115 Cookie 扫码授权、连接资料与安全上游错误展示；完善账号 VIP 状态识别和旧快照兼容，补齐服务端/前端回归测试、授权运维文档和 smoke 数据库断言。make check、make smoke、git diff --check 通过。真实 115 账号联调未执行。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `7f8b2fc` | feat: add 115 QR connection management |
+
+### Status
+
+[OK] **Completed**
