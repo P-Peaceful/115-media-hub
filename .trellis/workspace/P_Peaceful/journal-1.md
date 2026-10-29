@@ -120,3 +120,25 @@ Completed backend/frontend Trellis guidelines from four Notion documents and act
 ### Next Steps
 
 - 后续处理 Stat 目录路径失败、中文搜索按字节限制和失败分页加载文案；详见归档 verification.md。
+
+
+## Session 5: 本地 115 客户端替换
+<!-- trellis-session: v=2 fp=1b0c4f3ce363062c -->
+
+**Date**: 2026-10-30
+**Task**: 本地 115 客户端替换
+**Branch**: `main`
+
+### Summary
+
+参考 115-station 实现项目内 Cookie 客户端，替换 115driver；完成二维码登录、目录路径解析、精确文件 ID、账号信息与上游会员名称透传，并通过后端、前端、竞态、构建和启动冒烟验证。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `98f0371` | refactor: replace 115driver with local 115 client |
+
+### Status
+
+[OK] **Completed**

@@ -8,7 +8,7 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 4
+- **Total Sessions**: 5
 - **Last Active**: 2026-10-30
 <!-- @@@/auto:current-status -->
 
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~122 | Active |
+| `journal-1.md` | ~144 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 5 | 2026-10-30 | 本地 115 客户端替换 | `98f0371` | `main` |
 | 4 | 2026-10-30 | 115 媒体目录浏览交付与归档 | `ea7917f` | `codex/admin-auth` |
 | 3 | 2026-10-27 | 115 扫码授权与连接管理 | `7f8b2fc` | `codex/admin-auth` |
 | 2 | 2026-10-25 | 完成单管理员认证与工作台界面 | `79bc9d3` | `codex/admin-auth` |
