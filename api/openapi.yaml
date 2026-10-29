@@ -299,13 +299,15 @@ components:
         updatedAt: { type: string, format: date-time }
     AccountProfile:
       type: object
-      required: [accountName, membershipStatus, membershipLevel]
+      required: [accountName, membershipStatus]
       properties:
         accountName: { type: string }
         avatarUrl: { type: string, format: uri, nullable: true, description: HTTPS avatar URL from the Cookie profile API; clients must validate host and use no-referrer }
         authorizationType: { type: string, enum: [cookie] }
         membershipStatus: { type: string, enum: [active, ordinary, unknown] }
-        membershipLevel: { type: integer, minimum: 0 }
+        membershipName:
+          type: string
+          description: Verbatim membership display name from the 115 Cookie API; absent when unavailable.
         membershipExpiresAt: { type: string, format: date-time, nullable: true }
         storageTotalBytes: { type: integer, format: int64, minimum: 0, nullable: true }
         storageUsedBytes: { type: integer, format: int64, minimum: 0, nullable: true }

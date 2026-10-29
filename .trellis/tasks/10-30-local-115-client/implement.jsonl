@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/backend/go-coding-guidelines.md", "reason": "Go context and adapter ownership"}
+{"file": ".trellis/spec/backend/connection-guidelines.md", "reason": "Existing QR and credential contracts"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Verification commands"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Privacy"}
+{"file": ".trellis/tasks/10-30-local-115-client/research/notes.md", "reason": "115-station protocol provenance and adaptations"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Upstream membership name display and Query snapshot ownership"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "OpenAPI generation and safe missing-field handling"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Cross-layer checks and SSR coverage"}

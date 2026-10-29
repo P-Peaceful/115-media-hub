@@ -4,28 +4,33 @@ import (
 	"testing"
 	"time"
 
-	"github.com/SheltonZhu/115driver/pkg/driver"
+	"strconv"
 )
 
-func TestProfileFromUserMapsVIPLevelToMembershipStatus(t *testing.T) {
+func TestProfileFromUserDoesNotInferMembershipFromGrades(t *testing.T) {
 	tests := []struct {
 		name string
-		user driver.UserInfo
+		user userInfo
 		want string
 	}{
 		{
-			name: "positive VIP level is active without privilege flags",
-			user: driver.UserInfo{Vip: 2},
-			want: "active",
-		},
-		{
-			name: "expired VIP level is unknown rather than ordinary",
-			user: driver.UserInfo{Vip: 2, Expire: int(time.Now().Add(-time.Hour).Unix())},
+			name: "positive VIP level without entitlement is unknown",
+			user: userInfo{Vip: "2"},
 			want: "unknown",
 		},
 		{
+			name: "expired VIP level is unknown rather than ordinary",
+			user: userInfo{Vip: "2", Expire: wireInteger(strconv.FormatInt(time.Now().Add(-time.Hour).Unix(), 10))},
+			want: "unknown",
+		},
+		{
+			name: "explicit upstream entitlement remains active",
+			user: userInfo{IsPrivilege: true},
+			want: "active",
+		},
+		{
 			name: "zero VIP level without entitlement signals is unknown",
-			user: driver.UserInfo{},
+			user: userInfo{},
 			want: "unknown",
 		},
 	}

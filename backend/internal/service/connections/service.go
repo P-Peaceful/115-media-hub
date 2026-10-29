@@ -258,29 +258,7 @@ func summary(r *model.Connection) *Connection {
 	if profile.MembershipStatus == "" {
 		profile.MembershipStatus = "unknown"
 	}
-	profile.MembershipStatus = normalizeMembershipStatus(profile, time.Now().UTC())
 	return &Connection{ID: r.ID, Name: r.Name, ExternalAccountID: r.ExternalAccountID, Status: r.Status, Capabilities: caps, Profile: profile, UpdatedAt: r.UpdatedAt}
-}
-
-// normalizeMembershipStatus repairs legacy snapshots where a raw SDK VIP level
-// was saved alongside an incorrect ordinary status. It only changes the API
-// projection; the stored profile remains untouched until a profile refresh.
-func normalizeMembershipStatus(profile drive115.AccountProfile, now time.Time) string {
-	if profile.MembershipStatus == "active" {
-		return "active"
-	}
-	if profile.MembershipLevel > 0 {
-		if profile.MembershipExpiresAt == nil || profile.MembershipExpiresAt.After(now) {
-			return "active"
-		}
-		return "unknown"
-	}
-	if profile.MembershipStatus == "ordinary" {
-		// The Cookie SDK does not retain whether a zero VIP field was present,
-		// so zero alone cannot prove the account is ordinary.
-		return "unknown"
-	}
-	return profile.MembershipStatus
 }
 
 // RefreshProfile updates only the safe profile snapshot; failure does not alter connection status or credentials.

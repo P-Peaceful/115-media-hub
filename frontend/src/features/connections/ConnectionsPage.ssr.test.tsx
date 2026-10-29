@@ -14,6 +14,8 @@ vi.mock('@tanstack/react-query', () => ({
 vi.mock('./connections.css', () => ({}))
 
 import { ConnectionsPage } from './ConnectionsPage'
+import { ConnectionSidebarCard } from './ConnectionSidebarCard'
+import { MemoryRouter } from 'react-router'
 
 const profileSummary: ConnectionSummary = {
   configured: true,
@@ -21,7 +23,7 @@ const profileSummary: ConnectionSummary = {
     id: 'connection-id', name: '115 user', externalAccountId: 'uid-123', status: 'unknown',
     capabilities: [{ name: 'root_directory_read', status: 'unknown' }],
     profile: {
-      accountName: '', membershipStatus: 'unknown', membershipLevel: 0,
+      accountName: '', membershipStatus: 'unknown',
       storageTotalBytes: null, storageUsedBytes: null, storageFreeBytes: null, deviceCount: null,
     },
     updatedAt: '2026-10-27T00:00:00Z',
@@ -74,7 +76,7 @@ describe('ConnectionsPage server-rendered semantics', () => {
   it('renders known partial profile and capability evidence while preserving missing values as unknown', () => {
     const partialSummary = structuredClone(profileSummary)
     Object.assign(partialSummary.connection!.profile, {
-      accountName: '已知账号', membershipStatus: 'active',
+      accountName: '已知账号', membershipStatus: 'active', membershipName: '上游会员名',
       storageTotalBytes: 2 * 1024 ** 4,
       storageUsedBytes: 1024 ** 3,
       storageFreeBytes: null,
@@ -86,7 +88,7 @@ describe('ConnectionsPage server-rendered semantics', () => {
     const markup = renderPage({ isLoading: false, isError: false, data: partialSummary })
 
     expect(markup).toContain('已知账号')
-    expect(markup).toContain('VIP')
+    expect(markup).toContain('上游会员名')
     expect(markup).toContain('1.0 GiB')
     expect(markup).toContain('2.0 TiB')
     expect(markup).toContain('<dd class="mt-1 text-sm font-medium">未知</dd>')
@@ -94,4 +96,24 @@ describe('ConnectionsPage server-rendered semantics', () => {
     expect(markup).toContain('不可用')
     expect(markup).not.toContain('0 B')
   })
+})
+
+it('shows the upstream name verbatim and escaped on page and sidebar', () => {
+  const summary = structuredClone(profileSummary)
+  Object.assign(summary.connection!.profile, { membershipName: '未来 & <尊享会员>', membershipStatus: 'unknown' })
+  const page = renderPage({ isLoading: false, isError: false, data: summary })
+  expect(page).toContain('未来 &amp; &lt;尊享会员&gt;')
+  const sidebar = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(ConnectionSidebarCard)))
+  expect(sidebar).toContain('>未来 &amp; &lt;尊享会员&gt;</span>')
+  expect(page + sidebar).not.toContain('<尊享会员>')
+})
+
+it('shows unknown for old snapshots even with an active numeric membership', () => {
+  const summary = structuredClone(profileSummary)
+  Object.assign(summary.connection!.profile, { membershipStatus: 'active', membershipLevel: 8 })
+  const page = renderPage({ isLoading: false, isError: false, data: summary })
+  const sidebar = renderToStaticMarkup(createElement(MemoryRouter, null, createElement(ConnectionSidebarCard)))
+  expect(page).toContain('会员信息未知')
+  expect(sidebar).toContain('>会员信息未知</span>')
+  expect(page + sidebar).not.toContain('VIP')
 })

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link2 } from 'lucide-react'
 import { useNavigate } from 'react-router'
 import { getConnectionSummary, connectionKeys } from './connections-api'
-import { formatBytes } from './profile-format'
+import { formatBytes, formatMembershipName } from './profile-format'
 
 export function ConnectionSidebarCard() {
   const navigate = useNavigate()
@@ -20,7 +20,7 @@ export function ConnectionSidebarCard() {
       ? '正在读取授权信息…'
       : !connection
         ? '点击此处授权 115 网盘'
-        : `UID ${connection.externalAccountId} · ${profile?.membershipStatus === 'active' ? 'VIP' : profile?.membershipStatus === 'ordinary' ? '普通用户' : '会员信息未知'} · ${formatBytes(profile?.storageUsedBytes)} / ${formatBytes(profile?.storageTotalBytes)}`
+        : `UID ${connection.externalAccountId} · ${formatMembershipName(profile?.membershipName)} · ${formatBytes(profile?.storageUsedBytes)} / ${formatBytes(profile?.storageTotalBytes)}`
 
   return (
     <Button
@@ -35,6 +35,9 @@ export function ConnectionSidebarCard() {
       <span className="w-full min-w-0 truncate text-left text-sm max-[720px]:hidden">
         {connection ? `115 · ${profile?.accountName || connection.name}` : '115 网盘授权'}
       </span>
+      {connection && <span className="w-full min-w-0 truncate text-left text-xs text-muted max-[720px]:hidden">
+        {formatMembershipName(profile?.membershipName)}
+      </span>}
       <Chip size="sm" color={query.isError ? 'danger' : connection ? 'success' : 'default'} variant="soft" className="max-w-full max-[720px]:hidden">
         <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-current" />
         {query.isError ? '授权信息不可用' : query.isLoading ? '正在读取…' : connection ? '已授权' : '尚未连接'}

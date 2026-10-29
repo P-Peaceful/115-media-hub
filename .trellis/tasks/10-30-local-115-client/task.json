@@ -1,0 +1,28 @@
+{
+  "id": "local-115-client",
+  "name": "local-115-client",
+  "title": "替换 115driver 为项目内 115 客户端",
+  "description": "参考 115-station 实现本地 Cookie 客户端，替换现有登录、账号信息与目录浏览 SDK 依赖",
+  "status": "in_progress",
+  "dev_type": null,
+  "scope": null,
+  "package": null,
+  "priority": "P2",
+  "creator": "P_Peaceful",
+  "assignee": "P_Peaceful",
+  "createdAt": "2026-10-30",
+  "completedAt": null,
+  "branch": "main",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "quality_gate": "passed"
+  }
+}

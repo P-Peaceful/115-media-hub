@@ -339,14 +339,16 @@ type AccountProfile struct {
 	AvatarUrl *string `json:"avatarUrl,omitempty"`
 
 	// DeviceCount Number of logged-in devices when exposed by the Cookie SDK
-	DeviceCount         *int                           `json:"deviceCount,omitempty"`
-	MembershipExpiresAt *time.Time                     `json:"membershipExpiresAt,omitempty"`
-	MembershipLevel     int                            `json:"membershipLevel"`
-	MembershipStatus    AccountProfileMembershipStatus `json:"membershipStatus"`
-	RetrievedAt         *time.Time                     `json:"retrievedAt,omitempty"`
-	StorageFreeBytes    *int64                         `json:"storageFreeBytes,omitempty"`
-	StorageTotalBytes   *int64                         `json:"storageTotalBytes,omitempty"`
-	StorageUsedBytes    *int64                         `json:"storageUsedBytes,omitempty"`
+	DeviceCount         *int       `json:"deviceCount,omitempty"`
+	MembershipExpiresAt *time.Time `json:"membershipExpiresAt,omitempty"`
+
+	// MembershipName Verbatim membership display name from the 115 Cookie API; absent when unavailable.
+	MembershipName    *string                        `json:"membershipName,omitempty"`
+	MembershipStatus  AccountProfileMembershipStatus `json:"membershipStatus"`
+	RetrievedAt       *time.Time                     `json:"retrievedAt,omitempty"`
+	StorageFreeBytes  *int64                         `json:"storageFreeBytes,omitempty"`
+	StorageTotalBytes *int64                         `json:"storageTotalBytes,omitempty"`
+	StorageUsedBytes  *int64                         `json:"storageUsedBytes,omitempty"`
 }
 
 // AccountProfileAuthorizationType defines model for AccountProfile.AuthorizationType.

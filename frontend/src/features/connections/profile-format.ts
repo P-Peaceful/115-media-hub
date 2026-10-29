@@ -11,3 +11,8 @@ export function formatBytes(value: number | null | undefined) {
   } while (size >= 1024 && unit < units.length - 1)
   return `${size.toFixed(1)} ${units[unit]}`
 }
+
+/** Uses the upstream display text without interpreting names or numeric grades. */
+export function formatMembershipName(name: string | null | undefined) {
+  return typeof name === 'string' && name.trim() ? name : '会员信息未知'
+}

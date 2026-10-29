@@ -164,7 +164,7 @@ func TestRefreshAccountProfilePersistsOnlySafeSnapshot(t *testing.T) {
 	}
 
 	profile := drive115.AccountProfile{
-		AccountName: "阿文", MembershipStatus: "active", MembershipLevel: 2,
+		AccountName: "阿文", MembershipStatus: "active", MembershipName: "上游会员名",
 		StorageTotalBytes: int64Pointer(1_000_000), StorageUsedBytes: int64Pointer(250_000),
 		StorageFreeBytes: int64Pointer(750_000), RetrievedAt: time.Now().UTC(),
 	}
@@ -180,10 +180,10 @@ func TestRefreshAccountProfilePersistsOnlySafeSnapshot(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("profile refresh status = %d: %s", response.Code, response.Body.String())
 	}
-	if !bytes.Contains(response.Body.Bytes(), []byte(`"accountName":"阿文"`)) || !bytes.Contains(response.Body.Bytes(), []byte(`"storageTotalBytes":1000000`)) {
+	if !bytes.Contains(response.Body.Bytes(), []byte(`"accountName":"阿文"`)) || !bytes.Contains(response.Body.Bytes(), []byte(`"storageTotalBytes":1000000`)) || !bytes.Contains(response.Body.Bytes(), []byte(`"membershipName":"上游会员名"`)) {
 		t.Fatalf("profile response does not include the safe account snapshot: %s", response.Body.String())
 	}
-	if bytes.Contains(response.Body.Bytes(), []byte("credential-sentinel")) || bytes.Contains(response.Body.Bytes(), []byte(`"UID"`)) {
+	if bytes.Contains(response.Body.Bytes(), []byte("credential-sentinel")) || bytes.Contains(response.Body.Bytes(), []byte(`"UID"`)) || bytes.Contains(response.Body.Bytes(), []byte(`"membershipLevel"`)) {
 		t.Fatalf("profile response leaked credential material: %s", response.Body.String())
 	}
 
@@ -211,7 +211,7 @@ func TestConnectionSummaryReturnsProfileWithoutStoredCredential(t *testing.T) {
 	t.Cleanup(func() { _ = sqlDB.Close() })
 	profileJSON, err := json.Marshal(map[string]any{
 		"schema_version": 1,
-		"profile":        drive115.AccountProfile{AccountName: "展示账号", MembershipStatus: "active", MembershipLevel: 2},
+		"profile":        drive115.AccountProfile{AccountName: "展示账号", MembershipStatus: "active", MembershipName: "上游会员名"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -234,7 +234,7 @@ func TestConnectionSummaryReturnsProfileWithoutStoredCredential(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("connection summary status = %d: %s", w.Code, w.Body.String())
 	}
-	for _, expected := range []string{`"name":"展示账号"`, `"externalAccountId":"115-uid-123"`, `"accountName":"展示账号"`, `"membershipStatus":"active"`} {
+	for _, expected := range []string{`"name":"展示账号"`, `"externalAccountId":"115-uid-123"`, `"accountName":"展示账号"`, `"membershipStatus":"active"`, `"membershipName":"上游会员名"`} {
 		if !bytes.Contains(w.Body.Bytes(), []byte(expected)) {
 			t.Errorf("summary omitted %s: %s", expected, w.Body.String())
 		}

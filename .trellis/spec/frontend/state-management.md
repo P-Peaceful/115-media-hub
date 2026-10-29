@@ -20,7 +20,7 @@ The connection summary is server data and belongs in TanStack Query. The selecte
 
 The connection summary query is also consumed by the settings-area sidebar card so both surfaces show the same server-owned profile snapshot. Keep the card as a feature component and reuse the same query key; refreshing account profile replaces that cached summary with the response. The connection page remains directly routable even though it is not a primary navigation item.
 
-For membership display, render the confirmed VIP status and expiry supplied by the connection profile. Do not show a raw SDK numeric `vip` value as an official level name or infer labels from it; the current Cookie SDK does not provide `level_name`. Missing or ambiguous membership evidence displays as unknown rather than ordinary.
+For membership display, render the connection profile's upstream `membershipName` as text and the supplied expiry in both the connection page and sidebar. The backend obtains the name from Cookie `/user/vip_limit?feature=2` → `data.user_limit.level_name`. Never infer labels from numeric `vip`, old `membershipLevel`, or coarse `membershipStatus`; names such as `年费VIP` or unfamiliar future names must survive unchanged. Missing, invalid or whitespace-only names (including legacy cached profiles without the field) display `会员信息未知`. Do not render upstream account values as HTML.
 
 Poll at a bounded interval and stop for `allowed`, `expired`, `canceled`, or `failed`. Submit completion once per local session ID; an error must not trigger automatic completion retries. After successful completion, invalidate the connection summary. Reauthorization must expose the device selector before creating a session and keep the Web device warning visible while Web is selected.
 

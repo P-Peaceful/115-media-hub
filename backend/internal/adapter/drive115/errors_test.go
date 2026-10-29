@@ -3,13 +3,11 @@ package drive115
 import (
 	"errors"
 	"testing"
-
-	"github.com/SheltonZhu/115driver/pkg/driver"
 )
 
 func TestSafeNetworkErrorExtractsAndRedactsUpstreamFields(t *testing.T) {
-	raw := errors.Join(driver.ErrUnexpected, errors.New(`{"code":401,"message":"拒绝访问 Cookie=UID=secret; sign=qr-secret; token=access-secret"}`))
-	err := safeNetworkError(raw)
+	raw := errors.New(`{"code":401,"message":"拒绝访问 Cookie=UID=secret; sign=qr-secret; token=access-secret"}`)
+	err := remoteError([]byte(raw.Error()), ErrLimited)
 	upstream, ok := AsUpstreamError(err)
 	if !ok {
 		t.Fatal("safeNetworkError did not retain the upstream error")
@@ -31,7 +29,7 @@ func TestSafeNetworkErrorExtractsAndRedactsUpstreamFields(t *testing.T) {
 }
 
 func TestSafeNetworkErrorDoesNotEchoUnstructuredSDKBody(t *testing.T) {
-	err := safeNetworkError(errors.Join(driver.ErrUnexpected, errors.New("raw response contains UID=abc")))
+	err := remoteError([]byte("raw response contains UID=abc"), ErrUnreachable)
 	upstream, ok := AsUpstreamError(err)
 	if !ok {
 		t.Fatal("safeNetworkError did not retain the upstream error")

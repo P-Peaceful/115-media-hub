@@ -5,7 +5,7 @@ import {
   completeQRSession, connectionKeys, createQRSession, getConnectionSummary, getQRSession,
   qrImagePath, refreshAccountProfile, testConnection, type ConnectionSummary, type Device, type QRStatus,
 } from './connections-api'
-import { formatBytes } from './profile-format'
+import { formatBytes, formatMembershipName } from './profile-format'
 import { qrRefetchInterval } from './qr-polling'
 import { describeConnectionError } from './connection-errors'
 import './connections.css'
@@ -171,9 +171,7 @@ export function ConnectionsPage() {
               <div>
                 <dt className="text-xs text-muted">会员</dt>
                 <dd className="mt-1 text-sm font-medium">
-                  {connection.profile.membershipStatus === 'active'
-                    ? 'VIP'
-                    : connection.profile.membershipStatus === 'ordinary' ? '普通用户' : '会员信息未知'}
+                  {formatMembershipName(connection.profile.membershipName)}
                   {connection.profile.membershipExpiresAt && ` · 到期 ${new Date(connection.profile.membershipExpiresAt).toLocaleDateString()}`}
                 </dd>
               </div>

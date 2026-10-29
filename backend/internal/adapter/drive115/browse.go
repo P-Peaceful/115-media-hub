@@ -2,102 +2,167 @@ package drive115
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"net/url"
 	"path/filepath"
 	"strconv"
 	"strings"
-
-	"github.com/SheltonZhu/115driver/pkg/driver"
+	"time"
 )
 
-// ListDirectory 只请求一个分页。cur=1 用于把搜索与类型筛选限制在 cid
-// 当前目录，避免 115 在部分筛选条件下递归遍历子目录。
-func (d *Driver) ListDirectory(ctx context.Context, credential Credential, directoryID string, offset, limit int, kind, query string) (DirectoryPage, error) {
+type pathNode struct {
+	CID  wireInteger `json:"cid"`
+	PID  wireInteger `json:"pid"`
+	AID  wireInteger `json:"aid"`
+	Name string      `json:"name"`
+}
+type listing struct {
+	CID   wireInteger  `json:"cid"`
+	AID   wireInteger  `json:"aid"`
+	Path  []pathNode   `json:"path"`
+	Count *wireInteger `json:"count"`
+	Data  []fileEntry  `json:"data"`
+}
+type fileEntry struct {
+	FID  wireInteger `json:"fid"`
+	CID  wireInteger `json:"cid"`
+	PID  wireInteger `json:"pid"`
+	F    wireInteger `json:"f"`
+	Name string      `json:"n"`
+	Size byteSize    `json:"s"`
+	Time jsonText    `json:"t"`
+}
+
+// jsonText supports timestamps represented as text or integers.
+type jsonText string
+
+func (v *jsonText) UnmarshalJSON(data []byte) error {
+	var s string
+	if len(data) > 0 && data[0] == '"' {
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+	} else {
+		var n wireInteger
+		if err := json.Unmarshal(data, &n); err != nil {
+			return err
+		}
+		s = string(n)
+	}
+	*v = jsonText(s)
+	return nil
+}
+func listParams(cid string, offset, limit int) url.Values {
+	return url.Values{
+		"aid": {"1"}, "cid": {cid}, "o": {"user_ptime"}, "asc": {"1"}, "offset": {strconv.Itoa(offset)}, "show_dir": {"1"}, "limit": {strconv.Itoa(limit)}, "snap": {"0"}, "natsort": {"0"}, "record_open_time": {"1"}, "format": {"json"}, "fc_mix": {"0"}, "cur": {"1"},
+	}
+}
+func validateListing(r listing, cid string, requirePath bool) error {
+	if r.AID != "" && r.AID != "1" {
+		return ErrDirectoryNotFound
+	}
+	if r.CID != "" && string(r.CID) != cid {
+		return ErrDirectoryNotFound
+	}
+	if len(r.Path) > 0 {
+		last := r.Path[len(r.Path)-1]
+		if string(last.CID) != cid || last.AID != "" && last.AID != "1" {
+			return ErrDirectoryNotFound
+		}
+	}
+	if requirePath && len(r.Path) == 0 {
+		return protocolError()
+	}
+	if r.CID == "" && len(r.Path) == 0 && cid != "0" {
+		return protocolError()
+	}
+	return nil
+}
+func (d *Driver) StatDirectory(ctx context.Context, cr Credential, cid string) (Directory, error) {
 	if err := ctx.Err(); err != nil {
-		return DirectoryPage{}, err
+		return Directory{}, err
 	}
-	client := d.client(ctx).ImportCredential(&driver.Credential{UID: credential.UID, CID: credential.CID, SEID: credential.SEID, KID: credential.KID})
-	params := url.Values{
-		// 与锁定版本 SDK 的 GetFiles 默认参数保持一致。115 的接口
-		// 依赖这些参数选择标准目录列表响应；排序参数名是 o，不是 order。
-		"aid":              {"1"},
-		"cid":              {directoryID},
-		"o":                {"user_ptime"},
-		"asc":              {"1"},
-		"offset":           {strconv.Itoa(offset)},
-		"show_dir":         {"1"},
-		"limit":            {strconv.Itoa(limit)},
-		"snap":             {"0"},
-		"natsort":          {"0"},
-		"record_open_time": {"1"},
-		"format":           {"json"},
-		"fc_mix":           {"0"},
-		"cur":              {"1"},
+	if cid == "0" {
+		return Directory{ID: "0", Name: "我的网盘", Breadcrumbs: []Breadcrumb{{ID: "0", Name: "我的网盘"}}}, nil
 	}
+	params := listParams(cid, 0, 1)
+	params.Set("hide_data", "1")
+	params.Set("nf", "1")
+	params.Set("count_folders", "1")
+	var r listing
+	if err := d.getJSON(ctx, filesAPI, params, cr, &r); err != nil {
+		return Directory{}, err
+	}
+	if err := validateListing(r, cid, true); err != nil {
+		return Directory{}, err
+	}
+	crumbs := []Breadcrumb{{ID: "0", Name: "我的网盘"}}
+	seen := map[string]bool{"0": true}
+	for _, node := range r.Path {
+		id := string(node.CID)
+		if id == "0" {
+			continue
+		}
+		if id == "" || strings.HasPrefix(id, "-") || node.Name == "" || seen[id] || node.AID != "" && node.AID != "1" {
+			return Directory{}, protocolError()
+		}
+		seen[id] = true
+		crumbs = append(crumbs, Breadcrumb{ID: id, Name: node.Name})
+	}
+	return Directory{ID: cid, Name: crumbs[len(crumbs)-1].Name, Breadcrumbs: crumbs}, nil
+}
+func (d *Driver) ListDirectory(ctx context.Context, cr Credential, cid string, offset, limit int, kind, query string) (DirectoryPage, error) {
+	if offset < 0 || limit <= 0 || limit > 1150 {
+		return DirectoryPage{}, ErrInvalidBrowseFilter
+	}
+	params := listParams(cid, offset, limit)
 	if query != "" {
 		params.Set("search_value", query)
 	}
 	if kind != "all" {
-		upstreamType, ok := upstreamType(kind)
+		value, ok := upstreamType(kind)
 		if !ok {
 			return DirectoryPage{}, ErrInvalidBrowseFilter
 		}
-		params.Set("type", upstreamType)
+		params.Set("type", value)
 	}
-	var response driver.FileListResp
-	rest, err := client.NewRequest().SetQueryParamsFromValues(params).ForceContentType("application/json;charset=UTF-8").SetResult(&response).Get(driver.ApiFileList)
-	if err := driver.CheckErr(err, &response, rest); err != nil {
-		return DirectoryPage{}, safeBrowseError(err)
+	var r listing
+	if err := d.getJSON(ctx, filesAPI, params, cr, &r); err != nil {
+		return DirectoryPage{}, err
 	}
-	page := DirectoryPage{Entries: make([]DirectoryEntry, 0, len(response.Files)), Total: int64(response.Count)}
-	for i := range response.Files {
-		var file driver.File
-		file.From(&response.Files[i])
-		page.Entries = append(page.Entries, DirectoryEntry{
-			ID: file.FileID, ParentID: file.ParentID, Name: file.Name,
-			IsDirectory: file.IsDirectory, Size: max(file.Size, 0),
-			ModifiedAt: file.UpdateTime.UTC(), FileType: fileType(file.Name, file.IsDirectory),
-		})
+	if err := validateListing(r, cid, false); err != nil {
+		return DirectoryPage{}, err
+	}
+	if r.Count == nil || r.Data == nil {
+		return DirectoryPage{}, protocolError()
+	}
+	total, err := r.Count.int64()
+	if err != nil || total < 0 {
+		return DirectoryPage{}, protocolError()
+	}
+	page := DirectoryPage{Total: total, Entries: make([]DirectoryEntry, 0, len(r.Data))}
+	for _, entry := range r.Data {
+		directory := entry.F == "0" || entry.F == "" && entry.FID == ""
+		id, parent := string(entry.FID), string(entry.CID)
+		if directory {
+			id = string(entry.CID)
+			parent = string(entry.PID)
+		}
+		if id == "" || id == "0" || strings.HasPrefix(id, "-") || entry.Name == "" || parent != cid || entry.F != "" && entry.F != "0" && entry.F != "1" {
+			return DirectoryPage{}, protocolError()
+		}
+		modified := time.Time{}
+		if seconds, err := strconv.ParseInt(string(entry.Time), 10, 64); err == nil {
+			modified = time.Unix(seconds, 0).UTC()
+		} else if value, err := time.ParseInLocation("2006-01-02 15:04", string(entry.Time), time.FixedZone("UTC+8", 8*3600)); err == nil {
+			modified = value.UTC()
+		}
+		page.Entries = append(page.Entries, DirectoryEntry{ID: id, ParentID: parent, Name: entry.Name, IsDirectory: directory, Size: int64(entry.Size), ModifiedAt: modified, FileType: fileType(entry.Name, directory)})
 	}
 	return page, nil
 }
-
-// StatDirectory 读取当前目录和父级路径，用于生成面包屑。
-func (d *Driver) StatDirectory(ctx context.Context, credential Credential, directoryID string) (Directory, error) {
-	if directoryID == "0" {
-		return Directory{ID: "0", Name: "我的网盘", Breadcrumbs: []Breadcrumb{{ID: "0", Name: "我的网盘"}}}, nil
-	}
-	if err := ctx.Err(); err != nil {
-		return Directory{}, err
-	}
-	client := d.client(ctx).ImportCredential(&driver.Credential{UID: credential.UID, CID: credential.CID, SEID: credential.SEID, KID: credential.KID})
-	info, err := client.Stat(directoryID)
-	if err != nil {
-		return Directory{}, safeBrowseError(err)
-	}
-	if info == nil || !info.IsDirectory {
-		return Directory{}, ErrDirectoryNotFound
-	}
-	crumbs := make([]Breadcrumb, 0, len(info.Parents)+2)
-	crumbs = append(crumbs, Breadcrumb{ID: "0", Name: "我的网盘"})
-	for _, parent := range info.Parents {
-		if parent == nil || parent.ID == "" || parent.ID == "0" {
-			continue
-		}
-		// Stat 返回的父级路径按上游顺序排列；部分响应会包含根目录，需去重。
-		if crumbs[len(crumbs)-1].ID != parent.ID {
-			crumbs = append(crumbs, Breadcrumb{ID: parent.ID, Name: parent.Name})
-		}
-	}
-	if crumbs[len(crumbs)-1].ID != directoryID {
-		crumbs = append(crumbs, Breadcrumb{ID: directoryID, Name: info.Name})
-	}
-	return Directory{ID: directoryID, Name: info.Name, Breadcrumbs: crumbs}, nil
-}
-
 func upstreamType(kind string) (string, bool) {
-	// 这些数字对应锁定版本 SDK 中 /files 接口的文件类型筛选值。
+	// These values are the existing /files type filter contract.
 	switch kind {
 	case "folder":
 		return "1", true
@@ -132,22 +197,4 @@ func fileType(name string, directory bool) string {
 	default:
 		return "other"
 	}
-}
-
-func safeBrowseError(err error) error {
-	if err == nil {
-		return nil
-	}
-	if errors.Is(err, driver.ErrNotLogin) || errors.Is(err, driver.ErrCredentialInvalid) || errors.Is(err, driver.ErrBadCookie) {
-		return &UpstreamError{Message: "115 登录凭据无效或已过期", Cause: ErrCredentialInvalid}
-	}
-	if errors.Is(err, driver.ErrNotExist) {
-		return ErrDirectoryNotFound
-	}
-	if isTransportError(err) || errors.Is(err, driver.ErrUnexpected) {
-		return safeNetworkError(err)
-	}
-	// 只有 Stat 明确返回“非目录”时才认定目录不存在。无法识别的 SDK
-	// 错误可能包含上游响应正文，统一映射为脱敏的网络/服务错误，不能误报 404。
-	return safeNetworkError(err)
 }

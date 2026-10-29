@@ -312,7 +312,8 @@ export interface components {
             authorizationType?: "cookie";
             /** @enum {string} */
             membershipStatus: "active" | "ordinary" | "unknown";
-            membershipLevel: number;
+            /** @description Verbatim membership display name from the 115 Cookie API; absent when unavailable. */
+            membershipName?: string;
             /** Format: date-time */
             membershipExpiresAt?: string | null;
             /** Format: int64 */

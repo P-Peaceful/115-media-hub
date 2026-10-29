@@ -109,7 +109,7 @@ func toConnection(v *connections.Connection) generated.Connection {
 		AvatarUrl:           optionalString(v.Profile.AvatarURL),
 		AuthorizationType:   authorizationType(v.Profile.AuthorizationType),
 		MembershipStatus:    generated.AccountProfileMembershipStatus(v.Profile.MembershipStatus),
-		MembershipLevel:     v.Profile.MembershipLevel,
+		MembershipName:      optionalString(v.Profile.MembershipName),
 		MembershipExpiresAt: v.Profile.MembershipExpiresAt,
 		StorageTotalBytes:   v.Profile.StorageTotalBytes,
 		StorageUsedBytes:    v.Profile.StorageUsedBytes,
