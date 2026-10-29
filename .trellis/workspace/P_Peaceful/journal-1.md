@@ -85,3 +85,38 @@ Completed backend/frontend Trellis guidelines from four Notion documents and act
 ### Status
 
 [OK] **Completed**
+
+
+## Session 4: 115 媒体目录浏览交付与归档
+<!-- trellis-session: v=2 fp=14f0064921496153 -->
+
+**Date**: 2026-10-30
+**Task**: 115 媒体目录浏览交付与归档
+**Branch**: `codex/admin-auth`
+
+### Summary
+
+提交并归档按需单页的 115 目录浏览及 HeroUI/主题调整；用户确认包含全部当前改动并知悉遗留问题。
+
+### Main Changes
+
+- 实现只读目录列表与元数据 API、分页搜索筛选和 URL 状态。
+- 合入 HeroUI 组件、工作台侧栏及浅色/深色/跟随系统主题实现。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `ea7917f` | feat: add paginated 115 directory browsing |
+
+### Testing
+
+- [OK] 前端类型、lint、依赖、构建以及 Go vet、gofmt、diff 检查通过；未运行测试套件。
+
+### Status
+
+[OK] **Completed**
+
+### Next Steps
+
+- 后续处理 Stat 目录路径失败、中文搜索按字节限制和失败分页加载文案；详见归档 verification.md。
