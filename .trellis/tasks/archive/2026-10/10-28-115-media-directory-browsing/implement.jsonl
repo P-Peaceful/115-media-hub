@@ -1,0 +1,6 @@
+{"file": ".trellis/spec/project-context.md", "reason": "当前行为边界、敏感数据约束与未交付业务范围"}
+{"file": ".trellis/spec/backend/go-coding-guidelines.md", "reason": "Go 分层、错误和 context 约定"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "结构化日志字段与脱敏规则"}
+{"file": ".trellis/spec/frontend/feature-guidelines.md", "reason": "浏览交互、URL/Query 状态和部分状态要求"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "OpenAPI 和前端 API 边界"}
+{"file": ".trellis/tasks/10-28-115-media-directory-browsing/research/sdk-findings.md", "reason": "115 SDK 分页、总数、当前目录搜索范围与可用 adapter 边界"}
