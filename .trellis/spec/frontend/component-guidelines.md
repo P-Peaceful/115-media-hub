@@ -8,11 +8,11 @@ Use function components and typed props. [AppProviders](../../../frontend/src/ap
 export function AppProviders({ children }: { children: ReactNode }) {
 ```
 
-[AppLayout](../../../frontend/src/app/layouts/AppLayout.tsx) composes HeroUI `Button`, Lucide icons and React Router `Outlet`; [LoginPage](../../../frontend/src/features/auth/LoginPage.tsx) composes HeroUI form fields and feedback; [FoundationPages](../../../frontend/src/app/router/FoundationPages.tsx) contains simple semantic page markup. There is no established reusable table/dialog implementation. Read [project context](../project-context.md) before interpreting future UI requirements as current components.
+[AppLayout](../../../frontend/src/app/layouts/AppLayout.tsx) composes HeroUI `Button`, Lucide icons and React Router `Outlet`; [LoginPage](../../../frontend/src/features/auth/LoginPage.tsx) composes HeroUI form fields and feedback; [FoundationPages](../../../frontend/src/app/router/FoundationPages.tsx) contains simple semantic page markup. The browse screen uses the HeroUI v3 compound Table and Pagination components; no reusable dialog implementation is established. Read [project context](../project-context.md) before interpreting future UI requirements as current components.
 
 ## HeroUI v3 and CSS
 
-Pinned versions come from [package.json](../../../frontend/package.json), currently HeroUI React/styles `3.2.6`, React `19.3.1` and Tailwind `4.3.3`. Confirm actual installed exports before using component APIs. There is no HeroUI v2 provider requirement; [main.tsx](../../../frontend/src/main.tsx) and providers use QueryClientProvider only.
+Pinned versions come from [package.json](../../../frontend/package.json), currently HeroUI React/styles `3.2.6`, React `19.3.1` and Tailwind `4.3.3`. Confirm actual installed exports before using component APIs. There is no HeroUI v2 provider requirement; [main.tsx](../../../frontend/src/main.tsx) and providers compose QueryClientProvider, authentication and the shared theme context.
 
 [globals.css](../../../frontend/src/styles/globals.css) requires this order:
 
@@ -22,7 +22,7 @@ Pinned versions come from [package.json](../../../frontend/package.json), curren
 @import "./tokens.css";
 ```
 
-Use semantic classes such as `bg-background`, `text-foreground`, `text-muted`, `border-separator`, following the layout. [tokens.css](../../../frontend/src/styles/tokens.css) sets the application font and overrides HeroUI semantic colors for light mode. Avoid scattered literal colors or introducing v2 theme configuration. The provider sets the root `dark` class, `data-theme`, and `colorScheme` from preferences; current default is light, while system-following theme is a [UI recommendation](https://app.notion.com/p/401138389edc8143b487f666a58004f4), not implemented behavior.
+Use semantic classes such as `bg-background`, `text-foreground`, `text-muted`, `border-separator`, following the layout. [tokens.css](../../../frontend/src/styles/tokens.css) sets the application font and overrides HeroUI semantic colors for light mode. Avoid scattered literal colors or introducing v2 theme configuration. The provider uses HeroUI `useTheme('system')` through `shared/theme/theme-context.ts`; theme choices are `light`, `dark`, and `system`. `public/theme-bootstrap.js` runs synchronously in the document head, reads `heroui-theme`, migrates the legacy `115-media-hub-preferences` value when necessary, and applies the resolved theme before React starts. Keep bootstrap storage keys and resolution rules aligned with the HeroUI hook. The provider briefly suppresses transitions during a resolved-theme change so component colors do not animate against the new canvas.
 
 Prefer installed HeroUI components for controls and feedback before building equivalents. For a visible hover hint on an icon button, use HeroUI v3's compound tooltip structure and keep the button's accessible name:
 
@@ -47,11 +47,7 @@ When changing theme colors, compare the authenticated shell and anonymous login 
 
 ## Accessibility and future interactions
 
-The existing theme button uses `onPress` and an explicit changing accessible label:
-
-```tsx
-aria-label={theme === 'dark' ? '切换浅色主题' : '切换深色主题'}
-```
+The theme control uses HeroUI Dropdown with single selection for `light`, `dark`, and `system`; its trigger names the current preference. Preserve the selection indicator and accessible label when changing its layout. Sidebar navigation and account controls use HeroUI Button `fullWidth`; keep long account text shrinkable and use Typography `truncate` to avoid overflowing the sidebar.
 
 Retain semantic headings, landmarks and labels; icons/colors alone must not carry status. Future forms need associated labels/errors and first-invalid focus; future modal drawers/dialogs need focus trapping/restoration, scroll locking and Escape behavior. Escape closes an overlay; it must not implicitly cancel a background run. These are [UI requirements](https://app.notion.com/p/401138389edc8143b487f666a58004f4), not evidence of current accessibility coverage.
 

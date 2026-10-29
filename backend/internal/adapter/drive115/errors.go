@@ -93,13 +93,15 @@ func sanitizeUpstreamText(value string) string {
 }
 
 var (
-	ErrInvalidChallenge  = errors.New("invalid QR challenge")
-	ErrInvalidDevice     = errors.New("invalid QR device")
-	ErrUnknownStatus     = errors.New("unknown upstream QR status")
-	ErrCredentialInvalid = errors.New("115 credential is invalid")
-	ErrRootUnreadable    = errors.New("115 root directory is not readable")
-	ErrUnreachable       = errors.New("115 service is unreachable")
-	ErrLimited           = errors.New("115 request was limited")
+	ErrInvalidChallenge    = errors.New("invalid QR challenge")
+	ErrInvalidDevice       = errors.New("invalid QR device")
+	ErrUnknownStatus       = errors.New("unknown upstream QR status")
+	ErrCredentialInvalid   = errors.New("115 credential is invalid")
+	ErrRootUnreadable      = errors.New("115 root directory is not readable")
+	ErrUnreachable         = errors.New("115 service is unreachable")
+	ErrLimited             = errors.New("115 request was limited")
+	ErrInvalidBrowseFilter = errors.New("invalid 115 browse filter")
+	ErrDirectoryNotFound   = errors.New("115 directory not found")
 )
 
 func loginApp(device Device) (driver.LoginApp, bool) {

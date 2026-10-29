@@ -182,7 +182,7 @@ export function LoginPage() {
               <Button
                 type="submit"
                 variant="primary"
-                isDisabled={pending}
+                isPending={pending}
                 className="auth-login__submit"
               >
                 <ArrowRight size={16} aria-hidden="true" />

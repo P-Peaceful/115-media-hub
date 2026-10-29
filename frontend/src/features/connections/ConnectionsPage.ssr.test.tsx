@@ -1,5 +1,4 @@
 import { createElement } from 'react'
-import type { ReactNode } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ConnectionSummary } from './connections-api'
@@ -11,20 +10,6 @@ vi.mock('@tanstack/react-query', () => ({
   useQueryClient: () => ({ invalidateQueries: vi.fn(), setQueryData: vi.fn() }),
   useMutation: () => ({ mutate: vi.fn(), reset: vi.fn(), isPending: false, isSuccess: false, isError: false }),
 }))
-
-vi.mock('@heroui/react', async () => {
-  const React = await import('react')
-  type MockProps = Record<string, unknown> & { children?: ReactNode; onPress?: () => void; isPending?: boolean }
-  function Button({ children, onPress, isPending, ...props }: MockProps) {
-    return React.createElement('button', { ...props, onClick: onPress, disabled: isPending }, children)
-  }
-  function Alert({ children, ...props }: MockProps) { return React.createElement('div', props, children) }
-  Alert.Indicator = () => React.createElement('span')
-  Alert.Content = ({ children }: MockProps) => React.createElement('div', null, children)
-  Alert.Title = ({ children }: MockProps) => React.createElement('strong', null, children)
-  Alert.Description = ({ children }: MockProps) => React.createElement('p', null, children)
-  return { Button, Alert }
-})
 
 vi.mock('./connections.css', () => ({}))
 
@@ -63,10 +48,14 @@ describe('ConnectionsPage server-rendered semantics', () => {
 
   it('associates each device radio with a label and exposes Web guidance', () => {
     const markup = renderPage({ isLoading: false, isError: false, data: { configured: false } })
-    expect(markup).toContain('<fieldset')
-    expect(markup).toContain('<legend')
+    expect(markup).toContain('role="radiogroup"')
+    expect(markup).toContain('设备方式')
     expect(markup).toContain('type="radio"')
-    expect(markup.match(/<label/g)).toHaveLength(3)
+    const deviceLabels = markup.match(/<label\b[^>]*>[\s\S]*?<\/label>/g) ?? []
+    expect(deviceLabels).toHaveLength(3)
+    for (const deviceLabel of ['Web 网页', '支付宝小程序', '微信小程序']) {
+      expect(deviceLabels.some((label) => label.includes('type="radio"') && label.includes(deviceLabel))).toBe(true)
+    }
     expect(markup).toContain('Web 登录提示')
     expect(markup).toContain('role="note"')
   })

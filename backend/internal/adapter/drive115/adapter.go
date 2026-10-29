@@ -46,6 +46,27 @@ type Evidence struct {
 	Profile      AccountProfile
 }
 
+// DirectoryEntry contains only the safe fields required by directory browsing.
+type DirectoryEntry struct {
+	ID, ParentID, Name string
+	IsDirectory        bool
+	Size               int64
+	ModifiedAt         time.Time
+	FileType           string
+}
+
+// DirectoryPage is one bounded upstream response; Total comes directly from 115.
+type DirectoryPage struct {
+	Entries []DirectoryEntry
+	Total   int64
+}
+
+type Breadcrumb struct{ ID, Name string }
+type Directory struct {
+	ID, Name    string
+	Breadcrumbs []Breadcrumb
+}
+
 // AccountProfile is a safe, non-secret snapshot suitable for the management API.
 type AccountProfile struct {
 	AccountName         string     `json:"accountName"`
@@ -67,6 +88,12 @@ type Adapter interface {
 	PollQRCode(context.Context, Challenge) (Status, error)
 	CompleteQRCode(context.Context, Challenge, Device) (Credential, error)
 	VerifyCredential(context.Context, Credential) (Evidence, error)
+}
+
+// BrowserAdapter adds read-only single-page directory operations.
+type BrowserAdapter interface {
+	ListDirectory(context.Context, Credential, string, int, int, string, string) (DirectoryPage, error)
+	StatDirectory(context.Context, Credential, string) (Directory, error)
 }
 
 type Driver struct{ timeout time.Duration }

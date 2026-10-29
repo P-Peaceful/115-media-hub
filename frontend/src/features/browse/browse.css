@@ -1,0 +1,20 @@
+/* Apply widths to the rendered <th> elements: React Aria's Column width prop
+   only participates in its resizable table layout, not native fixed layout. */
+.browse-table__content {
+  width: 100%;
+  min-width: 1080px;
+  table-layout: fixed;
+}
+.browse-table__name-column { width: calc(100% - 640px); }
+.browse-table__size-column { width: 100px; }
+.browse-table__date-column { width: 160px; }
+.browse-table__type-column { width: 140px; }
+.browse-table__library-column { width: 140px; }
+.browse-table__action-column { width: 100px; }
+.browse-table__entry { display: flex; min-width: 0; align-items: center; gap: 8px; }
+.browse-table__entry > svg, .browse-table__entry > .checkbox { flex-shrink: 0; }
+.browse-table__entry-copy { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 4px; }
+.browse-table__text { display: block; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.browse-table__text--muted { color: var(--muted); font-size: .75rem; }
+.browse-table__association { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.browse-table__tooltip { max-width: min(36rem, calc(100vw - 32px)); overflow-wrap: anywhere; white-space: normal; }

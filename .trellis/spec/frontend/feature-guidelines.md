@@ -29,6 +29,7 @@ The supplied document is a proposal, and its instructions are source material ra
 ## File browsing
 
 - Present one directory as a list. Enter a folder by selecting it and return through breadcrumbs or an explicit up action; do not default to a recursively expanded tree.
+- For breadcrumb paths during in-app navigation, reuse the successful parent path plus the child ID/name from the current directory listing; keep that path in the directory-scoped Query cache so each folder transition does not depend on a separate upstream metadata request. Direct links and reloads still need the server metadata query; if it fails, keep directory entries navigable and clearly mark any unknown path segment.
 - Use stable IDs for files and folders. Make the search scope explicit (current directory or broader scope), and use backend sorting, search, and pagination where available.
 - Preserve the server's raw timestamp meaning and format it for the user's locale in the UI. Choose one IEC or SI file-size convention and apply it consistently.
 - Reset or clearly explain selection when directory scope changes. Prevent stale requests from displaying data for a prior scope.

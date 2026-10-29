@@ -177,6 +177,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/drive/115/directories/{directoryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a directory name and breadcrumb path */
+        get: operations["get115Directory"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/drive/115/directories/{directoryId}/entries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read one page of direct children in a 115 directory */
+        get: operations["get115DirectoryEntries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health/live": {
         parameters: {
             query?: never;
@@ -299,6 +333,35 @@ export interface components {
             status: "available" | "unavailable" | "unknown";
             detail?: string;
         };
+        DirectoryMetadata: {
+            directoryId: string;
+            name: string;
+            breadcrumbs: components["schemas"]["DirectoryBreadcrumb"][];
+        };
+        DirectoryBreadcrumb: {
+            directoryId: string;
+            name: string;
+        };
+        DirectoryEntriesPage: {
+            directoryId: string;
+            offset: number;
+            limit: number;
+            /** Format: int64 */
+            total: number;
+            entries: components["schemas"]["DirectoryEntry"][];
+        };
+        DirectoryEntry: {
+            id: string;
+            parentId: string;
+            name: string;
+            isDirectory: boolean;
+            /** Format: int64 */
+            size: number;
+            /** Format: date-time */
+            modifiedAt: string | null;
+            /** @enum {string} */
+            fileType: "folder" | "video" | "image" | "subtitle" | "metadata" | "other";
+        };
         ConnectionTestResult: {
             /** @enum {string} */
             status: "available" | "invalid" | "limited" | "unreachable" | "unknown";
@@ -312,7 +375,7 @@ export interface components {
         };
         ErrorResponse: {
             /** @enum {string} */
-            category: "invalid_request" | "unauthorized" | "forbidden" | "not_found" | "conflict" | "unavailable" | "internal";
+            category: "invalid_request" | "unauthorized" | "forbidden" | "not_found" | "connection_missing" | "conflict" | "unavailable" | "internal";
             message: string;
             /** @description Extracted 115 upstream code; never contains response body or credentials */
             upstreamCode?: string;
@@ -742,6 +805,119 @@ export interface operations {
                 };
             };
             /** @description Profile refresh unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get115Directory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                directoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Directory metadata */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryMetadata"];
+                };
+            };
+            /** @description Invalid directory ID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid administrator session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Connection or directory not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 115 service unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    get115DirectoryEntries: {
+        parameters: {
+            query?: {
+                offset?: number;
+                limit?: number;
+                type?: "all" | "video" | "folder" | "image" | "document" | "audio" | "archive";
+                q?: string;
+            };
+            header?: never;
+            path: {
+                directoryId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current page and server-reported matching count */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DirectoryEntriesPage"];
+                };
+            };
+            /** @description Invalid query parameters */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid administrator session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Connection or directory not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description 115 service unavailable */
             503: {
                 headers: {
                     [name: string]: unknown;

@@ -13,20 +13,25 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/http/generated"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/http/handler"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/security"
+	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/browse"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/connections"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/webui"
 )
 
 func New(ping func(context.Context) error, files fs.FS) *gin.Engine {
-	return newRouter(ping, files, nil, false, nil)
+	return newRouter(ping, files, nil, false, nil, nil)
 }
 
 func NewWithAuth(ping func(context.Context) error, files fs.FS, service *security.Service, cookieSecure bool) *gin.Engine {
-	return newRouter(ping, files, service, cookieSecure, nil)
+	return newRouter(ping, files, service, cookieSecure, nil, nil)
 }
 
 func NewWithConnections(ping func(context.Context) error, files fs.FS, authService *security.Service, cookieSecure bool, connectionService *connections.Service) *gin.Engine {
-	return newRouter(ping, files, authService, cookieSecure, connectionService)
+	return newRouter(ping, files, authService, cookieSecure, connectionService, nil)
+}
+
+func NewWithServices(ping func(context.Context) error, files fs.FS, authService *security.Service, cookieSecure bool, connectionService *connections.Service, browseService *browse.Service) *gin.Engine {
+	return newRouter(ping, files, authService, cookieSecure, connectionService, browseService)
 }
 
 func RegisterManagementRoutes(r *gin.Engine, auth handler.Auth, register func(*gin.RouterGroup)) {
@@ -35,7 +40,7 @@ func RegisterManagementRoutes(r *gin.Engine, auth handler.Auth, register func(*g
 	register(group)
 }
 
-func newRouter(ping func(context.Context) error, files fs.FS, service *security.Service, cookieSecure bool, connectionService *connections.Service) *gin.Engine {
+func newRouter(ping func(context.Context) error, files fs.FS, service *security.Service, cookieSecure bool, connectionService *connections.Service, browseService *browse.Service) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	_ = r.SetTrustedProxies(nil)
@@ -62,7 +67,7 @@ func newRouter(ping func(context.Context) error, files fs.FS, service *security.
 		}
 		c.Next()
 	})
-	generated.RegisterHandlers(r, apiHandler{Health: handler.Health{Ping: ping}, Auth: auth, Connections: handler.Connections{Service: connectionService}})
+	generated.RegisterHandlers(r, apiHandler{Health: handler.Health{Ping: ping}, Auth: auth, Connections: handler.Connections{Service: connectionService}, Browse: handler.Browse{Service: browseService}})
 	ui := webui.Handler(files)
 	r.NoRoute(func(c *gin.Context) {
 		p := c.Request.URL.Path
@@ -85,6 +90,7 @@ type apiHandler struct {
 	handler.Health
 	handler.Auth
 	handler.Connections
+	handler.Browse
 }
 
 func (h apiHandler) LoginAdmin(c *gin.Context)      { h.Auth.Login(c) }
@@ -100,5 +106,11 @@ func (h apiHandler) Complete115QRCodeSession(c *gin.Context, id string) {
 }
 func (h apiHandler) Test115Connection(c *gin.Context)        { h.Connections.Test(c) }
 func (h apiHandler) Refresh115AccountProfile(c *gin.Context) { h.Connections.RefreshProfile(c) }
+func (h apiHandler) Get115Directory(c *gin.Context, directoryID string) {
+	h.Browse.GetDirectory(c, directoryID)
+}
+func (h apiHandler) Get115DirectoryEntries(c *gin.Context, directoryID string, params generated.Get115DirectoryEntriesParams) {
+	h.Browse.GetDirectoryEntries(c, directoryID, params)
+}
 
 var _ generated.ServerInterface = apiHandler{}

@@ -159,21 +159,54 @@ func (e ConnectionTestResultStatus) Valid() bool {
 	}
 }
 
+// Defines values for DirectoryEntryFileType.
+const (
+	DirectoryEntryFileTypeFolder   DirectoryEntryFileType = "folder"
+	DirectoryEntryFileTypeImage    DirectoryEntryFileType = "image"
+	DirectoryEntryFileTypeMetadata DirectoryEntryFileType = "metadata"
+	DirectoryEntryFileTypeOther    DirectoryEntryFileType = "other"
+	DirectoryEntryFileTypeSubtitle DirectoryEntryFileType = "subtitle"
+	DirectoryEntryFileTypeVideo    DirectoryEntryFileType = "video"
+)
+
+// Valid indicates whether the value is a known member of the DirectoryEntryFileType enum.
+func (e DirectoryEntryFileType) Valid() bool {
+	switch e {
+	case DirectoryEntryFileTypeFolder:
+		return true
+	case DirectoryEntryFileTypeImage:
+		return true
+	case DirectoryEntryFileTypeMetadata:
+		return true
+	case DirectoryEntryFileTypeOther:
+		return true
+	case DirectoryEntryFileTypeSubtitle:
+		return true
+	case DirectoryEntryFileTypeVideo:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ErrorResponseCategory.
 const (
-	ErrorResponseCategoryConflict       ErrorResponseCategory = "conflict"
-	ErrorResponseCategoryForbidden      ErrorResponseCategory = "forbidden"
-	ErrorResponseCategoryInternal       ErrorResponseCategory = "internal"
-	ErrorResponseCategoryInvalidRequest ErrorResponseCategory = "invalid_request"
-	ErrorResponseCategoryNotFound       ErrorResponseCategory = "not_found"
-	ErrorResponseCategoryUnauthorized   ErrorResponseCategory = "unauthorized"
-	ErrorResponseCategoryUnavailable    ErrorResponseCategory = "unavailable"
+	ErrorResponseCategoryConflict          ErrorResponseCategory = "conflict"
+	ErrorResponseCategoryConnectionMissing ErrorResponseCategory = "connection_missing"
+	ErrorResponseCategoryForbidden         ErrorResponseCategory = "forbidden"
+	ErrorResponseCategoryInternal          ErrorResponseCategory = "internal"
+	ErrorResponseCategoryInvalidRequest    ErrorResponseCategory = "invalid_request"
+	ErrorResponseCategoryNotFound          ErrorResponseCategory = "not_found"
+	ErrorResponseCategoryUnauthorized      ErrorResponseCategory = "unauthorized"
+	ErrorResponseCategoryUnavailable       ErrorResponseCategory = "unavailable"
 )
 
 // Valid indicates whether the value is a known member of the ErrorResponseCategory enum.
 func (e ErrorResponseCategory) Valid() bool {
 	switch e {
 	case ErrorResponseCategoryConflict:
+		return true
+	case ErrorResponseCategoryConnectionMissing:
 		return true
 	case ErrorResponseCategoryForbidden:
 		return true
@@ -258,6 +291,39 @@ func (e QRCodeSessionStatus) Valid() bool {
 	case Scanned:
 		return true
 	case Waiting:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Get115DirectoryEntriesParamsType.
+const (
+	Get115DirectoryEntriesParamsTypeAll      Get115DirectoryEntriesParamsType = "all"
+	Get115DirectoryEntriesParamsTypeArchive  Get115DirectoryEntriesParamsType = "archive"
+	Get115DirectoryEntriesParamsTypeAudio    Get115DirectoryEntriesParamsType = "audio"
+	Get115DirectoryEntriesParamsTypeDocument Get115DirectoryEntriesParamsType = "document"
+	Get115DirectoryEntriesParamsTypeFolder   Get115DirectoryEntriesParamsType = "folder"
+	Get115DirectoryEntriesParamsTypeImage    Get115DirectoryEntriesParamsType = "image"
+	Get115DirectoryEntriesParamsTypeVideo    Get115DirectoryEntriesParamsType = "video"
+)
+
+// Valid indicates whether the value is a known member of the Get115DirectoryEntriesParamsType enum.
+func (e Get115DirectoryEntriesParamsType) Valid() bool {
+	switch e {
+	case Get115DirectoryEntriesParamsTypeAll:
+		return true
+	case Get115DirectoryEntriesParamsTypeArchive:
+		return true
+	case Get115DirectoryEntriesParamsTypeAudio:
+		return true
+	case Get115DirectoryEntriesParamsTypeDocument:
+		return true
+	case Get115DirectoryEntriesParamsTypeFolder:
+		return true
+	case Get115DirectoryEntriesParamsTypeImage:
+		return true
+	case Get115DirectoryEntriesParamsTypeVideo:
 		return true
 	default:
 		return false
@@ -353,6 +419,42 @@ type CreateQRCodeSessionRequest struct {
 	Device QRCodeDevice `json:"device"`
 }
 
+// DirectoryBreadcrumb defines model for DirectoryBreadcrumb.
+type DirectoryBreadcrumb struct {
+	DirectoryId string `json:"directoryId"`
+	Name        string `json:"name"`
+}
+
+// DirectoryEntriesPage defines model for DirectoryEntriesPage.
+type DirectoryEntriesPage struct {
+	DirectoryId string           `json:"directoryId"`
+	Entries     []DirectoryEntry `json:"entries"`
+	Limit       int              `json:"limit"`
+	Offset      int              `json:"offset"`
+	Total       int64            `json:"total"`
+}
+
+// DirectoryEntry defines model for DirectoryEntry.
+type DirectoryEntry struct {
+	FileType    DirectoryEntryFileType `json:"fileType"`
+	Id          string                 `json:"id"`
+	IsDirectory bool                   `json:"isDirectory"`
+	ModifiedAt  *time.Time             `json:"modifiedAt"`
+	Name        string                 `json:"name"`
+	ParentId    string                 `json:"parentId"`
+	Size        int64                  `json:"size"`
+}
+
+// DirectoryEntryFileType defines model for DirectoryEntry.FileType.
+type DirectoryEntryFileType string
+
+// DirectoryMetadata defines model for DirectoryMetadata.
+type DirectoryMetadata struct {
+	Breadcrumbs []DirectoryBreadcrumb `json:"breadcrumbs"`
+	DirectoryId string                `json:"directoryId"`
+	Name        string                `json:"name"`
+}
+
 // ErrorResponse defines model for ErrorResponse.
 type ErrorResponse struct {
 	Category ErrorResponseCategory `json:"category"`
@@ -402,6 +504,17 @@ type SessionState struct {
 	ExpiresAt     *time.Time `json:"expiresAt,omitempty"`
 }
 
+// Get115DirectoryEntriesParams defines parameters for Get115DirectoryEntries.
+type Get115DirectoryEntriesParams struct {
+	Offset *int                              `form:"offset,omitempty" json:"offset,omitempty"`
+	Limit  *int                              `form:"limit,omitempty" json:"limit,omitempty"`
+	Type   *Get115DirectoryEntriesParamsType `form:"type,omitempty" json:"type,omitempty"`
+	Q      *string                           `form:"q,omitempty" json:"q,omitempty"`
+}
+
+// Get115DirectoryEntriesParamsType defines parameters for Get115DirectoryEntries.
+type Get115DirectoryEntriesParamsType string
+
 // Create115QRCodeSessionJSONRequestBody defines body for Create115QRCodeSession for application/json ContentType.
 type Create115QRCodeSessionJSONRequestBody = CreateQRCodeSessionRequest
 
@@ -431,6 +544,12 @@ type ServerInterface interface {
 	// Test115Connection Perform a read-only connection and root-directory capability check
 	// (POST /api/admin/connections/115/test)
 	Test115Connection(c *gin.Context)
+	// Get115Directory Read a directory name and breadcrumb path
+	// (GET /api/admin/drive/115/directories/{directoryId})
+	Get115Directory(c *gin.Context, directoryId string)
+	// Get115DirectoryEntries Read one page of direct children in a 115 directory
+	// (GET /api/admin/drive/115/directories/{directoryId}/entries)
+	Get115DirectoryEntries(c *gin.Context, directoryId string, params Get115DirectoryEntriesParams)
 	// LoginAdmin Start an administrator session
 	// (POST /api/auth/login)
 	LoginAdmin(c *gin.Context)
@@ -584,6 +703,91 @@ func (siw *ServerInterfaceWrapper) Test115Connection(c *gin.Context) {
 	siw.Handler.Test115Connection(c)
 }
 
+// Get115Directory operation middleware
+func (siw *ServerInterfaceWrapper) Get115Directory(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "directoryId" -------------
+	var directoryId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "directoryId", c.Param("directoryId"), &directoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter directoryId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.Get115Directory(c, directoryId)
+}
+
+// Get115DirectoryEntries operation middleware
+func (siw *ServerInterfaceWrapper) Get115DirectoryEntries(c *gin.Context) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "directoryId" -------------
+	var directoryId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "directoryId", c.Param("directoryId"), &directoryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter directoryId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params Get115DirectoryEntriesParams
+
+	// ------------- Optional query parameter "offset" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "offset", c.Request.URL.Query(), &params.Offset, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter offset: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", c.Request.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter limit: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "type" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "type", c.Request.URL.Query(), &params.Type, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter type: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	// ------------- Optional query parameter "q" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "q", c.Request.URL.Query(), &params.Q, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter q: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.Get115DirectoryEntries(c, directoryId, params)
+}
+
 // LoginAdmin operation middleware
 func (siw *ServerInterfaceWrapper) LoginAdmin(c *gin.Context) {
 
@@ -686,6 +890,8 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.POST(options.BaseURL+"/api/admin/connections/115/qr-sessions/:sessionId/complete", wrapper.Complete115QRCodeSession)
 	router.POST(options.BaseURL+"/api/admin/connections/115/test", wrapper.Test115Connection)
 	router.POST(options.BaseURL+"/api/admin/connections/115/profile/refresh", wrapper.Refresh115AccountProfile)
+	router.GET(options.BaseURL+"/api/admin/drive/115/directories/:directoryId", wrapper.Get115Directory)
+	router.GET(options.BaseURL+"/api/admin/drive/115/directories/:directoryId/entries", wrapper.Get115DirectoryEntries)
 	router.GET(options.BaseURL+"/health/live", wrapper.GetLiveness)
 	router.GET(options.BaseURL+"/health/ready", wrapper.GetReadiness)
 }

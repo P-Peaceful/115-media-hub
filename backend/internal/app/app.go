@@ -13,6 +13,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/database"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/http/router"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/security"
+	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/browse"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/connections"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/webui"
 )
@@ -28,8 +29,10 @@ func Run(ctx context.Context, cfg config.Config) error {
 		return err
 	}
 	defer sqlDB.Close()
-	connectionService := connections.New(db, drive115.New(15*time.Second))
-	server := &http.Server{Addr: cfg.HTTPAddr, Handler: router.NewWithConnections(sqlDB.PingContext, webui.Files(), security.New(cfg.AdminUsername, cfg.AdminPassword), cfg.CookieSecure, connectionService), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
+	drive := drive115.New(15 * time.Second)
+	connectionService := connections.New(db, drive)
+	browseService := browse.New(db, drive)
+	server := &http.Server{Addr: cfg.HTTPAddr, Handler: router.NewWithServices(sqlDB.PingContext, webui.Files(), security.New(cfg.AdminUsername, cfg.AdminPassword), cfg.CookieSecure, connectionService, browseService), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}
 	done := make(chan error, 1)
 	go func() { done <- server.ListenAndServe() }()
 	slog.Info("server starting", "address", cfg.HTTPAddr)

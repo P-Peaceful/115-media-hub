@@ -156,6 +156,44 @@ paths:
         '403': { description: Invalid CSRF token }
         '404': { description: No configured connection, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
         '503': { description: Profile refresh unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+  /api/admin/drive/115/directories/{directoryId}:
+    get:
+      operationId: get115Directory
+      summary: Read a directory name and breadcrumb path
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { in: path, name: directoryId, required: true, schema: { type: string, pattern: '^(0|[1-9][0-9]*)$' } }
+      responses:
+        '200':
+          description: Directory metadata
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DirectoryMetadata' }
+        '400': { description: Invalid directory ID }
+        '401': { description: No valid administrator session }
+        '404': { description: Connection or directory not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '503': { description: 115 service unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+  /api/admin/drive/115/directories/{directoryId}/entries:
+    get:
+      operationId: get115DirectoryEntries
+      summary: Read one page of direct children in a 115 directory
+      security: [{ SessionCookie: [] }]
+      parameters:
+        - { in: path, name: directoryId, required: true, schema: { type: string, pattern: '^(0|[1-9][0-9]*)$' } }
+        - { in: query, name: offset, required: false, schema: { type: integer, minimum: 0, default: 0 } }
+        - { in: query, name: limit, required: false, schema: { type: integer, minimum: 1, maximum: 100, default: 6 } }
+        - { in: query, name: type, required: false, schema: { type: string, enum: [all, video, folder, image, document, audio, archive], default: all } }
+        - { in: query, name: q, required: false, schema: { type: string, maxLength: 120 } }
+      responses:
+        '200':
+          description: Current page and server-reported matching count
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DirectoryEntriesPage' }
+        '400': { description: Invalid query parameters }
+        '401': { description: No valid administrator session }
+        '404': { description: Connection or directory not found, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
+        '503': { description: 115 service unavailable, content: { application/json: { schema: { $ref: '#/components/schemas/ErrorResponse' } } } }
   /health/live:
     get:
       operationId: getLiveness
@@ -281,6 +319,43 @@ components:
         name: { type: string, enum: [account_identity, root_directory_read] }
         status: { type: string, enum: [available, unavailable, unknown] }
         detail: { type: string }
+    DirectoryMetadata:
+      type: object
+      required: [directoryId, name, breadcrumbs]
+      properties:
+        directoryId: { type: string }
+        name: { type: string }
+        breadcrumbs:
+          type: array
+          items: { $ref: '#/components/schemas/DirectoryBreadcrumb' }
+    DirectoryBreadcrumb:
+      type: object
+      required: [directoryId, name]
+      properties:
+        directoryId: { type: string }
+        name: { type: string }
+    DirectoryEntriesPage:
+      type: object
+      required: [directoryId, offset, limit, total, entries]
+      properties:
+        directoryId: { type: string }
+        offset: { type: integer, minimum: 0 }
+        limit: { type: integer, minimum: 1 }
+        total: { type: integer, minimum: 0, format: int64 }
+        entries:
+          type: array
+          items: { $ref: '#/components/schemas/DirectoryEntry' }
+    DirectoryEntry:
+      type: object
+      required: [id, parentId, name, isDirectory, size, modifiedAt, fileType]
+      properties:
+        id: { type: string }
+        parentId: { type: string }
+        name: { type: string }
+        isDirectory: { type: boolean }
+        size: { type: integer, format: int64, minimum: 0 }
+        modifiedAt: { type: string, format: date-time, nullable: true }
+        fileType: { type: string, enum: [folder, video, image, subtitle, metadata, other] }
     ConnectionTestResult:
       type: object
       required: [status, capabilities, checkedAt]
@@ -296,6 +371,6 @@ components:
       type: object
       required: [category, message]
       properties:
-        category: { type: string, enum: [invalid_request, unauthorized, forbidden, not_found, conflict, unavailable, internal] }
+        category: { type: string, enum: [invalid_request, unauthorized, forbidden, not_found, connection_missing, conflict, unavailable, internal] }
         message: { type: string }
         upstreamCode: { type: string, description: Extracted 115 upstream code; never contains response body or credentials }

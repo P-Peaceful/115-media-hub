@@ -1,3 +1,4 @@
+import { Button, Chip } from '@heroui/react'
 import { useQuery } from '@tanstack/react-query'
 import { Link2 } from 'lucide-react'
 import { useNavigate } from 'react-router'
@@ -22,17 +23,22 @@ export function ConnectionSidebarCard() {
         : `UID ${connection.externalAccountId} · ${profile?.membershipStatus === 'active' ? 'VIP' : profile?.membershipStatus === 'ordinary' ? '普通用户' : '会员信息未知'} · ${formatBytes(profile?.storageUsedBytes)} / ${formatBytes(profile?.storageTotalBytes)}`
 
   return (
-    <button
+    <Button
       type="button"
-      onClick={() => navigate('/connections')}
+      fullWidth
+      variant="secondary"
+      className="h-auto min-h-[72px] flex-col items-start gap-2 rounded-xl bg-background px-3 py-3 font-normal max-[720px]:min-h-10 max-[720px]:items-center max-[720px]:px-0"
+      onPress={() => navigate('/connections')}
       aria-label={connection ? `115 网盘，${connection.name}，${status}，打开连接管理` : `115 网盘，${status}，打开连接管理`}
-      className="mt-4 flex w-full items-center gap-2.5 rounded-xl border border-separator bg-surface-secondary p-3 text-left transition-colors hover:bg-default max-[720px]:size-11 max-[720px]:justify-center max-[720px]:p-0"
     >
-      <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent-soft text-accent-soft-foreground"><Link2 size={16} /></span>
-      <span className="min-w-0 max-[720px]:hidden">
-        <span className="block truncate text-xs font-semibold text-foreground">{connection ? profile?.accountName || connection.name : '115 网盘授权'}</span>
-        <span className="mt-0.5 block truncate text-[11px] text-muted">{status}</span>
+      <Link2 aria-hidden size={18} className="hidden max-[720px]:block" />
+      <span className="w-full min-w-0 truncate text-left text-sm max-[720px]:hidden">
+        {connection ? `115 · ${profile?.accountName || connection.name}` : '115 网盘授权'}
       </span>
-    </button>
+      <Chip size="sm" color={query.isError ? 'danger' : connection ? 'success' : 'default'} variant="soft" className="max-w-full max-[720px]:hidden">
+        <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-current" />
+        {query.isError ? '授权信息不可用' : query.isLoading ? '正在读取…' : connection ? '已授权' : '尚未连接'}
+      </Chip>
+    </Button>
   )
 }
