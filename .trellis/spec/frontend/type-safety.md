@@ -2,9 +2,9 @@
 
 ## Compiler and type ownership
 
-Initialization must enable TypeScript `strict`, `noUncheckedIndexedAccess`, and `exactOptionalPropertyTypes`; do not weaken checks to resolve application errors. Use `import type`, inferred local types where clear, and explicit exported API/prop contracts. Prefer string-literal unions/discriminated unions for finite states. Do not hand-maintain backend DTO copies.
+Keep TypeScript `strict`, `noUncheckedIndexedAccess`, and `exactOptionalPropertyTypes` enabled; do not weaken checks to resolve application errors. Use `import type`, inferred local types where clear, and explicit exported API/prop contracts. Prefer string-literal unions/discriminated unions for finite states. Do not hand-maintain backend DTO copies.
 
-Generate transport types from target `api/openapi.yaml` into `web/src/lib/api/generated/`. Local UI/view models remain feature-owned; map transport snake_case to camelCase only at an explicit boundary when needed. Keep opaque IDs as strings; preserve absent/null distinctions and UTC time strings from the [baseline](../guides/project-baseline.md#shared-http-contract-decisions).
+Generate transport types from `api/openapi.yaml` into `frontend/src/lib/api/generated/`. Local UI/view models remain feature-owned; map transport snake_case to camelCase only at an explicit boundary when needed. Keep opaque IDs as strings; preserve absent/null distinctions and UTC time strings from the [baseline](../guides/project-baseline.md#shared-http-contract-decisions).
 
 ## Runtime validation
 

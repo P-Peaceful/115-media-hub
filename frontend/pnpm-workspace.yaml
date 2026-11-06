@@ -1,0 +1,3 @@
+# MSW's postinstall only prints a message; Node tests do not use its browser worker.
+allowBuilds:
+  msw: false

@@ -2,12 +2,13 @@
 
 ## Scope and authority
 
-Read the [project baseline](../guides/project-baseline.md) first for Notion sources, architecture constraints, shared API decisions, and current implementation status. This is the initial coding baseline for the planned Go modular monolith; target paths and snippets do not represent existing source files.
+Read the [project baseline](../guides/project-baseline.md) first for Notion sources, architecture constraints, shared API decisions, and current implementation status. The Go modular monolith is rooted in `backend/`; startup, SQLite migrations and health HTTP behavior are implemented. Feature snippets without source links describe future business modules.
 
 ## Guidelines
 
 | Guide | Responsibility |
 | --- | --- |
+| [Initialization](./initialization.md) | Implemented startup, health, generated contracts and build boundaries |
 | [Directory structure](./directory-structure.md) | Package boundaries, dependency direction, naming |
 | [Database](./database-guidelines.md) | SQLite configuration, repositories, migrations, task claims |
 | [Error handling](./error-handling.md) | Error propagation, classification, HTTP mapping |
@@ -24,4 +25,4 @@ Read the [project baseline](../guides/project-baseline.md) first for Notion sour
 
 ## Quality Check
 
-Follow [quality gates](./quality-guidelines.md). Verify relevant Notion invariants and the frontend contract, not only formatting. State which checks actually ran and which require future initialization. Do not report a configured CI gate unless its configuration exists.
+Follow [quality gates](./quality-guidelines.md). Verify relevant Notion invariants and the frontend contract, not only formatting. State which checks actually ran. `backend/Makefile` owns backend commands and `.github/workflows/ci.yml` invokes the cross-project gates.

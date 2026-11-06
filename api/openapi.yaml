@@ -1,0 +1,76 @@
+openapi: 3.0.3
+info:
+  title: 115 Media Hub API
+  version: 0.1.0
+paths:
+  /health/live:
+    get:
+      operationId: getLiveness
+      summary: Check that the HTTP process is alive
+      responses:
+        '200':
+          $ref: '#/components/responses/Healthy'
+  /health/ready:
+    get:
+      operationId: getReadiness
+      summary: Check database readiness
+      responses:
+        '200':
+          $ref: '#/components/responses/Healthy'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+components:
+  headers:
+    RequestID:
+      description: Validated or generated request correlation identifier
+      schema:
+        type: string
+        maxLength: 64
+        pattern: '^[A-Za-z0-9._-]+$'
+  responses:
+    Healthy:
+      description: Healthy
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/HealthResponse'
+    Unavailable:
+      description: Database unavailable
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    HealthResponse:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok]
+    ErrorResponse:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          $ref: '#/components/schemas/APIError'
+    APIError:
+      type: object
+      additionalProperties: false
+      required: [code, message, request_id]
+      properties:
+        code:
+          type: string
+          enum: [service_unavailable, not_found, method_not_allowed, internal_error]
+        message:
+          type: string
+        request_id:
+          type: string

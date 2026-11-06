@@ -1,0 +1,89 @@
+@import "tailwindcss";
+@import "@heroui/styles";
+
+:root {
+  font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+  color-scheme: light;
+  --page-background: #f7f8fa;
+  --page-foreground: #19232d;
+  --page-muted: #526170;
+  --page-border: #dce2e7;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page-background: #13181d;
+    --page-foreground: #edf2f7;
+    --page-muted: #b4c0cc;
+    --page-border: #34414c;
+    --background: #13181d;
+    --foreground: #edf2f7;
+    --surface: #1d252c;
+    --muted: #b4c0cc;
+    --default: #303d49;
+    --default-foreground: #edf2f7;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--page-background);
+  color: var(--page-foreground);
+}
+.page-shell {
+  width: min(100% - 2.5rem, 64rem);
+  margin: 0 auto;
+  padding: 3rem 0;
+}
+.page-header {
+  border-bottom: 1px solid var(--page-border);
+  padding-bottom: 1.5rem;
+}
+.eyebrow {
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  color: var(--page-muted);
+  font-weight: 600;
+}
+h1 {
+  font-size: clamp(1.8rem, 6vw, 2.7rem);
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  margin: 1rem 0;
+}
+.intro {
+  color: var(--page-muted);
+  max-width: 36rem;
+  line-height: 1.8;
+}
+.health-panel {
+  margin-top: 2rem;
+  border: 1px solid var(--page-border);
+  padding: clamp(1.25rem, 4vw, 2rem);
+}
+.status-description {
+  color: var(--page-muted);
+  line-height: 1.8;
+}
+.page-footer {
+  margin-top: 2rem;
+  color: var(--page-muted);
+  font-size: 0.85rem;
+}
+a {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+:focus-visible {
+  outline: 3px solid var(--color-accent, #2563eb);
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

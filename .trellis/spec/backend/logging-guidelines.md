@@ -2,7 +2,7 @@
 
 ## Runtime logging
 
-Use injected `*slog.Logger` with a JSON handler. Configure logging centrally at startup, including output destinations, file rotation, retention, and bounded storage. `slog` does not rotate files by itself: initialization must select and pin a rotation implementation. Avoid `fmt.Println`, the standard `log` package, and feature-specific logging libraries in application code.
+Use injected `*slog.Logger` with a JSON handler. Configure logging centrally at startup, including output destinations, file rotation, retention, and bounded storage. `slog` does not rotate files by itself: `backend/internal/app/logging.go` uses pinned `lumberjack.v2 v2.2.1` when `MEDIAHUB_LOG_FILE` is set. It keeps a 10 MiB active file, three backups and seven-day retention, while preserving stdout output. Startup preflights file access; file-write failures emit a safe stable diagnostic to stdout. Avoid `fmt.Println`, the standard `log` package, and feature-specific logging libraries in application code.
 
 Every backend business module must emit necessary operational logs; HTTP access logs alone do not satisfy this requirement. Cover key business actions, significant state transitions, and failures so an operation can be traced to its result.
 

@@ -2,7 +2,7 @@
 
 ## Authority and implementation status
 
-This baseline was established on 2026-11-06 for the existing `00-bootstrap-guidelines` task. The repository currently has a name-only `README.md` and development tooling; application code and build manifests do not exist. Paths described as targets below are agreed locations for future implementation. All snippets in these specs are illustrative, not excerpts from existing application files. Add actual implementation/test references as features land.
+This baseline was established on 2026-11-06 by `00-bootstrap-guidelines` and implemented for the application foundation by `initialize-projects`. The independent roots are `frontend/` (Vite/React) and `backend/` (Go module). The shared contract lives at repository-root `api/openapi.yaml`. Health checks, SQLite migration startup, development proxy, production embedding and quality tooling exist; V1 business modules remain future work. Unlinked snippets in feature guidelines are illustrative rather than implemented business features.
 
 The user's Notion checklists define architecture:
 
@@ -19,7 +19,7 @@ Architecture requirements below come from those pages. Directory names, API fiel
 - Frontend: React 19+, Vite, TypeScript, HeroUI v3, Tailwind CSS v4, React Router, TanStack Query, limited Zustand, Lucide React. HeroUI's React Aria foundation supplies standard interaction behavior.
 - Use CSS transitions first. Add Motion for React, TanStack Table, or TanStack Virtual only when a concrete feature needs them. Prefer HeroUI Table and its documented v3 virtualization mechanism when available for the pinned version; verify support before promising an API.
 - Embed the frontend build using `go:embed`; serve SPA routes without swallowing API, health, playback, or static-asset errors. Vite development requests should use a same-origin proxy to the backend.
-- Pin compatible toolchain and dependency versions during initialization, commit `go.mod`/`go.sum` and one frontend lockfile, and verify the complete build. No versions have been installed or validated by this task.
+- Toolchains are pinned to Go 1.26.9, Node.js 24.13.0 and pnpm 11.28.5. `backend/go.mod`/`go.sum` and `frontend/pnpm-lock.yaml` own exact dependency versions. Keep compatible versions pinned and validate the complete embedded build when updating them.
 
 ## V1.0 boundaries and invariants
 
@@ -35,7 +35,7 @@ V1.0 includes authentication/settings, connections, cloud directory browsing, li
 
 ## Shared HTTP contract decisions
 
-The future canonical contract lives at target `api/openapi.yaml`. Generate Go transport contracts with `oapi-codegen`; generate TypeScript API types from that same contract with a compatible pinned generator chosen during initialization. Never hand-edit generated output. Database models, domain models, and transport DTOs remain separate.
+The canonical contract lives at `api/openapi.yaml`. Generate Go transport types with the pinned `oapi-codegen` and TypeScript types with the pinned `openapi-typescript`; `make generate` updates both and `make check-generated` verifies repeatability. Never hand-edit generated output. Database models, domain models, and transport DTOs remain separate.
 
 | Concern | Project convention |
 | --- | --- |
@@ -63,4 +63,4 @@ Use 400 for malformed/invalid input, 401 for missing/expired authentication, 403
 
 Use clear English identifiers and English spec documentation. Comments explain intent, invariants, and tradeoffs; UI text follows the product's language. Prefer explicit control flow, small cohesive units, and constructor/prop injection. Extract shared code when callers share a stable concept, not merely because expressions look similar. Avoid speculative frameworks and catch-all `utils` modules.
 
-These specs define future gates; they do not install configuration. Backend gates are in [backend quality](../backend/quality-guidelines.md); frontend gates are in [frontend quality](../frontend/quality-guidelines.md). Initialization must implement those gates and record exact tool versions. Documentation-only changes require link, consistency, and whitespace checks; application test execution becomes applicable after manifests/source exist.
+Backend gates are in [backend quality](../backend/quality-guidelines.md); frontend gates are in [frontend quality](../frontend/quality-guidelines.md). Run `make check` for local gates, `make test-e2e` for browser checks, and `make build smoke` / `make docker-build docker-smoke` for production assembly. The [initialization contract](../backend/initialization.md) describes executable startup and transport boundaries. Documentation-only changes require link, consistency and whitespace checks; implemented application behavior requires its appropriate tests.

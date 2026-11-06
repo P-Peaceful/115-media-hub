@@ -2,7 +2,7 @@
 
 ## Scope and authority
 
-Read the [project baseline](../guides/project-baseline.md) first for Notion sources, stack decisions, shared API conventions, and implementation status. These are initial standards for the planned React SPA. Target paths and illustrative examples are not existing application code.
+Read the [project baseline](../guides/project-baseline.md) first for Notion sources, stack decisions, shared API conventions, and implementation status. The React SPA is rooted in `frontend/`; health status is the implemented starter flow. Feature examples without source links describe future business modules.
 
 ## Guidelines
 
@@ -25,4 +25,4 @@ Read the [project baseline](../guides/project-baseline.md) first for Notion sour
 
 ## Quality Check
 
-Follow the [quality gate](./quality-guidelines.md). Review query/URL/UI state ownership, contract decoding, keyboard access, themes, and async states. Report which checks actually ran; configuration and application tests remain future work until initialization.
+Follow the [quality gate](./quality-guidelines.md). Review query/URL/UI state ownership, contract decoding, keyboard access, themes, and async states. Report which checks actually ran; use the commands in `frontend/package.json` and root `Makefile`.

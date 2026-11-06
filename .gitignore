@@ -22,7 +22,12 @@ Thumbs.db
 
 # Dependency caches and generated build/test output
 node_modules/
-/web/dist/
+/frontend/dist/
+/frontend/playwright-report/
+/frontend/test-results/
+/backend/internal/web/dist/
+/backend/data/
+/backend/logs/
 /bin/
 /coverage/
 *.tsbuildinfo

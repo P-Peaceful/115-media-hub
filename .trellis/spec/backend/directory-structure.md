@@ -2,25 +2,26 @@
 
 ## Target layout
 
-The [baseline](../guides/project-baseline.md) records provenance and the absence of application source. Use this target layout during initialization; create feature packages only when implementing them.
+The [baseline](../guides/project-baseline.md) records architecture provenance and implementation status. The Go module lives in `backend/`; create feature packages only when implementing them.
 
 ```text
-cmd/mediahub/                  process entry point
-internal/app/                  configuration, construction, startup/shutdown
-internal/domain/<feature>/     business types and invariants
-internal/service/<feature>/    use cases and consumer-owned repository interfaces
-internal/repository/sqlite/    GORM models, mappings, queries, transactions
-internal/http/                 Gin routes, middleware, handlers, DTO mapping
-internal/http/generated/       oapi-codegen output
-internal/adapter/              115, Emby/Jellyfin, filesystem boundaries
-internal/jobs/                 scheduler, worker pool, retry/recovery
-internal/web/                  embed declaration and copied frontend dist/
-api/openapi.yaml               canonical HTTP and event schemas
-migrations/                    goose SQL migrations
-web/                           frontend source (see frontend specs)
+backend/go.mod                     independent Go module
+backend/cmd/mediahub/              process entry point
+backend/internal/app/              configuration, construction, startup/shutdown
+backend/internal/domain/<feature>/ business types and invariants (when needed)
+backend/internal/service/<feature>/ use cases and repository interfaces (when needed)
+backend/internal/repository/sqlite/ GORM access, connections and transactions
+backend/internal/http/             Gin routes, middleware and DTO mapping
+backend/internal/http/generated/   oapi-codegen output
+backend/internal/adapter/          external boundaries (when needed)
+backend/internal/jobs/             scheduler and workers (when needed)
+backend/internal/web/              embed declaration and copied frontend dist/
+backend/migrations/                embedded goose SQL migrations
+api/openapi.yaml                   shared canonical HTTP and event schemas
+frontend/                          independent frontend project
 ```
 
-Keep the embed declaration with the copied build output under `internal/web/`; `go:embed` cannot traverse `..`. Initialization must define the build-copy step; do not commit a fabricated production bundle.
+Keep the embed declaration with the copied build output under `backend/internal/web/`; `go:embed` cannot traverse `..`. The root production build must copy the real frontend output before compiling with the production tag; do not commit a fabricated production bundle.
 
 ## Dependency rules
 

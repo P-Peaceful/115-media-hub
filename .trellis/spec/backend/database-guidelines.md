@@ -2,7 +2,7 @@
 
 ## SQLite and ownership
 
-Architecture comes from the [baseline](../guides/project-baseline.md). GORM access belongs in target `internal/repository/sqlite/`; services own use-case transaction boundaries through repository abstractions. Do not pass `*gorm.DB` into HTTP handlers or domain objects.
+Architecture comes from the [baseline](../guides/project-baseline.md). GORM access belongs in `backend/internal/repository/sqlite/`; services own use-case transaction boundaries through repository abstractions. Do not pass `*gorm.DB` into HTTP handlers or domain objects.
 
 Use the CGO SQLite driver selected in Notion. Enable WAL, foreign keys, and a finite busy timeout. Set foreign keys and busy timeout for every pooled connection using driver connection options; executing a PRAGMA once does not configure future connections. Verify settings on real connections. Start with one open database connection to serialize local writes; increase only with measured contention tests and per-connection configuration. A transaction must use its transaction handle exclusively to avoid deadlocking a one-connection pool.
 
@@ -10,7 +10,7 @@ Use `db.WithContext(ctx)`, bind values as parameters, allowlist dynamic sort/col
 
 ## Schema and migrations
 
-- Use goose versioned SQL in target `migrations/`, reusing the underlying `*sql.DB`. Run migrations once before readiness/scheduling/workers; fail startup on migration failure.
+- Use goose versioned SQL in `backend/migrations/`, reusing the underlying `*sql.DB`. Run migrations once before readiness/scheduling/workers; fail startup on migration failure.
 - Production schema changes use migrations; do not call GORM `AutoMigrate` on application startup.
 - Use unique increasing migration versions and descriptive names. Never change an already applied migration; add a new one. Test a fresh database and upgrade from the prior schema.
 - Use snake_case plural table names and snake_case columns; name constraints/indexes explicitly. Add foreign keys, uniqueness, and checks for invariants the database can enforce. Index measured access paths, including job claim predicates.

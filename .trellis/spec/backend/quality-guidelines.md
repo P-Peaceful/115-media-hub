@@ -8,12 +8,12 @@ Use early returns, short cohesive functions, explicit dependency construction, a
 
 Accept `context.Context` as the first argument for operations that can block; propagate cancellation/timeouts and close bodies/rows/files. Document ownership/lifecycle of goroutines and channels. Do not store request contexts in long-lived services or spawn unbounded goroutines. Keep domain code free from Gin/GORM and enforce the [shared contract](../guides/project-baseline.md).
 
-## Future tooling gate
+## Tooling gate
 
-No Go module or application CI exists yet. The initialization task must pin Go, `goimports`, and a compatible `golangci-lint`, configure lint checks for unchecked errors, static analysis, vet, and ineffectual assignments, and make these checks reproducible in local scripts/CI:
+`backend/go.mod`, `backend/Makefile` and lint configuration pin Go and compatible formatter/linter tooling. Go is pinned to 1.26.9, goimports to v0.43.0 and golangci-lint to v2.15.0. Keep checks for unchecked errors, static analysis, vet and ineffectual assignments enabled and reproducible in local scripts/CI:
 
 ```text
-# From the repository root, once go.mod and Go source exist:
+# From backend/:
 go vet ./...
 CGO_ENABLED=1 go test ./...
 CGO_ENABLED=1 go test -race ./...

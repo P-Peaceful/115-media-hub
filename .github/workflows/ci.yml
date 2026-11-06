@@ -1,0 +1,41 @@
+name: Quality
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.9'
+          cache-dependency-path: backend/go.sum
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.28.5
+          run_install: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.13.0'
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: make install
+      - run: make check
+      - run: pnpm --dir frontend exec playwright install --with-deps chromium
+      - run: make test-e2e test-integration
+      - run: make build smoke
+      - run: make docker-build docker-smoke
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+          if-no-files-found: ignore

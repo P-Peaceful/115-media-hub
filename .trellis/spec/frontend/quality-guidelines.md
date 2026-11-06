@@ -8,9 +8,9 @@ Project formatter decisions: two-space indentation, double quotes, semicolons, t
 
 Prefer named function components, early returns for meaningful states, small cohesive modules, and explicit domain names. Avoid nested ternaries for complex rendering, speculative abstractions, disabled Hooks rules, `console.log` debugging, and whole-object debug dumps containing private metadata.
 
-## Future tooling gate
+## Tooling gate
 
-No `web/package.json`, lockfile, test harness, or frontend CI exists yet. Initialization should select a single package manager (default project choice: pnpm), pin it in `packageManager`, commit its lockfile, and define these scripts from `web/`:
+`frontend/package.json` and `frontend/pnpm-lock.yaml` pin the frontend toolchain and dependencies. Use pnpm 11.28.5 with Node.js 24.13.0; do not introduce another lockfile. ESLint 9.39.5 and TypeScript 5.9.3 are selected for verified plugin compatibility; do not upgrade across major versions without checking peer dependencies and rerunning all gates. Run these scripts from `frontend/`:
 
 | Script | Required behavior |
 | --- | --- |
@@ -21,7 +21,7 @@ No `web/package.json`, lockfile, test harness, or frontend CI exists yet. Initia
 | `pnpm build` | Production Vite build suitable for backend embedding |
 | `pnpm test:e2e` | Playwright covers implemented critical browser flows |
 
-CI uses a frozen lockfile install and executes configured gates. Browser tests become required as critical flows exist. Contract generation must be deterministic and checked for drift once generators are installed. Do not claim these scripts ran or CI was configured as part of this documentation task.
+CI uses a frozen lockfile install and executes configured gates. Browser tests become required as critical flows exist. Contract generation must be deterministic and checked for drift once generators are installed. The CI workflow is `.github/workflows/ci.yml`; record actual run results rather than assuming configured checks pass.
 
 ## Tests and interaction checks
 
