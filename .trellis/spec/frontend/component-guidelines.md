@@ -28,9 +28,11 @@ Declare children only when supported; use semantic callback names such as `onRet
 
 ## HeroUI and styling
 
-Use HeroUI v3 for standard controls, dialogs, menus, and tables. Verify exact v3 compound component APIs and event props against the pinned release; do not copy v2 props or reimplement accessible behavior. Use native semantic elements where a library component is unnecessary. Keep wrappers thin and tied to a product need.
+Prioritize the pinned HeroUI v3 component library for every applicable frontend component need, including forms, inputs, cards, buttons, status feedback, dialogs, menus and tables. Use semantic HTML/CSS for layout/content or when no suitable library component exists; explain necessary interaction-component alternatives during review. Verify exact v3 compound component APIs and event props against the pinned release; do not copy v2 props or reimplement accessible behavior. Use native semantic elements where a library component is unnecessary. Keep wrappers thin and tied to a product need.
 
 Use Tailwind CSS v4 utilities and centralized CSS design tokens for color, spacing, radius, typography, and light/dark themes. Prefer semantic tokens over scattered literal colors and arbitrary values. Dynamic class choices must use complete statically discoverable class strings. Keep shared class-composition helpers in one owner only when needed. Use CSS transitions first and respect `prefers-reduced-motion`.
+
+For plain React/Vite theme switching, follow HeroUI's official v3 `useTheme` hook and root `.light`/`.dark` plus `data-theme` attributes. Do not add a second theme controller or use a framework-specific provider in Vite. HeroUI components adapt through semantic theme variables; use `dark:` variants only for one-off app-owned styling.
 
 ## Async UI and accessibility
 
@@ -38,4 +40,6 @@ Use Tailwind CSS v4 utilities and centralized CSS design tokens for color, spaci
 - Use semantic headings/landmarks, visible labels, associated validation messages, keyboard navigation, visible focus, and meaningful image alternatives. Icon-only controls need accessible names; decorative icons should be hidden from assistive technology.
 - Preserve HeroUI focus management and dialog return focus. Announce meaningful progress without sending every SSE tick to a live region. Do not use color as the only status signal.
 - Disable duplicate pending submissions and show an action-specific result. Destructive cleanup needs preview, ownership/conflict information, and quarantine behavior consistent with the backend.
-- Test light/dark, narrow layouts, long names, keyboard operation, and reduced motion. Avoid clickable `div` controls and raw HTML injection from media metadata.
+- When implementing a supplied visual reference, align typography, proportions, spacing, illustration, gradients and shadows after applying explicit user changes. Save and inspect desktop/mobile screenshots, and correct material deviations; passing interaction tests is not evidence of visual fidelity.
+
+Test light/dark, narrow layouts, long names, keyboard operation, and reduced motion. Avoid clickable `div` controls and raw HTML injection from media metadata.

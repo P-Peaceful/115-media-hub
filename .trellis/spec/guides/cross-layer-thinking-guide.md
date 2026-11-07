@@ -325,3 +325,7 @@ state correctly, but several commands still re-parsed event payload fields with
 local casts. The fix was to make the core event layer own `ThreadChannelEvent`
 and `isThreadEvent`, make `reduceChannelMetadata` the only channel metadata
 projection, and make `reduceThreads` the only thread replay reducer.
+
+## Persistent local database trigger
+
+When health ping passes but a feature endpoint persistently fails after a schema change, inspect the actual running process's database path, applied versions **and table/column shape** before assuming a frontend/proxy fault. Ignored local data can outlive development schemas. Follow the [database inspection contract](../backend/database-guidelines.md#persistent-development-schema-inspection); do not add compatibility the user rejected or silently erase persistent data.

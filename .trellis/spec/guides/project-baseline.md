@@ -2,7 +2,7 @@
 
 ## Authority and implementation status
 
-This baseline was established on 2026-11-06 by `00-bootstrap-guidelines` and implemented for the application foundation by `initialize-projects`. The independent roots are `frontend/` (Vite/React) and `backend/` (Go module). The shared contract lives at repository-root `api/openapi.yaml`. Health checks, SQLite migration startup, development proxy, production embedding and quality tooling exist; V1 business modules remain future work. Unlinked snippets in feature guidelines are illustrative rather than implemented business features.
+This baseline was established on 2026-11-06 by `00-bootstrap-guidelines` and implemented for the application foundation by `initialize-projects`. The independent roots are `frontend/` (Vite/React) and `backend/` (Go module). The shared contract lives at repository-root `api/openapi.yaml`. Health checks, SQLite migration startup, development proxy, production embedding and quality tooling exist. The `admin-auth` task adds single-administrator initialization, cookie sessions/CSRF, initial settings and local password recovery; other V1 business modules remain future work. See the [backend authentication contract](../backend/authentication.md) and [frontend authentication contract](../frontend/authentication.md). Unlinked snippets in feature guidelines are illustrative rather than implemented business features.
 
 The user's Notion checklists define architecture:
 
@@ -31,7 +31,7 @@ V1.0 includes authentication/settings, connections, cloud directory browsing, li
 - Files: track STRM ownership and content hashes; user-modified content becomes a conflict. Cleanup is disabled by default and requires preview plus quarantine outside media scan directories. Never overwrite or delete an unowned file merely because its name matches.
 - Playback: STRM stores a stable application URL; resolve temporary 115 links at playback time. Cache only within link validity. Keep temporary links and playback credentials out of logs.
 - Metadata: explicit local/remote mappings and sync baselines detect conflicts. Verify uncertain uploads before retrying.
-- Storage: `/data` persistent database/state; `/storage/strm` output/media sidecars; `/storage/quarantine` isolation; `/cache` rebuildable images; `/logs` rotation; `/backups` consistent backups. Define shared media path mappings for Emby/Jellyfin.
+- Container storage mounts: `/app/data` persistent database/state; `/app/media` default output/media sidecars (latest user-selected default in `admin-auth`); `/app/storage/quarantine` isolation; `/app/cache` rebuildable images; `/app/logs` rotation; `/app/backups` consistent backups. These are paths inside the Docker container; local development keeps its database under the project at `backend/data/mediahub.db`. Define shared media path mappings for Emby/Jellyfin.
 
 ## Shared HTTP contract decisions
 

@@ -19,7 +19,106 @@ paths:
           $ref: '#/components/responses/Healthy'
         '503':
           $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/bootstrap:
+    get:
+      operationId: getAuthBootstrap
+      summary: Obtain authentication state and an in-memory CSRF token
+      description: Establishes a short-lived HttpOnly pre-auth cookie if unauthenticated. All responses use Cache-Control no-store. No anonymous identity or settings are exposed.
+      responses:
+        '200':
+          description: Authentication state; authenticated session cookie is never returned in JSON
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthBootstrap'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/initialize:
+    post:
+      operationId: initializeAdministrator
+      summary: Atomically initialize one administrator and settings and start a session
+      description: Requires bootstrap cookie plus X-CSRF-Token. Maximum JSON body 4096 bytes. Sets a persistent HttpOnly SameSite=Lax session cookie; Secure on configured HTTPS deployments or direct TLS. Rotates any previous session. No-store responses.
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitializeRequest'
+      responses:
+        '201':
+          $ref: '#/components/responses/SessionStarted'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '409':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/Throttled'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/login:
+    post:
+      operationId: loginAdministrator
+      summary: Verify credentials and rotate the authenticated session
+      description: Requires bootstrap cookie plus X-CSRF-Token. Maximum JSON body 4096 bytes. Remember-login sets cookie Max-Age and Expires; false omits both. Server fixed expiry always applies. No-store responses.
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/SessionStarted'
+        '400':
+          $ref: '#/components/responses/AuthError'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '409':
+          $ref: '#/components/responses/AuthError'
+        '429':
+          $ref: '#/components/responses/Throttled'
+        '503':
+          $ref: '#/components/responses/Unavailable'
+  /api/v1/auth/logout:
+    post:
+      operationId: logoutAdministrator
+      summary: Revoke the current session and expire its cookie
+      security:
+        - adminSession: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+      responses:
+        '204':
+          description: Session revoked; cookie expired; no-store response
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '403':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
 components:
+  securitySchemes:
+    adminSession:
+      type: apiKey
+      in: cookie
+      name: mediahub_session
+  parameters:
+    CSRFToken:
+      name: X-CSRF-Token
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 32
+        maxLength: 128
   headers:
     RequestID:
       description: Validated or generated request correlation identifier
@@ -28,6 +127,33 @@ components:
         maxLength: 64
         pattern: '^[A-Za-z0-9._-]+$'
   responses:
+    AuthError:
+      description: Safe authentication error; validation_failed, invalid_credentials, authentication_required, csrf_invalid, setup_required or already_initialized as applicable
+      headers:
+        X-Request-ID:
+          $ref: '#/components/headers/RequestID'
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Throttled:
+      description: Authentication admission is temporarily throttled
+      headers:
+        Retry-After:
+          description: Minimum seconds before another attempt
+          schema:
+            type: integer
+            minimum: 1
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    SessionStarted:
+      description: Session established; new CSRF token replaces the bootstrap token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AuthSession'
     Healthy:
       description: Healthy
       headers:
@@ -47,6 +173,93 @@ components:
           schema:
             $ref: '#/components/schemas/ErrorResponse'
   schemas:
+    Administrator:
+      type: object
+      additionalProperties: false
+      required: [id, username]
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+    AuthSession:
+      type: object
+      additionalProperties: false
+      required: [administrator, expires_at, csrf_token]
+      properties:
+        administrator:
+          $ref: '#/components/schemas/Administrator'
+        expires_at:
+          type: string
+          format: date-time
+        csrf_token:
+          type: string
+    AuthBootstrap:
+      type: object
+      additionalProperties: false
+      required: [initialized, authenticated, administrator, expires_at, csrf_token]
+      properties:
+        initialized:
+          type: boolean
+        authenticated:
+          type: boolean
+        administrator:
+          nullable: true
+          allOf:
+            - $ref: '#/components/schemas/Administrator'
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        csrf_token:
+          type: string
+    InitializeRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password, service_url, output_directory, session_lifetime_days]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: '^[A-Za-z0-9_.-]+$'
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 32
+          pattern: '^[!-~]{8,32}(?![\s\S])'
+          description: 8–32 printable non-space ASCII characters (U+0021–U+007E); letters, digits and ASCII symbols; no required mixture
+        service_url:
+          type: string
+          description: Absolute HTTP(S) origin without credentials, query, fragment or path prefix
+        output_directory:
+          type: string
+          default: /app/media
+          description: Normalized absolute server filesystem path; syntax validation does not guarantee write access
+        session_lifetime_days:
+          type: integer
+          enum: [1, 7, 30]
+          default: 7
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password, remember_login]
+      properties:
+        username:
+          type: string
+          minLength: 3
+          maxLength: 32
+          pattern: '^[A-Za-z0-9_.-]+$'
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 32
+          pattern: '^[!-~]{8,32}(?![\s\S])'
+          description: 8–32 printable non-space ASCII characters (U+0021–U+007E); letters, digits and ASCII symbols; no required mixture
+        remember_login:
+          type: boolean
     HealthResponse:
       type: object
       additionalProperties: false
@@ -69,8 +282,13 @@ components:
       properties:
         code:
           type: string
-          enum: [service_unavailable, not_found, method_not_allowed, internal_error]
+          enum: [service_unavailable, not_found, method_not_allowed, internal_error, validation_failed, invalid_credentials, authentication_required, csrf_invalid, setup_required, already_initialized, rate_limited]
         message:
           type: string
         request_id:
           type: string
+        fields:
+          type: object
+          additionalProperties:
+            type: string
+          description: Optional safe field validation messages keyed by request property name

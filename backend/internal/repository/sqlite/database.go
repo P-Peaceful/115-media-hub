@@ -21,6 +21,7 @@ import (
 // Database owns the single-connection pool. Closing it releases SQLite resources.
 type Database struct {
 	sql *sql.DB
+	orm *gorm.DB
 }
 
 // Open configures every connection and migrates before the database becomes ready.
@@ -64,7 +65,7 @@ func Open(ctx context.Context, path string) (_ *Database, resultErr error) {
 	if _, err := provider.Up(ctx); err != nil {
 		return nil, fmt.Errorf("apply migrations: %w", err)
 	}
-	return &Database{sql: pool}, nil
+	return &Database{sql: pool, orm: orm}, nil
 }
 
 // Ping checks that SQLite can still accept connections.

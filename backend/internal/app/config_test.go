@@ -11,7 +11,7 @@ func TestConfigValidation(t *testing.T) {
 		value string
 	}{
 		{"MEDIAHUB_HTTP_ADDR", "localhost"}, {"MEDIAHUB_HTTP_ADDR", ":0"}, {"MEDIAHUB_HTTP_ADDR", ":65536"},
-		{"MEDIAHUB_LOG_LEVEL", "verbose"}, {"MEDIAHUB_DATABASE_PATH", " "}, {"MEDIAHUB_SHUTDOWN_TIMEOUT", "-1s"},
+		{"MEDIAHUB_COOKIE_SECURE", "invalid"}, {"MEDIAHUB_LOG_LEVEL", "verbose"}, {"MEDIAHUB_DATABASE_PATH", " "}, {"MEDIAHUB_SHUTDOWN_TIMEOUT", "-1s"},
 	} {
 		t.Run(test.name+test.value, func(t *testing.T) {
 			t.Setenv(test.name, test.value)

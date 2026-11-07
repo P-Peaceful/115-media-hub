@@ -4,6 +4,8 @@
 
 Use [Effective Go](https://go.dev/doc/effective_go) and [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments) as the language baseline. Apply `gofmt` (tabs in Go), and `goimports` for import grouping: standard library, third party, local packages. Pin formatter/linter versions during initialization.
 
+Use only supported, non-deprecated APIs in new or changed backend code. Check official documentation for the pinned Go/dependency version and relevant source deprecation annotations; successful compilation alone is insufficient. Keep transport, use-case policy and persistence focused on their own responsibilities.
+
 Use early returns, short cohesive functions, explicit dependency construction, and intention-revealing names. Exported symbols have useful Go doc comments. Avoid stutter (`library.LibraryService`), naked returns in nontrivial functions, speculative interfaces, boolean-mode functions with unrelated behaviors, and package-level mutable state. Comment on invariants and reasons rather than narrating assignments.
 
 Accept `context.Context` as the first argument for operations that can block; propagate cancellation/timeouts and close bodies/rows/files. Document ownership/lifecycle of goroutines and channels. Do not store request contexts in long-lived services or spawn unbounded goroutines. Keep domain code free from Gin/GORM and enforce the [shared contract](../guides/project-baseline.md).

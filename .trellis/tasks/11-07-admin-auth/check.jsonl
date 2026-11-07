@@ -1,0 +1,16 @@
+{"file": ".trellis/spec/guides/project-baseline.md", "reason": "Architecture, security/storage boundaries and shared HTTP contracts"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Trace authentication and settings across contract, storage and UI"}
+{"file": ".trellis/spec/backend/index.md", "reason": "Backend mandatory guideline routing"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Service/repository/transport ownership"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "Migrations, SQLite constraints and short transactions"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Typed failures, safe transport mapping and error envelopes"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "Required authentication logging, audit and credential redaction"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Backend, race, production and regression gates"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "Frontend mandatory guideline routing"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "Feature ownership and router composition"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "HeroUI v3, accessible controls and visual tokens"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "Query/mutation lifecycles, retry and cancellation"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "Cookie-backed auth truth and protected cache reset"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Generated contracts and runtime boundary validation"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Behavioral tests, responsive visual and browser gates"}
+{"file": ".trellis/tasks/11-07-admin-auth/research/repository-findings.md", "reason": "Existing foundations, integration hazards and user visual overrides"}

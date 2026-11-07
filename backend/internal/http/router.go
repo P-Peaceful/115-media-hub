@@ -21,7 +21,7 @@ import (
 type Readiness interface{ Ping(context.Context) error }
 
 // NewRouter constructs isolated Gin routes without global logger/recovery state.
-func NewRouter(database Readiness, logger *slog.Logger, assets fs.FS) (http.Handler, error) {
+func NewRouter(database Readiness, logger *slog.Logger, assets fs.FS, options ...AuthOptions) (http.Handler, error) {
 	if assets != nil {
 		if _, err := fs.ReadFile(assets, "index.html"); err != nil {
 			return nil, err
@@ -33,6 +33,15 @@ func NewRouter(database Readiness, logger *slog.Logger, assets fs.FS) (http.Hand
 	}
 	router.HandleMethodNotAllowed = true
 	router.Use(requestMiddleware(logger))
+	var authOptions AuthOptions
+	if len(options) > 0 {
+		authOptions = options[0]
+	}
+	authHandler := &authenticationHandler{service: authOptions.Service, secure: authOptions.CookieSecure, logger: logger}
+	router.Use(authHandler.managementBoundary())
+	if authOptions.Service != nil {
+		authHandler.register(router)
+	}
 	router.GET("/health/live", func(c *gin.Context) { c.JSON(http.StatusOK, generated.HealthResponse{Status: generated.Ok}) })
 	router.GET("/health/ready", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)

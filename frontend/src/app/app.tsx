@@ -1,26 +1,48 @@
+import { Button } from "@heroui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
-import { BrowserRouter, Link, Route, Routes } from "react-router";
+import { BrowserRouter, Route, Routes, useNavigate } from "react-router";
 
-import { HealthPage } from "@/features/health/health-page";
+import { AuthBoundary } from "@/features/auth/auth-boundary";
+import { AuthProvider } from "@/features/auth/auth-provider";
+import { AuthenticatedHome } from "@/features/auth/authenticated-home";
+import { LoginPage } from "@/features/auth/login-page";
+import { SetupPage } from "@/features/auth/setup-page";
+import { ThemeToggle } from "@/features/auth/theme-toggle";
+
+function NotFound() {
+  const navigate = useNavigate();
+  return (
+    <main className="page-shell">
+      <h1>页面不存在</h1>
+      <Button
+        variant="secondary"
+        onPress={() => {
+          void navigate("/");
+        }}
+      >
+        返回首页
+      </Button>
+    </main>
+  );
+}
 
 export function App() {
   const [queryClient] = useState(() => new QueryClient());
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<HealthPage />} />
-          <Route
-            path="*"
-            element={
-              <main className="page-shell">
-                <h1>页面不存在</h1>
-                <Link to="/">返回首页</Link>
-              </main>
-            }
-          />
-        </Routes>
+        <ThemeToggle />
+        <AuthProvider>
+          <Routes>
+            <Route element={<AuthBoundary />}>
+              <Route path="/setup" element={<SetupPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/" element={<AuthenticatedHome />} />
+              <Route path="*" element={<NotFound />} />
+            </Route>
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );

@@ -11,8 +11,15 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
-      "/health": process.env.MEDIAHUB_BACKEND_URL ?? "http://127.0.0.1:8080",
-      "/api": process.env.MEDIAHUB_BACKEND_URL ?? "http://127.0.0.1:8080",
+      // Preserve the browser's Host so backend same-origin CSRF checks agree.
+      "/health": {
+        target: process.env.MEDIAHUB_BACKEND_URL ?? "http://127.0.0.1:8080",
+        changeOrigin: false,
+      },
+      "/api": {
+        target: process.env.MEDIAHUB_BACKEND_URL ?? "http://127.0.0.1:8080",
+        changeOrigin: false,
+      },
     },
   },
 });

@@ -18,6 +18,7 @@ type Config struct {
 	LogLevel        slog.Level
 	LogFile         string
 	ShutdownTimeout time.Duration
+	CookieSecure    bool
 }
 
 // LoadConfig reads environment variables, rejecting invalid startup settings.
@@ -40,6 +41,13 @@ func LoadConfig() (Config, error) {
 			return Config{}, fmt.Errorf("MEDIAHUB_SHUTDOWN_TIMEOUT must be a positive duration")
 		}
 		config.ShutdownTimeout = duration
+	}
+	if value, ok := os.LookupEnv("MEDIAHUB_COOKIE_SECURE"); ok {
+		secure, err := strconv.ParseBool(value)
+		if err != nil {
+			return Config{}, fmt.Errorf("MEDIAHUB_COOKIE_SECURE must be a boolean")
+		}
+		config.CookieSecure = secure
 	}
 	if strings.TrimSpace(config.DatabasePath) == "" {
 		return Config{}, fmt.Errorf("MEDIAHUB_DATABASE_PATH must not be blank")

@@ -38,10 +38,134 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/auth/bootstrap": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Obtain authentication state and an in-memory CSRF token
+     * @description Establishes a short-lived HttpOnly pre-auth cookie if unauthenticated. All responses use Cache-Control no-store. No anonymous identity or settings are exposed.
+     */
+    get: operations["getAuthBootstrap"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/initialize": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Atomically initialize one administrator and settings and start a session
+     * @description Requires bootstrap cookie plus X-CSRF-Token. Maximum JSON body 4096 bytes. Sets a persistent HttpOnly SameSite=Lax session cookie; Secure on configured HTTPS deployments or direct TLS. Rotates any previous session. No-store responses.
+     */
+    post: operations["initializeAdministrator"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/login": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Verify credentials and rotate the authenticated session
+     * @description Requires bootstrap cookie plus X-CSRF-Token. Maximum JSON body 4096 bytes. Remember-login sets cookie Max-Age and Expires; false omits both. Server fixed expiry always applies. No-store responses.
+     */
+    post: operations["loginAdministrator"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/logout": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Revoke the current session and expire its cookie */
+    post: operations["logoutAdministrator"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    Administrator: {
+      id: string;
+      username: string;
+    };
+    AuthSession: {
+      administrator: components["schemas"]["Administrator"];
+      /** Format: date-time */
+      expires_at: string;
+      csrf_token: string;
+    };
+    AuthBootstrap: {
+      initialized: boolean;
+      authenticated: boolean;
+      administrator: components["schemas"]["Administrator"] | null;
+      /** Format: date-time */
+      expires_at: string | null;
+      csrf_token: string;
+    };
+    InitializeRequest: {
+      username: string;
+      /**
+       * Format: password
+       * @description 8–32 printable non-space ASCII characters (U+0021–U+007E); letters, digits and ASCII symbols; no required mixture
+       */
+      password: string;
+      /** @description Absolute HTTP(S) origin without credentials, query, fragment or path prefix */
+      service_url: string;
+      /**
+       * @description Normalized absolute server filesystem path; syntax validation does not guarantee write access
+       * @default /app/media
+       */
+      output_directory: string;
+      /**
+       * @default 7
+       * @enum {integer}
+       */
+      session_lifetime_days: 1 | 7 | 30;
+    };
+    LoginRequest: {
+      username: string;
+      /**
+       * Format: password
+       * @description 8–32 printable non-space ASCII characters (U+0021–U+007E); letters, digits and ASCII symbols; no required mixture
+       */
+      password: string;
+      remember_login: boolean;
+    };
     HealthResponse: {
       /** @enum {string} */
       status: "ok";
@@ -55,12 +179,53 @@ export interface components {
         | "service_unavailable"
         | "not_found"
         | "method_not_allowed"
-        | "internal_error";
+        | "internal_error"
+        | "validation_failed"
+        | "invalid_credentials"
+        | "authentication_required"
+        | "csrf_invalid"
+        | "setup_required"
+        | "already_initialized"
+        | "rate_limited";
       message: string;
       request_id: string;
+      /** @description Optional safe field validation messages keyed by request property name */
+      fields?: {
+        [key: string]: string;
+      };
     };
   };
   responses: {
+    /** @description Safe authentication error; validation_failed, invalid_credentials, authentication_required, csrf_invalid, setup_required or already_initialized as applicable */
+    AuthError: {
+      headers: {
+        "X-Request-ID": components["headers"]["RequestID"];
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description Authentication admission is temporarily throttled */
+    Throttled: {
+      headers: {
+        /** @description Minimum seconds before another attempt */
+        "Retry-After"?: number;
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description Session established; new CSRF token replaces the bootstrap token */
+    SessionStarted: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["AuthSession"];
+      };
+    };
     /** @description Healthy */
     Healthy: {
       headers: {
@@ -82,7 +247,9 @@ export interface components {
       };
     };
   };
-  parameters: never;
+  parameters: {
+    CSRFToken: string;
+  };
   requestBodies: never;
   headers: {
     /** @description Validated or generated request correlation identifier */
@@ -114,6 +281,97 @@ export interface operations {
     requestBody?: never;
     responses: {
       200: components["responses"]["Healthy"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getAuthBootstrap: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Authentication state; authenticated session cookie is never returned in JSON */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AuthBootstrap"];
+        };
+      };
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  initializeAdministrator: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["InitializeRequest"];
+      };
+    };
+    responses: {
+      201: components["responses"]["SessionStarted"];
+      400: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      409: components["responses"]["AuthError"];
+      429: components["responses"]["Throttled"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  loginAdministrator: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LoginRequest"];
+      };
+    };
+    responses: {
+      200: components["responses"]["SessionStarted"];
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      409: components["responses"]["AuthError"];
+      429: components["responses"]["Throttled"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  logoutAdministrator: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Session revoked; cookie expired; no-store response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
       503: components["responses"]["Unavailable"];
     };
   };

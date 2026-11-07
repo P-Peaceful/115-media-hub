@@ -12,6 +12,7 @@ import (
 
 	transport "github.com/wenzhengcheng/115-media-hub/backend/internal/http"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/repository/sqlite"
+	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
 )
 
 // App owns constructed dependencies and the HTTP server.
@@ -29,7 +30,11 @@ func New(ctx context.Context, config Config, logger *slog.Logger, assets fs.FS) 
 	if err != nil {
 		return nil, fmt.Errorf("initialize database: %w", err)
 	}
-	handler, err := transport.NewRouter(database, logger, assets)
+	authentication, err := auth.New(database, logger, auth.Options{})
+	if err != nil {
+		return nil, errors.Join(fmt.Errorf("initialize authentication: %w", err), database.Close())
+	}
+	handler, err := transport.NewRouter(database, logger, assets, transport.AuthOptions{Service: authentication, CookieSecure: config.CookieSecure})
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("initialize HTTP routes: %w", err), database.Close())
 	}

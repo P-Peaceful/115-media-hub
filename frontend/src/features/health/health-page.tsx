@@ -1,11 +1,12 @@
 import { Button, Card, Chip } from "@heroui/react";
 import { CheckCircle2, CircleAlert, RefreshCw, Server } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { ApiError } from "@/lib/api/errors";
 
 import { useReadiness } from "./use-readiness";
 
-export function HealthPage() {
+export function HealthPage({ actions }: { actions?: ReactNode }) {
   const health = useReadiness();
   let label = "正在检查";
   let description = "正在确认服务与数据库的连接状态…";
@@ -22,6 +23,7 @@ export function HealthPage() {
   return (
     <main className="page-shell">
       <header className="page-header">
+        {actions}
         <p className="eyebrow">115 MEDIA HUB</p>
         <h1>欢迎使用媒体中心</h1>
         <p className="intro">

@@ -42,3 +42,9 @@ Use real temporary-file SQLite databases to test WAL, foreign keys on pooled con
 Backups must use a SQLite-consistent mechanism; copying only the main database file while WAL writes continue is unsafe. Keep database files on local disk and reconcile file state after restore before cleanup/overwrites resume.
 
 References: [GORM transactions](https://gorm.io/docs/transactions.html), [SQLite WAL](https://sqlite.org/wal.html), [goose provider](https://pressly.github.io/goose/documentation/provider/).
+
+## Persistent development schema inspection
+
+A goose version alone does not prove that an ignored local development database has the current table/column shape. When health ping succeeds but authentication bootstrap fails, inspect the actual process/database path and schema before diagnosing a browser/proxy problem. Safe operational diagnostics must expose only allowlisted storage operation/reason plus request correlation, never raw credential SQL or driver payloads. Client-canceled requests are canceled work, not service-unavailable failures.
+
+For this authentication module the user explicitly rejected compatibility for the obsolete prototype schema and deleted/reinitialized their own local database. Do not ship a compatibility migration, retained legacy tables or automatic database deletion. Keep canonical migration/restart tests and clear error diagnostics; any future data reset must remain an explicit user-directed maintenance operation rather than startup behavior.

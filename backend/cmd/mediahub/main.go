@@ -36,6 +36,9 @@ func run() (resultErr error) {
 	defer func() { resultErr = errors.Join(resultErr, logs.Close()) }()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	if len(os.Args) > 1 {
+		return runCommand(ctx, config, logger, os.Args[1:], os.Stdin, os.Stderr)
+	}
 	assets, err := web.Assets()
 	if err != nil {
 		return fmt.Errorf("load frontend assets: %w", err)

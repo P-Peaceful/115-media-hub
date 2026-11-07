@@ -6,6 +6,10 @@ Use TypeScript and React official guidance, ESLint for correctness, and Prettier
 
 Project formatter decisions: two-space indentation, double quotes, semicolons, trailing commas where supported, and an 80-column preferred print width controlled by Prettier. Let tools format JSX rather than hand-aligning it. Keep imports grouped as external, internal alias, then relative; separate type-only imports and use one deterministic ordering rule once configured. Use LF, UTF-8, and final newlines. Go retains `gofmt` tabs rather than adopting JavaScript indentation.
 
+Use only supported, non-deprecated APIs in new or changed frontend code. Check the official documentation for the pinned version and relevant installed deprecation annotations; compilation alone does not establish API currency. Do not copy legacy component examples or upgrade dependencies merely to appear current.
+
+Keep components/hooks/modules focused on a single cohesive responsibility. Separate transport decoding, state orchestration and presentation; choose readable names and explicit control flow over speculative abstractions.
+
 Prefer named function components, early returns for meaningful states, small cohesive modules, and explicit domain names. Avoid nested ternaries for complex rendering, speculative abstractions, disabled Hooks rules, `console.log` debugging, and whole-object debug dumps containing private metadata.
 
 ## Tooling gate
