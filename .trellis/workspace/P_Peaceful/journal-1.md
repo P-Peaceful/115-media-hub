@@ -80,3 +80,25 @@ Completed 00-bootstrap-guidelines from the Notion V1.0 architecture; established
 ### Next Steps
 
 - 按后续需求实现业务模块。
+
+
+## Session 3: 完成管理员登录与首次初始化
+<!-- trellis-session: v=2 fp=8e68699cf76995c0 -->
+
+**Date**: 2026-11-08
+**Task**: 完成管理员登录与首次初始化
+**Branch**: `codex/admin-auth`
+
+### Summary
+
+完成管理员登录/初始化、会话与 CSRF 防护、本地密码恢复、HeroUI 页面及测试部署；Docker 容器卷路径统一为 /app 下，本地开发数据库仍保存在项目目录。make check、build smoke、docker-build docker-smoke 通过；浏览器集成因环境缺少 libglib-2.0.so.0 未运行。已按用户要求提交并归档 admin-auth。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `2764b7f` | feat: add administrator login and first-run setup |
+
+### Status
+
+[OK] **Completed**
