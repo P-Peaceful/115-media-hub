@@ -19,6 +19,24 @@ paths:
           $ref: '#/components/responses/Healthy'
         '503':
           $ref: '#/components/responses/Unavailable'
+  /api/v1/system/status:
+    get:
+      operationId: getSystemStatus
+      summary: Get running process information
+      description: Requires an administrator session. Uptime is elapsed process lifetime in whole seconds; version is the build version or dev for unversioned builds. No-store response.
+      security:
+        - adminSession: []
+      responses:
+        '200':
+          description: Process information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemStatus'
+        '401':
+          $ref: '#/components/responses/AuthError'
+        '503':
+          $ref: '#/components/responses/Unavailable'
   /api/v1/auth/bootstrap:
     get:
       operationId: getAuthBootstrap
@@ -260,6 +278,18 @@ components:
           description: 8–32 printable non-space ASCII characters (U+0021–U+007E); letters, digits and ASCII symbols; no required mixture
         remember_login:
           type: boolean
+    SystemStatus:
+      type: object
+      additionalProperties: false
+      required: [uptime_seconds, version]
+      properties:
+        uptime_seconds:
+          type: integer
+          format: int64
+          minimum: 0
+        version:
+          type: string
+          minLength: 1
     HealthResponse:
       type: object
       additionalProperties: false

@@ -9,6 +9,7 @@ Read the [project baseline](../guides/project-baseline.md) first for Notion sour
 | Guide | Responsibility |
 | --- | --- |
 | [Authentication](./authentication.md) | First-run setup, sessions/CSRF, credential recovery and audit contracts |
+| [System status](./system-status.md) | Authenticated process uptime and build version contract |
 | [Initialization](./initialization.md) | Implemented startup, health, generated contracts and build boundaries |
 | [Directory structure](./directory-structure.md) | Package boundaries, dependency direction, naming |
 | [Database](./database-guidelines.md) | SQLite configuration, repositories, migrations, task claims |

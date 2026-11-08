@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { server } from "@/test/server";
 
-import { HealthPage } from "./health-page";
+import { DashboardPage } from "./dashboard-page";
 
 function renderPage() {
   return render(
@@ -17,12 +17,12 @@ function renderPage() {
         })
       }
     >
-      <HealthPage />
+      <DashboardPage />
     </QueryClientProvider>,
   );
 }
 
-describe("服务状态页面", () => {
+describe("总览页面", () => {
   it("显示加载状态并在检查成功后显示就绪", async () => {
     server.use(
       http.get("/health/ready", async () => {
@@ -33,6 +33,15 @@ describe("服务状态页面", () => {
     renderPage();
     expect(screen.getByRole("status")).toHaveTextContent("正在确认");
     expect(await screen.findByText("后端服务与数据库连接正常。")).toBeVisible();
+  });
+  it("将未来模块数据标记为示例并禁用快捷入口", async () => {
+    renderPage();
+    expect(await screen.findByText("后端服务与数据库连接正常。")).toBeVisible();
+    expect(screen.getAllByText("示例数据").length).toBeGreaterThan(0);
+    expect(await screen.findByText("1 天 2 小时 3 分钟")).toBeVisible();
+    expect(screen.getByText("dev")).toBeVisible();
+    expect(screen.getByRole("button", { name: /新建媒体库/ })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /查看任务/ })).toBeDisabled();
   });
   it("显示安全错误和请求编号，并允许重新检查", async () => {
     server.use(
@@ -68,6 +77,24 @@ describe("服务状态页面", () => {
     expect(
       await screen.findByText("服务返回了无效响应，请稍后重试。"),
     ).toBeVisible();
+  });
+  it("系统信息异常时保留就绪状态并可重新获取", async () => {
+    server.use(
+      http.get("/api/v1/system/status", () =>
+        HttpResponse.json({ uptime_seconds: -1, version: "dev" }),
+      ),
+    );
+    renderPage();
+    expect(await screen.findByText("后端服务与数据库连接正常。")).toBeVisible();
+    expect(await screen.findAllByText("暂无数据")).toHaveLength(2);
+    server.use(
+      http.get("/api/v1/system/status", () =>
+        HttpResponse.json({ uptime_seconds: 62, version: "v1.2.3" }),
+      ),
+    );
+    await userEvent.click(screen.getByRole("button", { name: "重新检查" }));
+    expect(await screen.findByText("1 分钟")).toBeVisible();
+    expect(screen.getByText("v1.2.3")).toBeVisible();
   });
   it("提供网络失败提示", async () => {
     server.use(http.get("/health/ready", () => HttpResponse.error()));

@@ -397,3 +397,23 @@ func TestHTTPPasswordPolicyAcceptsMaximumLengthAndASCIIPunctuation(t *testing.T)
 		})
 	}
 }
+
+func TestSystemStatusRequiresSession(t *testing.T) {
+	browser, _, _ := newAuthBrowser(t, false, time.Now)
+	anonymous := browser.request(t, "GET", "/api/v1/system/status", "", nil)
+	if anonymous.Code != http.StatusUnauthorized {
+		t.Fatalf("anonymous status %d: %s", anonymous.Code, anonymous.Body)
+	}
+	browser.setup(t)
+	response := browser.request(t, "GET", "/api/v1/system/status", "", nil)
+	if response.Code != http.StatusOK || response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("status %d: %s", response.Code, response.Body)
+	}
+	var status generated.SystemStatus
+	if err := json.Unmarshal(response.Body.Bytes(), &status); err != nil {
+		t.Fatal(err)
+	}
+	if status.Version != Version || status.UptimeSeconds < 0 {
+		t.Fatalf("invalid status: %+v", status)
+	}
+}

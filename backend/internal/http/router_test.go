@@ -73,6 +73,18 @@ func TestHealthAndErrors(t *testing.T) {
 	}
 }
 
+func TestSystemStatusWithoutAuthService(t *testing.T) {
+	router, err := NewRouter(readinessStub{}, slog.New(slog.NewJSONHandler(io.Discard, nil)), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/api/v1/system/status", nil))
+	if response.Code != http.StatusUnauthorized || response.Header().Get("Cache-Control") != "no-store" {
+		t.Fatalf("status %d, cache control %q: %s", response.Code, response.Header().Get("Cache-Control"), response.Body)
+	}
+}
+
 func TestRequestIDsAndSafeAccessLogs(t *testing.T) {
 	for _, requestID := range []string{"", strings.Repeat("a", 65), "invalid request", "bad/identifier"} {
 		var logs bytes.Buffer

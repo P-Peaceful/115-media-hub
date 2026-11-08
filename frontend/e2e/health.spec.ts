@@ -13,6 +13,9 @@ test("检查状态、键盘重试和窄屏布局", async ({ page }) => {
       }),
     });
   });
+  await page.route("**/api/v1/system/status", async (route) => {
+    await route.fulfill({ json: { uptime_seconds: 62, version: "dev" } });
+  });
   let ready = false;
   await page.route("**/health/ready", async (route) => {
     await route.fulfill({
@@ -33,8 +36,16 @@ test("检查状态、键盘重试和窄屏布局", async ({ page }) => {
   });
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1 })).toHaveText(
-    "欢迎使用媒体中心",
+    "欢迎使用 115 Media Hub",
   );
+  const themeToggle = page.getByRole("button", { name: /切换到.*主题/ });
+  const previousTheme = await page.locator("html").getAttribute("data-theme");
+  await themeToggle.click();
+  await expect(page.locator("html")).not.toHaveAttribute(
+    "data-theme",
+    previousTheme ?? "",
+  );
+  await expect(themeToggle).toBeVisible();
   await expect(page.getByRole("status")).toContainText("服务暂未就绪");
   ready = true;
   await page.getByRole("button", { name: "重新检查" }).focus();
@@ -48,6 +59,13 @@ test("检查状态、键盘重试和窄屏布局", async ({ page }) => {
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  await page.setViewportSize({ width: 701, height: 900 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await expect(themeToggle).toBeVisible();
 });
 
 test("健康接口保持公开", async ({ request }) => {

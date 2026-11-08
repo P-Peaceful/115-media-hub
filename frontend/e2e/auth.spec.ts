@@ -17,6 +17,9 @@ async function mockAuthentication(page: Page, initialized = false) {
       body: JSON.stringify({ status: "ok" }),
     });
   });
+  await page.route("**/api/v1/system/status", async (route) => {
+    await route.fulfill({ json: { uptime_seconds: 62, version: "dev" } });
+  });
   let authenticated = false;
   await page.route("**/api/v1/auth/**", async (route) => {
     const action = new URL(route.request().url()).pathname.split("/").at(-1);
@@ -115,14 +118,14 @@ test("初始化、退出、错误登录、记住登录与完整会话流程", as
   await page.getByRole("option", { name: "7 天" }).click();
   await page.getByRole("button", { name: "开始初始化" }).click();
   await expect(
-    page.getByRole("heading", { name: "欢迎使用媒体中心" }),
+    page.getByRole("heading", { name: "欢迎使用 115 Media Hub" }),
   ).toBeVisible();
   await expect(page.getByRole("status")).toContainText(
     "后端服务与数据库连接正常",
   );
   await page.reload();
   await expect(
-    page.getByRole("heading", { name: "欢迎使用媒体中心" }),
+    page.getByRole("heading", { name: "欢迎使用 115 Media Hub" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "退出登录" }).click();
   await expect(page.getByRole("heading", { name: "管理员登录" })).toBeVisible();
@@ -143,7 +146,7 @@ test("初始化、退出、错误登录、记住登录与完整会话流程", as
   await page.getByLabel("密码", { exact: true }).fill(password);
   await page.getByLabel("密码", { exact: true }).press("Enter");
   await expect(
-    page.getByRole("heading", { name: "欢迎使用媒体中心" }),
+    page.getByRole("heading", { name: "欢迎使用 115 Media Hub" }),
   ).toBeVisible();
   if (realBackend) {
     const cookie = (await context.cookies()).find(

@@ -161,6 +161,12 @@ type LoginRequest struct {
 	Username      string `json:"username"`
 }
 
+// SystemStatus defines model for SystemStatus.
+type SystemStatus struct {
+	UptimeSeconds int64  `json:"uptime_seconds"`
+	Version       string `json:"version"`
+}
+
 // CSRFToken defines model for CSRFToken.
 type CSRFToken = string
 

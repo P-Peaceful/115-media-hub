@@ -2,7 +2,7 @@
 
 ## Scope and authority
 
-Read the [project baseline](../guides/project-baseline.md) first for Notion sources, stack decisions, shared API conventions, and implementation status. The React SPA is rooted in `frontend/`; login and first-run setup guard the application; the health view is the current authenticated home. Feature examples without source links describe future business modules.
+Read the [project baseline](../guides/project-baseline.md) first for Notion sources, stack decisions, shared API conventions, and implementation status. The React SPA is rooted in `frontend/`; login and first-run setup guard the application; the dashboard is the current authenticated home. Feature examples without source links describe future business modules.
 
 ## Guidelines
 

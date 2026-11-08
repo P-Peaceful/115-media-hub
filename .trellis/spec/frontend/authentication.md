@@ -6,7 +6,7 @@
 
 ## 2. Signatures
 
-Routes: `/setup`, `/login` and protected `/`. The existing health view is the current authenticated home, with logout; public health HTTP endpoints remain independent.
+Routes: `/setup`, `/login` and protected `/`. The authenticated home composes the application shell in `src/app/` with the independent `features/dashboard/` page and logout; its system status combines public readiness with authenticated process information; see the [system status contract](../backend/system-status.md).
 
 `features/auth/api.ts` derives `AuthBootstrap`, `AuthSession`, `LoginRequest` and `InitializeRequest` from generated `components`. `decodeBootstrap`/`decodeSession` validate network responses before hooks/components consume them. `AuthProvider`/`useAuth` own server session state and transitions. `safeReturnPath` owns validation of a local post-login destination. `lib/api/client.ts` owns JSON requests, safe errors and protected-session expiry notification.
 

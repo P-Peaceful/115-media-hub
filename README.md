@@ -147,6 +147,8 @@ make smoke
 MEDIAHUB_DATABASE_PATH=/absolute/path/mediahub.db ./bin/mediahub
 ```
 
+构建时可通过 `MEDIAHUB_VERSION=v1.2.3 make build` 注入版本；Docker 构建可使用 `--build-arg MEDIAHUB_VERSION=v1.2.3`。未指定时版本显示 `dev`，不会推断是否为最新版本。总览的运行时长和版本由需要管理员会话的 `GET /api/v1/system/status` 提供。
+
 构建先生成真实 `frontend/dist`，再复制到 `backend/internal/web/dist`，最后用 `-tags production` 编译为 `bin/mediahub`；最终二进制嵌入 SPA，发布无需额外静态文件。构建输出均被 Git 忽略。SPA 回退保留 API、健康检查、播放及静态资源错误语义。
 
 ## Docker

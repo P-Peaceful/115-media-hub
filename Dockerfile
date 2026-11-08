@@ -13,7 +13,8 @@ COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ ./
 COPY --from=frontend /source/frontend/dist/ ./internal/web/dist/
-RUN CGO_ENABLED=1 go build -trimpath -tags production -o /out/mediahub ./cmd/mediahub
+ARG MEDIAHUB_VERSION=dev
+RUN CGO_ENABLED=1 go build -trimpath -ldflags "-X github.com/wenzhengcheng/115-media-hub/backend/internal/http.Version=${MEDIAHUB_VERSION}" -tags production -o /out/mediahub ./cmd/mediahub
 
 FROM debian:bookworm-slim AS runtime
 RUN apt-get update \

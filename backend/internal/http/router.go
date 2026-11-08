@@ -17,6 +17,11 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/http/generated"
 )
 
+// Version is set by the build using -ldflags; unversioned local builds are dev.
+var Version = "dev"
+
+var processStarted = time.Now()
+
 // Readiness exposes only the database operation needed by the health transport.
 type Readiness interface{ Ping(context.Context) error }
 
@@ -42,6 +47,9 @@ func NewRouter(database Readiness, logger *slog.Logger, assets fs.FS, options ..
 	if authOptions.Service != nil {
 		authHandler.register(router)
 	}
+	router.GET("/api/v1/system/status", func(c *gin.Context) {
+		c.JSON(http.StatusOK, generated.SystemStatus{UptimeSeconds: int64(time.Since(processStarted).Seconds()), Version: Version})
+	})
 	router.GET("/health/live", func(c *gin.Context) { c.JSON(http.StatusOK, generated.HealthResponse{Status: generated.Ok}) })
 	router.GET("/health/ready", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)

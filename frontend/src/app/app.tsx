@@ -5,10 +5,12 @@ import { BrowserRouter, Route, Routes, useNavigate } from "react-router";
 
 import { AuthBoundary } from "@/features/auth/auth-boundary";
 import { AuthProvider } from "@/features/auth/auth-provider";
-import { AuthenticatedHome } from "@/features/auth/authenticated-home";
 import { LoginPage } from "@/features/auth/login-page";
 import { SetupPage } from "@/features/auth/setup-page";
 import { ThemeToggle } from "@/features/auth/theme-toggle";
+import { DashboardPage } from "@/features/dashboard/dashboard-page";
+
+import { AppShell } from "./app-shell";
 
 function NotFound() {
   const navigate = useNavigate();
@@ -32,14 +34,44 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <ThemeToggle />
         <AuthProvider>
           <Routes>
             <Route element={<AuthBoundary />}>
-              <Route path="/setup" element={<SetupPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/" element={<AuthenticatedHome />} />
-              <Route path="*" element={<NotFound />} />
+              <Route
+                path="/setup"
+                element={
+                  <>
+                    <ThemeToggle />
+                    <SetupPage />
+                  </>
+                }
+              />
+              <Route
+                path="/login"
+                element={
+                  <>
+                    <ThemeToggle />
+                    <LoginPage />
+                  </>
+                }
+              />
+              <Route
+                path="/"
+                element={
+                  <AppShell currentPage="总览">
+                    <DashboardPage />
+                  </AppShell>
+                }
+              />
+              <Route
+                path="*"
+                element={
+                  <>
+                    <ThemeToggle />
+                    <NotFound />
+                  </>
+                }
+              />
             </Route>
           </Routes>
         </AuthProvider>

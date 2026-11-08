@@ -38,6 +38,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/system/status": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get running process information
+     * @description Requires an administrator session. Uptime is elapsed process lifetime in whole seconds; version is the build version or dev for unversioned builds. No-store response.
+     */
+    get: operations["getSystemStatus"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/auth/bootstrap": {
     parameters: {
       query?: never;
@@ -166,6 +186,11 @@ export interface components {
       password: string;
       remember_login: boolean;
     };
+    SystemStatus: {
+      /** Format: int64 */
+      uptime_seconds: number;
+      version: string;
+    };
     HealthResponse: {
       /** @enum {string} */
       status: "ok";
@@ -281,6 +306,28 @@ export interface operations {
     requestBody?: never;
     responses: {
       200: components["responses"]["Healthy"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getSystemStatus: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Process information */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SystemStatus"];
+        };
+      };
+      401: components["responses"]["AuthError"];
       503: components["responses"]["Unavailable"];
     };
   };
