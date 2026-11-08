@@ -1,0 +1,3 @@
+# Design
+
+Replace the authenticated home with a shared application shell and dashboard feature. Reuse the existing readiness query and authentication provider; retain the public health API contract. Authenticated `GET /api/v1/system/status` returns process uptime in seconds and the injected build version (default `dev`), independent of the public readiness probe. Both requests support retry and system metadata failures never masquerade as readiness failures. Future-module figures are clearly labeled as examples and unavailable navigation/actions are disabled. Keep authentication pages and theme behavior intact. Responsive CSS adapts the sidebar and grid to smaller viewports. No database migration is required.
