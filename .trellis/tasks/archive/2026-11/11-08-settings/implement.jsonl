@@ -1,0 +1,6 @@
+{"file":".trellis/spec/guides/project-baseline.md","reason":"Architecture; user explicitly excludes external credential encryption for this task"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Settings and QR span API, service, persistence and UI"}
+{"file":".trellis/spec/backend/authentication.md","reason":"Credential, session, CSRF and audit contract"}
+{"file":".trellis/spec/backend/index.md","reason":"Backend guidelines and migration requirements"}
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend settings and authentication conventions"}
+{"file":".trellis/tasks/11-08-settings/research/115-qr.md","reason":"Reference upstream QR endpoints and limitations"}

@@ -1,0 +1,5 @@
+{"file":".trellis/spec/backend/authentication.md","reason":"Review security transactions, session and audit invariants"}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Backend validation gates"}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Frontend validation gates"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Review contracts and data flow"}
+{"file":".trellis/tasks/11-08-settings/research/115-qr.md","reason":"Review QR reference assumptions"}
