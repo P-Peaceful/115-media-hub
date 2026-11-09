@@ -10,6 +10,7 @@ Read the [project baseline](../guides/project-baseline.md) first for Notion sour
 | --- | --- |
 | [Authentication](./authentication.md) | First-run setup, sessions/CSRF, credential recovery and audit contracts |
 | [Settings and 115](./settings.md) | Security settings, single-account QR authorization and credential storage |
+| [Cloud drive](./cloud-drive.md) | Read-only 115 directory listing and upstream pagination contract |
 | [System status](./system-status.md) | Authenticated process uptime and build version contract |
 | [Initialization](./initialization.md) | Implemented startup, health, generated contracts and build boundaries |
 | [Directory structure](./directory-structure.md) | Package boundaries, dependency direction, naming |

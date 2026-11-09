@@ -2442,3 +2442,14 @@ a {
   color: var(--muted);
   font-size: 13px;
 }
+
+/* Keep the mobile navigation compact while the desktop authorization card is hidden. */
+@media (max-width: 700px) {
+  .cloud-drive-shell .sidebar-provider-card {
+    display: none;
+  }
+  .cloud-drive-shell .app-sidebar nav,
+  .cloud-drive-shell .nav-group {
+    align-items: center;
+  }
+}

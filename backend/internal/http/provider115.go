@@ -3,6 +3,7 @@ package http
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 
@@ -14,6 +15,7 @@ import (
 type providerHandler struct{ service *provider115.Service }
 
 func (h *providerHandler) register(router *gin.Engine) {
+	router.GET("/api/v1/cloud-drive/files", h.files)
 	router.GET("/api/v1/settings/115", h.account)
 	router.GET("/api/v1/settings/115/details", h.details)
 	router.DELETE("/api/v1/settings/115", h.remove)
@@ -80,4 +82,28 @@ func (h *providerHandler) details(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, details)
+}
+
+func (h *providerHandler) files(c *gin.Context) {
+	limit, err := strconv.Atoi(c.DefaultQuery("limit", "50"))
+	if err != nil {
+		writeError(c, http.StatusBadRequest, generated.ValidationFailed, "无效的分页参数")
+		return
+	}
+	query := provider115.FileQuery{DirectoryID: c.DefaultQuery("directory_id", "0"), Limit: limit, Cursor: c.Query("cursor"), Sort: c.DefaultQuery("sort", "name"), Order: c.DefaultQuery("order", "asc"), Type: c.DefaultQuery("type", "all")}
+	result, err := h.service.Files(c.Request.Context(), query, c.GetString("request_id"))
+	switch {
+	case errors.Is(err, provider115.ErrInvalidQuery):
+		writeError(c, http.StatusBadRequest, generated.ValidationFailed, "无效的目录查询参数")
+	case errors.Is(err, provider115.ErrUnconfigured):
+		writeError(c, http.StatusConflict, generated.ProviderNotConfigured, "请先授权 115 网盘")
+	case errors.Is(err, provider115.ErrInvalidAuthorization):
+		writeError(c, http.StatusConflict, generated.ProviderAuthInvalid, "115 网盘授权已失效")
+	case errors.Is(err, provider115.ErrDirectoryNotFound):
+		writeError(c, http.StatusNotFound, generated.NotFound, "目录不存在")
+	case err != nil:
+		h.failure(c, err)
+	default:
+		c.JSON(http.StatusOK, result)
+	}
 }

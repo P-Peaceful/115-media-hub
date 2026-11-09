@@ -81,7 +81,9 @@ export function AppShell({
     }
   }
   return (
-    <div className="app-layout">
+    <div
+      className={`app-layout${currentPage === "网盘浏览" ? " cloud-drive-shell" : ""}`}
+    >
       <aside className="app-sidebar" aria-label="主导航">
         <div className="app-brand">
           <span className="brand-mark">▶</span> 115 Media Hub
@@ -100,8 +102,12 @@ export function AppShell({
                     <Icon aria-hidden="true" />
                     {label}
                   </span>
-                ) : label === "总览" ? (
-                  <RouterLink className="nav-item" to="/" key={label}>
+                ) : label === "总览" || label === "网盘浏览" ? (
+                  <RouterLink
+                    className="nav-item"
+                    to={label === "总览" ? "/" : "/cloud-drive"}
+                    key={label}
+                  >
                     <Icon aria-hidden="true" />
                     {label}
                   </RouterLink>
@@ -219,7 +225,8 @@ export function AppShell({
       <div className="app-main">
         <header className="app-topbar">
           <div className="breadcrumbs">
-            <Home aria-hidden="true" /> <span>/</span> 工作台 <span>/</span>{" "}
+            <Home aria-hidden="true" /> <span>/</span>{" "}
+            {currentPage === "网盘浏览" ? "资源管理" : "工作台"} <span>/</span>{" "}
             <strong>{currentPage}</strong>
           </div>
           <div className="top-actions">

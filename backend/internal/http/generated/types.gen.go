@@ -16,6 +16,8 @@ const (
 	InvalidCredentials     APIErrorCode = "invalid_credentials"
 	MethodNotAllowed       APIErrorCode = "method_not_allowed"
 	NotFound               APIErrorCode = "not_found"
+	ProviderAuthInvalid    APIErrorCode = "provider_auth_invalid"
+	ProviderNotConfigured  APIErrorCode = "provider_not_configured"
 	RateLimited            APIErrorCode = "rate_limited"
 	ServiceUnavailable     APIErrorCode = "service_unavailable"
 	SetupRequired          APIErrorCode = "setup_required"
@@ -38,6 +40,10 @@ func (e APIErrorCode) Valid() bool {
 	case MethodNotAllowed:
 		return true
 	case NotFound:
+		return true
+	case ProviderAuthInvalid:
+		return true
+	case ProviderNotConfigured:
 		return true
 	case RateLimited:
 		return true
@@ -214,6 +220,72 @@ func (e SecuritySettingsSessionLifetimeDays) Valid() bool {
 	}
 }
 
+// Defines values for ListCloudDriveFilesParamsSort.
+const (
+	ModifiedAt ListCloudDriveFilesParamsSort = "modified_at"
+	Name       ListCloudDriveFilesParamsSort = "name"
+	Size       ListCloudDriveFilesParamsSort = "size"
+)
+
+// Valid indicates whether the value is a known member of the ListCloudDriveFilesParamsSort enum.
+func (e ListCloudDriveFilesParamsSort) Valid() bool {
+	switch e {
+	case ModifiedAt:
+		return true
+	case Name:
+		return true
+	case Size:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCloudDriveFilesParamsOrder.
+const (
+	Asc  ListCloudDriveFilesParamsOrder = "asc"
+	Desc ListCloudDriveFilesParamsOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListCloudDriveFilesParamsOrder enum.
+func (e ListCloudDriveFilesParamsOrder) Valid() bool {
+	switch e {
+	case Asc:
+		return true
+	case Desc:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListCloudDriveFilesParamsType.
+const (
+	All      ListCloudDriveFilesParamsType = "all"
+	Audio    ListCloudDriveFilesParamsType = "audio"
+	Document ListCloudDriveFilesParamsType = "document"
+	Image    ListCloudDriveFilesParamsType = "image"
+	Video    ListCloudDriveFilesParamsType = "video"
+)
+
+// Valid indicates whether the value is a known member of the ListCloudDriveFilesParamsType enum.
+func (e ListCloudDriveFilesParamsType) Valid() bool {
+	switch e {
+	case All:
+		return true
+	case Audio:
+		return true
+	case Document:
+		return true
+	case Image:
+		return true
+	case Video:
+		return true
+	default:
+		return false
+	}
+}
+
 // APIError defines model for APIError.
 type APIError struct {
 	Code APIErrorCode `json:"code"`
@@ -247,6 +319,30 @@ type AuthSession struct {
 	Administrator Administrator `json:"administrator"`
 	CsrfToken     string        `json:"csrf_token"`
 	ExpiresAt     time.Time     `json:"expires_at"`
+}
+
+// CloudDriveItem defines model for CloudDriveItem.
+type CloudDriveItem struct {
+	FileType    string     `json:"file_type"`
+	Id          string     `json:"id"`
+	IsDirectory bool       `json:"is_directory"`
+	ModifiedAt  *time.Time `json:"modified_at"`
+	Name        string     `json:"name"`
+	SizeBytes   *string    `json:"size_bytes"`
+}
+
+// CloudDrivePage defines model for CloudDrivePage.
+type CloudDrivePage struct {
+	DirectoryId string           `json:"directory_id"`
+	Items       []CloudDriveItem `json:"items"`
+	NextCursor  *string          `json:"next_cursor"`
+	Path        []CloudDrivePath `json:"path"`
+}
+
+// CloudDrivePath defines model for CloudDrivePath.
+type CloudDrivePath struct {
+	Id   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // ErrorResponse defines model for ErrorResponse.
@@ -427,6 +523,25 @@ type LoginAdministratorParams struct {
 type LogoutAdministratorParams struct {
 	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
 }
+
+// ListCloudDriveFilesParams defines parameters for ListCloudDriveFiles.
+type ListCloudDriveFilesParams struct {
+	DirectoryId *string                         `form:"directory_id,omitempty" json:"directory_id,omitempty"`
+	Limit       *int                            `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor      *string                         `form:"cursor,omitempty" json:"cursor,omitempty"`
+	Sort        *ListCloudDriveFilesParamsSort  `form:"sort,omitempty" json:"sort,omitempty"`
+	Order       *ListCloudDriveFilesParamsOrder `form:"order,omitempty" json:"order,omitempty"`
+	Type        *ListCloudDriveFilesParamsType  `form:"type,omitempty" json:"type,omitempty"`
+}
+
+// ListCloudDriveFilesParamsSort defines parameters for ListCloudDriveFiles.
+type ListCloudDriveFilesParamsSort string
+
+// ListCloudDriveFilesParamsOrder defines parameters for ListCloudDriveFiles.
+type ListCloudDriveFilesParamsOrder string
+
+// ListCloudDriveFilesParamsType defines parameters for ListCloudDriveFiles.
+type ListCloudDriveFilesParamsType string
 
 // Delete115AccountParams defines parameters for Delete115Account.
 type Delete115AccountParams struct {

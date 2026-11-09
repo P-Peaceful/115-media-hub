@@ -186,6 +186,26 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/cloud-drive/files": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Browse a 115 directory
+     * @description Read-only provider listing. Offset-based pages may shift if the directory changes; refresh to restart. Search is not supported.
+     */
+    get: operations["listCloudDriveFiles"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/settings/115": {
     parameters: {
       query?: never;
@@ -279,6 +299,25 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    CloudDrivePage: {
+      directory_id: string;
+      path: components["schemas"]["CloudDrivePath"][];
+      items: components["schemas"]["CloudDriveItem"][];
+      next_cursor: string | null;
+    };
+    CloudDrivePath: {
+      id: string;
+      name: string;
+    };
+    CloudDriveItem: {
+      id: string;
+      name: string;
+      is_directory: boolean;
+      size_bytes: string | null;
+      /** Format: date-time */
+      modified_at: string | null;
+      file_type: string;
+    };
     SecuritySettings: {
       username: string;
       /** @enum {integer} */
@@ -412,6 +451,8 @@ export interface components {
     APIError: {
       /** @enum {string} */
       code:
+        | "provider_not_configured"
+        | "provider_auth_invalid"
         | "service_unavailable"
         | "not_found"
         | "method_not_allowed"
@@ -717,6 +758,38 @@ export interface operations {
       401: components["responses"]["AuthError"];
       403: components["responses"]["AuthError"];
       404: components["responses"]["AuthError"];
+      503: components["responses"]["AuthError"];
+    };
+  };
+  listCloudDriveFiles: {
+    parameters: {
+      query?: {
+        directory_id?: string;
+        limit?: number;
+        cursor?: string;
+        sort?: "name" | "size" | "modified_at";
+        order?: "asc" | "desc";
+        type?: "all" | "video" | "audio" | "image" | "document";
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Directory page */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["CloudDrivePage"];
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      409: components["responses"]["AuthError"];
       503: components["responses"]["AuthError"];
     };
   };

@@ -55,11 +55,12 @@ type Service struct {
 	baseURL       string
 	navURL        string
 	spaceURL      string
+	filesURL      string
 	now           func() time.Time
 }
 
 func New(repo Repository, logger *slog.Logger) *Service {
-	return &Service{repo: repo, logger: logger.With("module", "provider_115"), client: &http.Client{Timeout: 65 * time.Second}, baseURL: "https://qrcodeapi.115.com", navURL: "https://my.115.com/?ct=ajax&ac=nav", spaceURL: "https://webapi.115.com/files/index_info", now: time.Now}
+	return &Service{repo: repo, logger: logger.With("module", "provider_115"), client: &http.Client{Timeout: 65 * time.Second}, baseURL: "https://qrcodeapi.115.com", navURL: "https://my.115.com/?ct=ajax&ac=nav", spaceURL: "https://webapi.115.com/files/index_info", filesURL: "https://webapi.115.com/files", now: time.Now}
 }
 func (s *Service) log(ctx context.Context, operation, requestID string, start time.Time, err error) {
 	outcome := "succeeded"

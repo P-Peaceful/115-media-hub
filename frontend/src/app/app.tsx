@@ -8,6 +8,7 @@ import { AuthProvider } from "@/features/auth/auth-provider";
 import { LoginPage } from "@/features/auth/login-page";
 import { SetupPage } from "@/features/auth/setup-page";
 import { ThemeToggle } from "@/features/auth/theme-toggle";
+import { CloudDrivePage } from "@/features/cloud-drive/cloud-drive-page";
 import { DashboardPage } from "@/features/dashboard/dashboard-page";
 import { SettingsPage } from "@/features/settings/settings-page";
 
@@ -61,6 +62,14 @@ export function App() {
                 element={
                   <AppShell currentPage="总览">
                     <DashboardPage />
+                  </AppShell>
+                }
+              />
+              <Route
+                path="/cloud-drive"
+                element={
+                  <AppShell currentPage="网盘浏览">
+                    <CloudDrivePage />
                   </AppShell>
                 }
               />
