@@ -146,3 +146,25 @@ Implemented reusable dashboard layout, authenticated system status API and front
 ### Status
 
 [OK] **Completed**
+
+
+## Session 6: 实现 115 网盘浏览模块
+<!-- trellis-session: v=2 fp=ca423cd7fe992e87 -->
+
+**Date**: 2026-11-10
+**Task**: 实现 115 网盘浏览模块
+**Branch**: `codex/settings`
+
+### Summary
+
+实现真实网盘目录浏览、分页筛选、详情及路径复制；搜索暂不可用。完成质量检查并记录现有 E2E 限制。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `96e9afd` | feat: implement 115 cloud drive browsing |
+
+### Status
+
+[OK] **Completed**
