@@ -1,0 +1,6 @@
+{"file":".trellis/spec/guides/project-baseline.md","reason":"Shared architecture and API conventions"}
+{"file":".trellis/spec/backend/settings.md","reason":"Existing 115 credential and account behavior"}
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend guidelines and required references"}
+{"file":".trellis/spec/backend/index.md","reason":"Backend guidelines and required references"}
+{"file":".trellis/tasks/11-10-cloud-drive-browser/design.md","reason":"Feature boundaries and upstream uncertainties"}
+{"file":".trellis/tasks/11-10-cloud-drive-browser/research/115-list.md","reason":"Observed directory API and search limitations"}
