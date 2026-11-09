@@ -60,19 +60,22 @@ export async function requestJson(
     if (options.signal?.aborted) throw error;
     throw new ApiError("network_error", "无法连接服务，请检查网络后重试。");
   }
-  if (response.status === 401 && path !== "/api/v1/auth/login") {
-    window.dispatchEvent(new Event(sessionExpiredEvent));
-  }
   if (response.status === 204) return undefined;
   let payload: unknown;
   try {
     payload = await response.json();
   } catch (error) {
     if (options.signal?.aborted) throw error;
+    if (response.status === 401 && path !== "/api/v1/auth/login") {
+      window.dispatchEvent(new Event(sessionExpiredEvent));
+    }
     throw new ApiError("invalid_response", "服务返回了无效响应，请稍后重试。");
   }
   if (!response.ok) {
     const error = decodeError(payload, response.status);
+    if (response.status === 401 && error.code === "authentication_required") {
+      window.dispatchEvent(new Event(sessionExpiredEvent));
+    }
     throw error;
   }
   return payload;

@@ -278,3 +278,45 @@ func TestMigrationUpgradeFromApplicationOnly(t *testing.T) {
 		t.Fatalf("upgrade missing constraint: %s %v", sqlText, err)
 	}
 }
+
+func TestSecuritySettingsPreserveCurrentSessionAndRevokeOthers(t *testing.T) {
+	db, _ := testAuthDatabase(t)
+	service := testAuthService(t, db, nil)
+	ctx := t.Context()
+	initial, err := service.Initialize(ctx, "admin", "ValidPass123!", authSettings(), "peer", "init")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := service.Login(ctx, "admin", "ValidPass123!", "", "peer", "login")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = service.UpdateCredentials(ctx, initial.Identity, "changed", "WrongPass!", "NewPass123!", "change"); !errors.Is(err, auth.ErrInvalidCredentials) {
+		t.Fatalf("wrong password: %v", err)
+	}
+	if err = service.UpdateCredentials(ctx, initial.Identity, "changed", "ValidPass123!", "NewPass123!", "change"); err != nil {
+		t.Fatal(err)
+	}
+	if identity, err := service.Authenticate(ctx, initial.Token); err != nil || identity.Administrator.Username != "changed" {
+		t.Fatalf("current session: %+v %v", identity, err)
+	}
+	if _, err := service.Authenticate(ctx, other.Token); !errors.Is(err, auth.ErrUnauthenticated) {
+		t.Fatalf("other session: %v", err)
+	}
+	if _, err := service.Login(ctx, "admin", "ValidPass123!", "", "peer", "old"); !errors.Is(err, auth.ErrInvalidCredentials) {
+		t.Fatalf("old login: %v", err)
+	}
+	if err := service.UpdateSessionLifetime(ctx, initial.Identity, 30, "settings"); err != nil {
+		t.Fatal(err)
+	}
+	next, err := service.Login(ctx, "changed", "NewPass123!", "", "peer", "new")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if next.Identity.Session.ExpiresAt.Sub(next.Identity.Session.CreatedAt) != 30*24*time.Hour {
+		t.Fatal("new lifetime not applied")
+	}
+	if initial.Identity.Session.ExpiresAt.Sub(initial.Identity.Session.CreatedAt) != 7*24*time.Hour {
+		t.Fatal("previous lifetime changed")
+	}
+}

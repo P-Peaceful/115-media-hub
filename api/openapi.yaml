@@ -8,17 +8,17 @@ paths:
       operationId: getLiveness
       summary: Check that the HTTP process is alive
       responses:
-        '200':
-          $ref: '#/components/responses/Healthy'
+        "200":
+          $ref: "#/components/responses/Healthy"
   /health/ready:
     get:
       operationId: getReadiness
       summary: Check database readiness
       responses:
-        '200':
-          $ref: '#/components/responses/Healthy'
-        '503':
-          $ref: '#/components/responses/Unavailable'
+        "200":
+          $ref: "#/components/responses/Healthy"
+        "503":
+          $ref: "#/components/responses/Unavailable"
   /api/v1/system/status:
     get:
       operationId: getSystemStatus
@@ -27,84 +27,84 @@ paths:
       security:
         - adminSession: []
       responses:
-        '200':
+        "200":
           description: Process information
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SystemStatus'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '503':
-          $ref: '#/components/responses/Unavailable'
+                $ref: "#/components/schemas/SystemStatus"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
   /api/v1/auth/bootstrap:
     get:
       operationId: getAuthBootstrap
       summary: Obtain authentication state and an in-memory CSRF token
       description: Establishes a short-lived HttpOnly pre-auth cookie if unauthenticated. All responses use Cache-Control no-store. No anonymous identity or settings are exposed.
       responses:
-        '200':
+        "200":
           description: Authentication state; authenticated session cookie is never returned in JSON
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/AuthBootstrap'
-        '503':
-          $ref: '#/components/responses/Unavailable'
+                $ref: "#/components/schemas/AuthBootstrap"
+        "503":
+          $ref: "#/components/responses/Unavailable"
   /api/v1/auth/initialize:
     post:
       operationId: initializeAdministrator
       summary: Atomically initialize one administrator and settings and start a session
       description: Requires bootstrap cookie plus X-CSRF-Token. Maximum JSON body 4096 bytes. Sets a persistent HttpOnly SameSite=Lax session cookie; Secure on configured HTTPS deployments or direct TLS. Rotates any previous session. No-store responses.
       parameters:
-        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: "#/components/parameters/CSRFToken"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/InitializeRequest'
+              $ref: "#/components/schemas/InitializeRequest"
       responses:
-        '201':
-          $ref: '#/components/responses/SessionStarted'
-        '400':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/AuthError'
-        '409':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/Throttled'
-        '503':
-          $ref: '#/components/responses/Unavailable'
+        "201":
+          $ref: "#/components/responses/SessionStarted"
+        "400":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/AuthError"
+        "409":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/Throttled"
+        "503":
+          $ref: "#/components/responses/Unavailable"
   /api/v1/auth/login:
     post:
       operationId: loginAdministrator
       summary: Verify credentials and rotate the authenticated session
       description: Requires bootstrap cookie plus X-CSRF-Token. Maximum JSON body 4096 bytes. Remember-login sets cookie Max-Age and Expires; false omits both. Server fixed expiry always applies. No-store responses.
       parameters:
-        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: "#/components/parameters/CSRFToken"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginRequest'
+              $ref: "#/components/schemas/LoginRequest"
       responses:
-        '200':
-          $ref: '#/components/responses/SessionStarted'
-        '400':
-          $ref: '#/components/responses/AuthError'
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/AuthError'
-        '409':
-          $ref: '#/components/responses/AuthError'
-        '429':
-          $ref: '#/components/responses/Throttled'
-        '503':
-          $ref: '#/components/responses/Unavailable'
+        "200":
+          $ref: "#/components/responses/SessionStarted"
+        "400":
+          $ref: "#/components/responses/AuthError"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/AuthError"
+        "409":
+          $ref: "#/components/responses/AuthError"
+        "429":
+          $ref: "#/components/responses/Throttled"
+        "503":
+          $ref: "#/components/responses/Unavailable"
   /api/v1/auth/logout:
     post:
       operationId: logoutAdministrator
@@ -112,16 +112,244 @@ paths:
       security:
         - adminSession: []
       parameters:
-        - $ref: '#/components/parameters/CSRFToken'
+        - $ref: "#/components/parameters/CSRFToken"
       responses:
-        '204':
+        "204":
           description: Session revoked; cookie expired; no-store response
-        '401':
-          $ref: '#/components/responses/AuthError'
-        '403':
-          $ref: '#/components/responses/AuthError'
-        '503':
-          $ref: '#/components/responses/Unavailable'
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/AuthError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+  /api/v1/settings/security:
+    get:
+      operationId: getSecuritySettings
+      summary: getSecuritySettings
+      security:
+        - adminSession: []
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecuritySettings"
+        "400":
+          $ref: "#/components/responses/AuthError"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/AuthError"
+        "503":
+          $ref: "#/components/responses/AuthError"
+  /api/v1/settings/security/credentials:
+    put:
+      operationId: updateSecurityCredentials
+      summary: updateSecurityCredentials
+      security:
+        - adminSession: []
+      parameters:
+        - $ref: "#/components/parameters/CSRFToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SecurityCredentialsRequest"
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecuritySettings"
+        "400":
+          $ref: "#/components/responses/AuthError"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/AuthError"
+        "503":
+          $ref: "#/components/responses/AuthError"
+  /api/v1/settings/security/session:
+    put:
+      operationId: updateSecuritySession
+      summary: updateSecuritySession
+      security:
+        - adminSession: []
+      parameters:
+        - $ref: "#/components/parameters/CSRFToken"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SecuritySessionRequest"
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SecuritySettings"
+        "400":
+          $ref: "#/components/responses/AuthError"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/AuthError"
+        "503":
+          $ref: "#/components/responses/AuthError"
+  /api/v1/settings/115:
+    get:
+      operationId: get115Account
+      summary: get115Account
+      security:
+        - adminSession: []
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Provider115Account"
+        "400":
+          $ref: "#/components/responses/AuthError"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/AuthError"
+        "503":
+          $ref: "#/components/responses/AuthError"
+    delete:
+      operationId: delete115Account
+      summary: delete115Account
+      security:
+        - adminSession: []
+      parameters:
+        - $ref: "#/components/parameters/CSRFToken"
+      responses:
+        "204":
+          description: Successful operation
+        "400":
+          $ref: "#/components/responses/AuthError"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/AuthError"
+        "503":
+          $ref: "#/components/responses/AuthError"
+  /api/v1/settings/115/details:
+    get:
+      operationId: get115AccountDetails
+      summary: Get current 115 profile and space information
+      description: Live provider data. Provider authorization rejection is reported as invalid; space may be unavailable independently. Credentials are never returned.
+      security:
+        - adminSession: []
+      responses:
+        "200":
+          description: Current account details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Provider115Details"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "503":
+          $ref: "#/components/responses/Unavailable"
+  /api/v1/settings/115/qr:
+    post:
+      operationId: start115QR
+      summary: start115QR
+      security:
+        - adminSession: []
+      parameters:
+        - $ref: "#/components/parameters/CSRFToken"
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Provider115QR"
+        "400":
+          $ref: "#/components/responses/AuthError"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/AuthError"
+        "503":
+          $ref: "#/components/responses/AuthError"
+  /api/v1/settings/115/qr/{id}/poll:
+    post:
+      operationId: poll115QR
+      summary: poll115QR
+      security:
+        - adminSession: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/CSRFToken"
+      responses:
+        "200":
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Provider115QR"
+        "400":
+          $ref: "#/components/responses/AuthError"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/AuthError"
+        "503":
+          $ref: "#/components/responses/AuthError"
+  /api/v1/settings/115/qr/{id}:
+    delete:
+      operationId: cancel115QR
+      summary: cancel115QR
+      security:
+        - adminSession: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: "#/components/parameters/CSRFToken"
+      responses:
+        "204":
+          description: Successful operation
+        "400":
+          $ref: "#/components/responses/AuthError"
+        "401":
+          $ref: "#/components/responses/AuthError"
+        "403":
+          $ref: "#/components/responses/AuthError"
+        "404":
+          $ref: "#/components/responses/AuthError"
+        "503":
+          $ref: "#/components/responses/AuthError"
+
 components:
   securitySchemes:
     adminSession:
@@ -143,17 +371,17 @@ components:
       schema:
         type: string
         maxLength: 64
-        pattern: '^[A-Za-z0-9._-]+$'
+        pattern: "^[A-Za-z0-9._-]+$"
   responses:
     AuthError:
       description: Safe authentication error; validation_failed, invalid_credentials, authentication_required, csrf_invalid, setup_required or already_initialized as applicable
       headers:
         X-Request-ID:
-          $ref: '#/components/headers/RequestID'
+          $ref: "#/components/headers/RequestID"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
     Throttled:
       description: Authentication admission is temporarily throttled
       headers:
@@ -165,32 +393,154 @@ components:
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
     SessionStarted:
       description: Session established; new CSRF token replaces the bootstrap token
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/AuthSession'
+            $ref: "#/components/schemas/AuthSession"
     Healthy:
       description: Healthy
       headers:
         X-Request-ID:
-          $ref: '#/components/headers/RequestID'
+          $ref: "#/components/headers/RequestID"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/HealthResponse'
+            $ref: "#/components/schemas/HealthResponse"
     Unavailable:
       description: Database unavailable
       headers:
         X-Request-ID:
-          $ref: '#/components/headers/RequestID'
+          $ref: "#/components/headers/RequestID"
       content:
         application/json:
           schema:
-            $ref: '#/components/schemas/ErrorResponse'
+            $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    SecuritySettings:
+      type: object
+      required: [username, session_lifetime_days]
+      properties:
+        username: { type: string }
+        session_lifetime_days: { type: integer, enum: [1, 7, 30] }
+    SecurityCredentialsRequest:
+      type: object
+      additionalProperties: false
+      required: [username, current_password, new_password]
+      properties:
+        username: { type: string }
+        current_password: { type: string }
+        new_password:
+          { type: string, description: Empty preserves the existing password. }
+    SecuritySessionRequest:
+      type: object
+      additionalProperties: false
+      required: [session_lifetime_days]
+      properties:
+        session_lifetime_days: { type: integer, enum: [1, 7, 30] }
+    Provider115Account:
+      type: object
+      required: [connected, account_name, connected_at]
+      properties:
+        connected: { type: boolean }
+        account_name: { type: string, nullable: true }
+        connected_at: { type: string, format: date-time, nullable: true }
+    Provider115Details:
+      type: object
+      required: [status, profile, space, space_status, devices, devices_status]
+      properties:
+        status: { type: string, enum: [unconfigured, valid, invalid] }
+        profile:
+          allOf:
+            - $ref: "#/components/schemas/Provider115Profile"
+          nullable: true
+        space:
+          allOf:
+            - $ref: "#/components/schemas/Provider115Space"
+          nullable: true
+        space_status: { type: string, enum: [available, unavailable] }
+        devices:
+          type: array
+          items: { $ref: "#/components/schemas/Provider115Device" }
+        devices_status: { type: string, enum: [available, unavailable] }
+    Provider115Profile:
+      type: object
+      required:
+        [
+          user_name,
+          user_id,
+          avatar,
+          is_member,
+          member_expires_at,
+          member_forever,
+        ]
+      properties:
+        user_name: { type: string }
+        user_id:
+          {
+            type: string,
+            nullable: true,
+            description: Provider user ID represented as a string.,
+          }
+        avatar: { type: string, nullable: true }
+        is_member:
+          {
+            type: boolean,
+            nullable: true,
+            description: Known Cookie nav VIP values mapped to membership only; unknown values remain null.,
+          }
+        member_expires_at:
+          {
+            type: string,
+            format: date-time,
+            nullable: true,
+            description: Membership expiry; null when unknown or no expiry is provided.,
+          }
+        member_forever:
+          {
+            type: boolean,
+            nullable: true,
+            description: Whether the provider marks membership as permanent.,
+          }
+    Provider115Space:
+      type: object
+      required: [used_bytes, total_bytes]
+      properties:
+        used_bytes:
+          {
+            type: string,
+            description: Decimal byte count truncated towards zero.,
+          }
+        total_bytes:
+          {
+            type: string,
+            description: Decimal byte count truncated towards zero.,
+          }
+    Provider115Device:
+      type: object
+      required: [name, type, ip, city, login_at, is_current]
+      properties:
+        name: { type: string }
+        type: { type: string }
+        ip: { type: string }
+        city: { type: string }
+        login_at: { type: string, format: date-time, nullable: true }
+        is_current: { type: boolean }
+    Provider115QR:
+      type: object
+      required: [id, qr_url, status, expires_at]
+      properties:
+        id: { type: string }
+        qr_url: { type: string, description: PNG data URI }
+        status:
+          {
+            type: string,
+            enum: [waiting, scanned, succeeded, expired, canceled],
+          }
+        expires_at: { type: string, format: date-time }
+
     Administrator:
       type: object
       additionalProperties: false
@@ -206,7 +556,7 @@ components:
       required: [administrator, expires_at, csrf_token]
       properties:
         administrator:
-          $ref: '#/components/schemas/Administrator'
+          $ref: "#/components/schemas/Administrator"
         expires_at:
           type: string
           format: date-time
@@ -215,7 +565,8 @@ components:
     AuthBootstrap:
       type: object
       additionalProperties: false
-      required: [initialized, authenticated, administrator, expires_at, csrf_token]
+      required:
+        [initialized, authenticated, administrator, expires_at, csrf_token]
       properties:
         initialized:
           type: boolean
@@ -224,7 +575,7 @@ components:
         administrator:
           nullable: true
           allOf:
-            - $ref: '#/components/schemas/Administrator'
+            - $ref: "#/components/schemas/Administrator"
         expires_at:
           type: string
           format: date-time
@@ -234,13 +585,20 @@ components:
     InitializeRequest:
       type: object
       additionalProperties: false
-      required: [username, password, service_url, output_directory, session_lifetime_days]
+      required:
+        [
+          username,
+          password,
+          service_url,
+          output_directory,
+          session_lifetime_days,
+        ]
       properties:
         username:
           type: string
           minLength: 3
           maxLength: 32
-          pattern: '^[A-Za-z0-9_.-]+$'
+          pattern: "^[A-Za-z0-9_.-]+$"
         password:
           type: string
           format: password
@@ -268,7 +626,7 @@ components:
           type: string
           minLength: 3
           maxLength: 32
-          pattern: '^[A-Za-z0-9_.-]+$'
+          pattern: "^[A-Za-z0-9_.-]+$"
         password:
           type: string
           format: password
@@ -304,7 +662,7 @@ components:
       required: [error]
       properties:
         error:
-          $ref: '#/components/schemas/APIError'
+          $ref: "#/components/schemas/APIError"
     APIError:
       type: object
       additionalProperties: false
@@ -312,7 +670,20 @@ components:
       properties:
         code:
           type: string
-          enum: [service_unavailable, not_found, method_not_allowed, internal_error, validation_failed, invalid_credentials, authentication_required, csrf_invalid, setup_required, already_initialized, rate_limited]
+          enum:
+            [
+              service_unavailable,
+              not_found,
+              method_not_allowed,
+              internal_error,
+              validation_failed,
+              invalid_credentials,
+              authentication_required,
+              csrf_invalid,
+              setup_required,
+              already_initialized,
+              rate_limited,
+            ]
         message:
           type: string
         request_id:

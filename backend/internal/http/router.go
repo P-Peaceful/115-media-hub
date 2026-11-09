@@ -42,10 +42,13 @@ func NewRouter(database Readiness, logger *slog.Logger, assets fs.FS, options ..
 	if len(options) > 0 {
 		authOptions = options[0]
 	}
-	authHandler := &authenticationHandler{service: authOptions.Service, secure: authOptions.CookieSecure, logger: logger}
+	authHandler := &authenticationHandler{service: authOptions.Service, provider: authOptions.Provider, secure: authOptions.CookieSecure, logger: logger}
 	router.Use(authHandler.managementBoundary())
 	if authOptions.Service != nil {
 		authHandler.register(router)
+		if authOptions.Provider != nil {
+			(&providerHandler{service: authOptions.Provider}).register(router)
+		}
 	}
 	router.GET("/api/v1/system/status", func(c *gin.Context) {
 		c.JSON(http.StatusOK, generated.SystemStatus{UptimeSeconds: int64(time.Since(processStarted).Seconds()), Version: Version})

@@ -135,10 +135,221 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/settings/security": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** getSecuritySettings */
+    get: operations["getSecuritySettings"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/settings/security/credentials": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** updateSecurityCredentials */
+    put: operations["updateSecurityCredentials"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/settings/security/session": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    /** updateSecuritySession */
+    put: operations["updateSecuritySession"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/settings/115": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** get115Account */
+    get: operations["get115Account"];
+    put?: never;
+    post?: never;
+    /** delete115Account */
+    delete: operations["delete115Account"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/settings/115/details": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Get current 115 profile and space information
+     * @description Live provider data. Provider authorization rejection is reported as invalid; space may be unavailable independently. Credentials are never returned.
+     */
+    get: operations["get115AccountDetails"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/settings/115/qr": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** start115QR */
+    post: operations["start115QR"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/settings/115/qr/{id}/poll": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** poll115QR */
+    post: operations["poll115QR"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/settings/115/qr/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** cancel115QR */
+    delete: operations["cancel115QR"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    SecuritySettings: {
+      username: string;
+      /** @enum {integer} */
+      session_lifetime_days: 1 | 7 | 30;
+    };
+    SecurityCredentialsRequest: {
+      username: string;
+      current_password: string;
+      /** @description Empty preserves the existing password. */
+      new_password: string;
+    };
+    SecuritySessionRequest: {
+      /** @enum {integer} */
+      session_lifetime_days: 1 | 7 | 30;
+    };
+    Provider115Account: {
+      connected: boolean;
+      account_name: string | null;
+      /** Format: date-time */
+      connected_at: string | null;
+    };
+    Provider115Details: {
+      /** @enum {string} */
+      status: "unconfigured" | "valid" | "invalid";
+      profile: components["schemas"]["Provider115Profile"] | null;
+      space: components["schemas"]["Provider115Space"] | null;
+      /** @enum {string} */
+      space_status: "available" | "unavailable";
+      devices: components["schemas"]["Provider115Device"][];
+      /** @enum {string} */
+      devices_status: "available" | "unavailable";
+    };
+    Provider115Profile: {
+      user_name: string;
+      /** @description Provider user ID represented as a string. */
+      user_id: string | null;
+      avatar: string | null;
+      /** @description Known Cookie nav VIP values mapped to membership only; unknown values remain null. */
+      is_member: boolean | null;
+      /**
+       * Format: date-time
+       * @description Membership expiry; null when unknown or no expiry is provided.
+       */
+      member_expires_at: string | null;
+      /** @description Whether the provider marks membership as permanent. */
+      member_forever: boolean | null;
+    };
+    Provider115Space: {
+      /** @description Decimal byte count truncated towards zero. */
+      used_bytes: string;
+      /** @description Decimal byte count truncated towards zero. */
+      total_bytes: string;
+    };
+    Provider115Device: {
+      name: string;
+      type: string;
+      ip: string;
+      city: string;
+      /** Format: date-time */
+      login_at: string | null;
+      is_current: boolean;
+    };
+    Provider115QR: {
+      id: string;
+      /** @description PNG data URI */
+      qr_url: string;
+      /** @enum {string} */
+      status: "waiting" | "scanned" | "succeeded" | "expired" | "canceled";
+      /** Format: date-time */
+      expires_at: string;
+    };
     Administrator: {
       id: string;
       username: string;
@@ -420,6 +631,248 @@ export interface operations {
       401: components["responses"]["AuthError"];
       403: components["responses"]["AuthError"];
       503: components["responses"]["Unavailable"];
+    };
+  };
+  getSecuritySettings: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SecuritySettings"];
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      503: components["responses"]["AuthError"];
+    };
+  };
+  updateSecurityCredentials: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SecurityCredentialsRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SecuritySettings"];
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      503: components["responses"]["AuthError"];
+    };
+  };
+  updateSecuritySession: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SecuritySessionRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SecuritySettings"];
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      503: components["responses"]["AuthError"];
+    };
+  };
+  get115Account: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Provider115Account"];
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      503: components["responses"]["AuthError"];
+    };
+  };
+  delete115Account: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      503: components["responses"]["AuthError"];
+    };
+  };
+  get115AccountDetails: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current account details */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Provider115Details"];
+        };
+      };
+      401: components["responses"]["AuthError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  start115QR: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Provider115QR"];
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      503: components["responses"]["AuthError"];
+    };
+  };
+  poll115QR: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Provider115QR"];
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      503: components["responses"]["AuthError"];
+    };
+  };
+  cancel115QR: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful operation */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      503: components["responses"]["AuthError"];
     };
   };
 }

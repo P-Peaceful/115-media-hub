@@ -20,6 +20,7 @@ import (
 	domain "github.com/wenzhengcheng/115-media-hub/backend/internal/domain/auth"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/http/generated"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
+	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/provider115"
 )
 
 const sessionCookie = "mediahub_session"
@@ -29,12 +30,14 @@ const anonymousCookie = "mediahub_preauth"
 type AuthOptions struct {
 	Service      *auth.Service
 	CookieSecure bool
+	Provider     *provider115.Service
 }
 
 type authenticationHandler struct {
-	service *auth.Service
-	secure  bool
-	logger  *slog.Logger
+	service  *auth.Service
+	provider *provider115.Service
+	secure   bool
+	logger   *slog.Logger
 }
 
 func (h *authenticationHandler) register(router *gin.Engine) {
@@ -42,6 +45,9 @@ func (h *authenticationHandler) register(router *gin.Engine) {
 	router.POST("/api/v1/auth/initialize", h.initialize)
 	router.POST("/api/v1/auth/login", h.login)
 	router.POST("/api/v1/auth/logout", h.logout)
+	router.GET("/api/v1/settings/security", h.security)
+	router.PUT("/api/v1/settings/security/credentials", h.credentials)
+	router.PUT("/api/v1/settings/security/session", h.sessionSettings)
 }
 
 // Registered management routes are protected by default; unknown namespaces retain their 404 contract.
@@ -170,6 +176,9 @@ func (h *authenticationHandler) logout(c *gin.Context) {
 	if err := h.service.Logout(c.Request.Context(), value.(domain.Identity), c.GetString("request_id")); err != nil {
 		h.writeFailure(c, err)
 		return
+	}
+	if h.provider != nil {
+		h.provider.InvalidateSession(value.(domain.Identity).Session.TokenHash)
 	}
 	h.expireCookie(c, sessionCookie)
 	h.expireCookie(c, anonymousCookie)

@@ -199,3 +199,41 @@ func insertAudit(tx *gorm.DB, audit domain.Audit) error {
 	}
 	return nil
 }
+
+// UpdateCredentials checks the verified password generation atomically with session revocation and audit.
+func (d *Database) UpdateCredentials(ctx context.Context, username, hash, expectedHash, currentSession string, audit domain.Audit) error {
+	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var session sessionModel
+		if err := tx.Where("token_hash = ? AND expires_at > ?", currentSession, audit.OccurredAt).Take(&session).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return auth.ErrUnauthenticated
+			}
+			return err
+		}
+		result := tx.Model(&administratorModel{}).Where("singleton = ? AND password_hash = ?", 1, expectedHash).Updates(map[string]any{"username": username, "password_hash": hash, "updated_at": audit.OccurredAt})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return auth.ErrInvalidCredentials
+		}
+		if err := tx.Where("token_hash <> ?", currentSession).Delete(&sessionModel{}).Error; err != nil {
+			return err
+		}
+		return insertAudit(tx, audit)
+	})
+}
+
+// UpdateSessionLifetime persists the setting and audit atomically.
+func (d *Database) UpdateSessionLifetime(ctx context.Context, days int, audit domain.Audit) error {
+	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		result := tx.Model(&settingsModel{}).Where("singleton = ?", 1).Updates(map[string]any{"session_lifetime_days": days, "updated_at": audit.OccurredAt})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected != 1 {
+			return auth.ErrSetupRequired
+		}
+		return insertAudit(tx, audit)
+	})
+}

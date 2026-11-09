@@ -13,6 +13,7 @@ import (
 	transport "github.com/wenzhengcheng/115-media-hub/backend/internal/http"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/repository/sqlite"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
+	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/provider115"
 )
 
 // App owns constructed dependencies and the HTTP server.
@@ -34,12 +35,12 @@ func New(ctx context.Context, config Config, logger *slog.Logger, assets fs.FS) 
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("initialize authentication: %w", err), database.Close())
 	}
-	handler, err := transport.NewRouter(database, logger, assets, transport.AuthOptions{Service: authentication, CookieSecure: config.CookieSecure})
+	handler, err := transport.NewRouter(database, logger, assets, transport.AuthOptions{Service: authentication, CookieSecure: config.CookieSecure, Provider: provider115.New(database, logger)})
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("initialize HTTP routes: %w", err), database.Close())
 	}
 	logger.InfoContext(ctx, "database initialized", "module", "app", "operation", "initialize_database", "outcome", "succeeded", "duration_ms", time.Since(started).Milliseconds())
-	return &App{database: database, logger: logger, shutdownTimeout: config.ShutdownTimeout, server: &http.Server{Addr: config.HTTPAddr, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 30 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}}, nil
+	return &App{database: database, logger: logger, shutdownTimeout: config.ShutdownTimeout, server: &http.Server{Addr: config.HTTPAddr, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 75 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}}, nil
 }
 
 // Serve serves the supplied listener until failure or cancellation, draining admitted requests.

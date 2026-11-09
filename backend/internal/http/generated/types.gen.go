@@ -69,19 +69,145 @@ func (e HealthResponseStatus) Valid() bool {
 
 // Defines values for InitializeRequestSessionLifetimeDays.
 const (
-	N1  InitializeRequestSessionLifetimeDays = 1
-	N30 InitializeRequestSessionLifetimeDays = 30
-	N7  InitializeRequestSessionLifetimeDays = 7
+	InitializeRequestSessionLifetimeDaysN1  InitializeRequestSessionLifetimeDays = 1
+	InitializeRequestSessionLifetimeDaysN30 InitializeRequestSessionLifetimeDays = 30
+	InitializeRequestSessionLifetimeDaysN7  InitializeRequestSessionLifetimeDays = 7
 )
 
 // Valid indicates whether the value is a known member of the InitializeRequestSessionLifetimeDays enum.
 func (e InitializeRequestSessionLifetimeDays) Valid() bool {
 	switch e {
-	case N1:
+	case InitializeRequestSessionLifetimeDaysN1:
 		return true
-	case N30:
+	case InitializeRequestSessionLifetimeDaysN30:
 		return true
-	case N7:
+	case InitializeRequestSessionLifetimeDaysN7:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Provider115DetailsDevicesStatus.
+const (
+	Provider115DetailsDevicesStatusAvailable   Provider115DetailsDevicesStatus = "available"
+	Provider115DetailsDevicesStatusUnavailable Provider115DetailsDevicesStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the Provider115DetailsDevicesStatus enum.
+func (e Provider115DetailsDevicesStatus) Valid() bool {
+	switch e {
+	case Provider115DetailsDevicesStatusAvailable:
+		return true
+	case Provider115DetailsDevicesStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Provider115DetailsSpaceStatus.
+const (
+	Provider115DetailsSpaceStatusAvailable   Provider115DetailsSpaceStatus = "available"
+	Provider115DetailsSpaceStatusUnavailable Provider115DetailsSpaceStatus = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the Provider115DetailsSpaceStatus enum.
+func (e Provider115DetailsSpaceStatus) Valid() bool {
+	switch e {
+	case Provider115DetailsSpaceStatusAvailable:
+		return true
+	case Provider115DetailsSpaceStatusUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Provider115DetailsStatus.
+const (
+	Invalid      Provider115DetailsStatus = "invalid"
+	Unconfigured Provider115DetailsStatus = "unconfigured"
+	Valid        Provider115DetailsStatus = "valid"
+)
+
+// Valid indicates whether the value is a known member of the Provider115DetailsStatus enum.
+func (e Provider115DetailsStatus) Valid() bool {
+	switch e {
+	case Invalid:
+		return true
+	case Unconfigured:
+		return true
+	case Valid:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Provider115QRStatus.
+const (
+	Canceled  Provider115QRStatus = "canceled"
+	Expired   Provider115QRStatus = "expired"
+	Scanned   Provider115QRStatus = "scanned"
+	Succeeded Provider115QRStatus = "succeeded"
+	Waiting   Provider115QRStatus = "waiting"
+)
+
+// Valid indicates whether the value is a known member of the Provider115QRStatus enum.
+func (e Provider115QRStatus) Valid() bool {
+	switch e {
+	case Canceled:
+		return true
+	case Expired:
+		return true
+	case Scanned:
+		return true
+	case Succeeded:
+		return true
+	case Waiting:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SecuritySessionRequestSessionLifetimeDays.
+const (
+	SecuritySessionRequestSessionLifetimeDaysN1  SecuritySessionRequestSessionLifetimeDays = 1
+	SecuritySessionRequestSessionLifetimeDaysN30 SecuritySessionRequestSessionLifetimeDays = 30
+	SecuritySessionRequestSessionLifetimeDaysN7  SecuritySessionRequestSessionLifetimeDays = 7
+)
+
+// Valid indicates whether the value is a known member of the SecuritySessionRequestSessionLifetimeDays enum.
+func (e SecuritySessionRequestSessionLifetimeDays) Valid() bool {
+	switch e {
+	case SecuritySessionRequestSessionLifetimeDaysN1:
+		return true
+	case SecuritySessionRequestSessionLifetimeDaysN30:
+		return true
+	case SecuritySessionRequestSessionLifetimeDaysN7:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SecuritySettingsSessionLifetimeDays.
+const (
+	SecuritySettingsSessionLifetimeDaysN1  SecuritySettingsSessionLifetimeDays = 1
+	SecuritySettingsSessionLifetimeDaysN30 SecuritySettingsSessionLifetimeDays = 30
+	SecuritySettingsSessionLifetimeDaysN7  SecuritySettingsSessionLifetimeDays = 7
+)
+
+// Valid indicates whether the value is a known member of the SecuritySettingsSessionLifetimeDays enum.
+func (e SecuritySettingsSessionLifetimeDays) Valid() bool {
+	switch e {
+	case SecuritySettingsSessionLifetimeDaysN1:
+		return true
+	case SecuritySettingsSessionLifetimeDaysN30:
+		return true
+	case SecuritySettingsSessionLifetimeDaysN7:
 		return true
 	default:
 		return false
@@ -161,6 +287,108 @@ type LoginRequest struct {
 	Username      string `json:"username"`
 }
 
+// Provider115Account defines model for Provider115Account.
+type Provider115Account struct {
+	AccountName *string    `json:"account_name"`
+	Connected   bool       `json:"connected"`
+	ConnectedAt *time.Time `json:"connected_at"`
+}
+
+// Provider115Details defines model for Provider115Details.
+type Provider115Details struct {
+	Devices       []Provider115Device             `json:"devices"`
+	DevicesStatus Provider115DetailsDevicesStatus `json:"devices_status"`
+	Profile       *Provider115Profile             `json:"profile"`
+	Space         *Provider115Space               `json:"space"`
+	SpaceStatus   Provider115DetailsSpaceStatus   `json:"space_status"`
+	Status        Provider115DetailsStatus        `json:"status"`
+}
+
+// Provider115DetailsDevicesStatus defines model for Provider115Details.DevicesStatus.
+type Provider115DetailsDevicesStatus string
+
+// Provider115DetailsSpaceStatus defines model for Provider115Details.SpaceStatus.
+type Provider115DetailsSpaceStatus string
+
+// Provider115DetailsStatus defines model for Provider115Details.Status.
+type Provider115DetailsStatus string
+
+// Provider115Device defines model for Provider115Device.
+type Provider115Device struct {
+	City      string     `json:"city"`
+	Ip        string     `json:"ip"`
+	IsCurrent bool       `json:"is_current"`
+	LoginAt   *time.Time `json:"login_at"`
+	Name      string     `json:"name"`
+	Type      string     `json:"type"`
+}
+
+// Provider115Profile defines model for Provider115Profile.
+type Provider115Profile struct {
+	Avatar *string `json:"avatar"`
+
+	// IsMember Known Cookie nav VIP values mapped to membership only; unknown values remain null.
+	IsMember *bool `json:"is_member"`
+
+	// MemberExpiresAt Membership expiry; null when unknown or no expiry is provided.
+	MemberExpiresAt *time.Time `json:"member_expires_at"`
+
+	// MemberForever Whether the provider marks membership as permanent.
+	MemberForever *bool `json:"member_forever"`
+
+	// UserId Provider user ID represented as a string.
+	UserId   *string `json:"user_id"`
+	UserName string  `json:"user_name"`
+}
+
+// Provider115QR defines model for Provider115QR.
+type Provider115QR struct {
+	ExpiresAt time.Time `json:"expires_at"`
+	Id        string    `json:"id"`
+
+	// QrUrl PNG data URI
+	QrUrl  string              `json:"qr_url"`
+	Status Provider115QRStatus `json:"status"`
+}
+
+// Provider115QRStatus defines model for Provider115QR.Status.
+type Provider115QRStatus string
+
+// Provider115Space defines model for Provider115Space.
+type Provider115Space struct {
+	// TotalBytes Decimal byte count truncated towards zero.
+	TotalBytes string `json:"total_bytes"`
+
+	// UsedBytes Decimal byte count truncated towards zero.
+	UsedBytes string `json:"used_bytes"`
+}
+
+// SecurityCredentialsRequest defines model for SecurityCredentialsRequest.
+type SecurityCredentialsRequest struct {
+	CurrentPassword string `json:"current_password"`
+
+	// NewPassword Empty preserves the existing password.
+	NewPassword string `json:"new_password"`
+	Username    string `json:"username"`
+}
+
+// SecuritySessionRequest defines model for SecuritySessionRequest.
+type SecuritySessionRequest struct {
+	SessionLifetimeDays SecuritySessionRequestSessionLifetimeDays `json:"session_lifetime_days"`
+}
+
+// SecuritySessionRequestSessionLifetimeDays defines model for SecuritySessionRequest.SessionLifetimeDays.
+type SecuritySessionRequestSessionLifetimeDays int
+
+// SecuritySettings defines model for SecuritySettings.
+type SecuritySettings struct {
+	SessionLifetimeDays SecuritySettingsSessionLifetimeDays `json:"session_lifetime_days"`
+	Username            string                              `json:"username"`
+}
+
+// SecuritySettingsSessionLifetimeDays defines model for SecuritySettings.SessionLifetimeDays.
+type SecuritySettingsSessionLifetimeDays int
+
 // SystemStatus defines model for SystemStatus.
 type SystemStatus struct {
 	UptimeSeconds int64  `json:"uptime_seconds"`
@@ -200,8 +428,44 @@ type LogoutAdministratorParams struct {
 	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
 }
 
+// Delete115AccountParams defines parameters for Delete115Account.
+type Delete115AccountParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
+// Start115QRParams defines parameters for Start115QR.
+type Start115QRParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
+// Cancel115QRParams defines parameters for Cancel115QR.
+type Cancel115QRParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
+// Poll115QRParams defines parameters for Poll115QR.
+type Poll115QRParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
+// UpdateSecurityCredentialsParams defines parameters for UpdateSecurityCredentials.
+type UpdateSecurityCredentialsParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
+// UpdateSecuritySessionParams defines parameters for UpdateSecuritySession.
+type UpdateSecuritySessionParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
 // InitializeAdministratorJSONRequestBody defines body for InitializeAdministrator for application/json ContentType.
 type InitializeAdministratorJSONRequestBody = InitializeRequest
 
 // LoginAdministratorJSONRequestBody defines body for LoginAdministrator for application/json ContentType.
 type LoginAdministratorJSONRequestBody = LoginRequest
+
+// UpdateSecurityCredentialsJSONRequestBody defines body for UpdateSecurityCredentials for application/json ContentType.
+type UpdateSecurityCredentialsJSONRequestBody = SecurityCredentialsRequest
+
+// UpdateSecuritySessionJSONRequestBody defines body for UpdateSecuritySession for application/json ContentType.
+type UpdateSecuritySessionJSONRequestBody = SecuritySessionRequest

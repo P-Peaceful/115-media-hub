@@ -16,13 +16,20 @@ import {
   Play,
   RefreshCw,
   Search,
-  Shield,
+  ShieldCheck,
   UploadCloud,
   Zap,
 } from "lucide-react";
+import { Link as RouterLink } from "react-router";
 
 import folderArtwork from "@/assets/media-folder.svg";
 import { useReadiness } from "@/features/health/use-readiness";
+import {
+  formatBytes,
+  formatCheckedAt,
+  getCapacityMetrics,
+  useAccountDetails,
+} from "@/features/settings/account-details";
 import { ApiError } from "@/lib/api/errors";
 
 import { formatUptime, useSystemStatus } from "./system-status";
@@ -30,6 +37,7 @@ import { formatUptime, useSystemStatus } from "./system-status";
 export function DashboardPage() {
   const health = useReadiness();
   const system = useSystemStatus();
+  const account = useAccountDetails();
   let label = "正在检查";
   let description = "正在确认服务与数据库的连接状态…";
   if (health.isError) {
@@ -41,6 +49,34 @@ export function DashboardPage() {
   } else if (health.isSuccess) {
     label = "服务已就绪";
     description = "后端服务与数据库连接正常。";
+  }
+  let accountLabel = "尚未授权";
+  let accountDescription = "尚未配置 115 账号，请先扫码完成授权。";
+  let accountColor: "default" | "warning" | "success" | "danger" = "default";
+  let accountDotClass = "";
+  let accountStatusText = "未配置";
+  if (account.isPending) {
+    accountLabel = "正在检查授权…";
+    accountDescription = "正在确认当前 115 账号的授权状态。";
+    accountStatusText = "检查中…";
+  } else if (account.isError) {
+    accountLabel = "无法确认授权状态";
+    accountDescription = "暂时无法连接 115 服务，请稍后重试。";
+    accountColor = "warning";
+    accountDotClass = "is-unavailable";
+    accountStatusText = "暂时无法确认";
+  } else if (account.data.status === "valid") {
+    accountLabel = "授权有效";
+    accountDescription = "当前账号已授权，可正常使用网盘服务。";
+    accountColor = "success";
+    accountDotClass = "is-valid";
+    accountStatusText = "有效";
+  } else if (account.data.status === "invalid") {
+    accountLabel = "授权失效";
+    accountDescription = "授权已失效，请重新扫码完成授权。";
+    accountColor = "danger";
+    accountDotClass = "is-invalid";
+    accountStatusText = "已失效";
   }
   return (
     <main className="dashboard">
@@ -63,8 +99,14 @@ export function DashboardPage() {
             <Box />
             系统状态
           </h2>
-          <div role="status" aria-live="polite" aria-atomic="true">
+          <div
+            className="dashboard-status-block"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
             <Chip
+              className="dashboard-status-badge"
               color={
                 health.isError
                   ? "danger"
@@ -74,16 +116,13 @@ export function DashboardPage() {
               }
               variant="soft"
             >
+              <span
+                className={`provider-state-dot ${health.isError ? "is-invalid" : health.isSuccess ? "is-valid" : ""}`}
+                aria-hidden="true"
+              />
               {label}
             </Chip>
-            <p className="system-description">{description}</p>
-            {health.isError &&
-              health.error instanceof ApiError &&
-              health.error.requestId && (
-                <p className="system-description">
-                  请求编号：{health.error.requestId}
-                </p>
-              )}
+            <p className="dashboard-status-description">{description}</p>
           </div>
           <div className="system-line">
             <span>
@@ -114,6 +153,13 @@ export function DashboardPage() {
           {system.isError && (
             <p className="system-description">系统信息获取失败，请重新检查。</p>
           )}
+          {health.isError &&
+            health.error instanceof ApiError &&
+            health.error.requestId && (
+              <p className="system-description">
+                请求编号：{health.error.requestId}
+              </p>
+            )}
           <Button
             variant="secondary"
             isPending={health.isFetching || system.isFetching}
@@ -126,42 +172,94 @@ export function DashboardPage() {
             {health.isFetching || system.isFetching ? "检查中…" : "重新检查"}
           </Button>
         </section>
-        <section className="dashboard-card">
-          <h2>
+        <section
+          className="dashboard-card provider-connection-card"
+          aria-labelledby="provider-connection-title"
+        >
+          <h2 id="provider-connection-title">
             <Cloud />
-            115 连接状态 <span className="example-label">示例数据</span>
+            115 连接状态
           </h2>
-          <span className="example-badge">授权有效</span>
-          <div className="metric-line">
+          <div
+            className="dashboard-status-block"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            <Chip
+              className="dashboard-status-badge"
+              color={accountColor}
+              variant="soft"
+            >
+              <span
+                className={`provider-state-dot ${accountDotClass}`}
+                aria-hidden="true"
+              />
+              {accountLabel}
+            </Chip>
+            <p className="dashboard-status-description">{accountDescription}</p>
+          </div>
+          <div className="provider-detail-line">
             <span>
-              <Shield />
+              <ShieldCheck aria-hidden="true" />
               授权状态
             </span>
-            <strong>有效（剩余 356 天）</strong>
+            <span>{accountStatusText}</span>
           </div>
-          <div className="metric-line">
+          <div className="provider-detail-line">
             <span>
-              <RefreshCw />
+              <RefreshCw aria-hidden="true" />
               最近检测
             </span>
-            <strong>2025-01-26 10:24</strong>
+            <span>
+              {account.isError
+                ? "本次检测失败"
+                : formatCheckedAt(account.dataUpdatedAt || undefined)}
+            </span>
           </div>
+          <RouterLink
+            className="provider-card-manage"
+            to="/settings?tab=account"
+            aria-label={
+              account.data?.status === "invalid"
+                ? "重新授权 115"
+                : "管理 115 授权"
+            }
+          >
+            管理授权 <ChevronRight aria-hidden="true" />
+          </RouterLink>
         </section>
-        <section className="dashboard-card">
+        <section className="dashboard-card provider-capacity-card">
           <h2>
             <Database />
-            网盘容量 <span className="example-label">示例数据</span>
+            <span>网盘容量</span>
+            <RouterLink
+              className="capacity-details-link"
+              to="/settings?tab=account"
+            >
+              容量详情 <ChevronRight aria-hidden="true" />
+            </RouterLink>
           </h2>
-          <p className="capacity">
-            <strong>7.23 TB</strong> / 15 TB
-          </p>
-          <div className="capacity-progress">
-            <div className="progress-track">
-              <span />
-            </div>
-            <span>48.2%</span>
-          </div>
-          <p className="capacity-remaining">剩余 7.77 TB</p>
+          {account.isPending ? (
+            <p className="capacity-empty" role="status">
+              正在加载容量…
+            </p>
+          ) : account.isError ? (
+            <p className="capacity-empty" role="status">
+              容量暂不可用
+            </p>
+          ) : account.data.status !== "valid" ? (
+            <p className="capacity-empty" role="status">
+              授权后可查看容量
+            </p>
+          ) : account.data.space_status !== "available" ||
+            !account.data.space ? (
+            <p className="capacity-empty" role="status">
+              容量信息暂不可用
+            </p>
+          ) : (
+            <CapacitySummary space={account.data.space} />
+          )}
         </section>
       </div>
       <div className="dashboard-grid stats-row">
@@ -260,14 +358,6 @@ export function DashboardPage() {
             </h2>
             <div className="alert-list">
               <p>
-                <Shield aria-hidden="true" />
-                <span className="alert-copy">
-                  <strong>115 授权即将失效</strong>
-                  <span>当前授权剩余 7 天，请及时重新授权。</span>
-                </span>
-                <button disabled>去处理</button>
-              </p>
-              <p>
                 <FolderOpen aria-hidden="true" />
                 <span className="alert-copy">
                   <strong>目录不可用</strong>
@@ -312,6 +402,46 @@ export function DashboardPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+function CapacitySummary({
+  space,
+}: {
+  space: { used_bytes: string; total_bytes: string };
+}) {
+  const metrics = getCapacityMetrics(space);
+  return (
+    <div className="capacity-summary">
+      <div className="capacity-summary-values">
+        <p className="capacity">
+          <strong>{formatBytes(space.used_bytes)}</strong> /{" "}
+          {formatBytes(space.total_bytes)}
+        </p>
+        {metrics && (
+          <span className="capacity-remaining-pill">
+            剩余 {formatBytes(metrics.remaining)}
+          </span>
+        )}
+      </div>
+      {metrics ? (
+        <div className="capacity-progress">
+          <div
+            className="progress-track"
+            role="progressbar"
+            aria-label="网盘空间使用率"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={metrics.percent}
+          >
+            <span style={{ width: `${metrics.percent}%` }} />
+          </div>
+          <span>{metrics.percentLabel}</span>
+        </div>
+      ) : (
+        <p className="capacity-empty">容量使用率暂不可用</p>
+      )}
+    </div>
   );
 }
 

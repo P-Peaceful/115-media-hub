@@ -9,6 +9,7 @@ import { LoginPage } from "@/features/auth/login-page";
 import { SetupPage } from "@/features/auth/setup-page";
 import { ThemeToggle } from "@/features/auth/theme-toggle";
 import { DashboardPage } from "@/features/dashboard/dashboard-page";
+import { SettingsPage } from "@/features/settings/settings-page";
 
 import { AppShell } from "./app-shell";
 
@@ -60,6 +61,14 @@ export function App() {
                 element={
                   <AppShell currentPage="总览">
                     <DashboardPage />
+                  </AppShell>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <AppShell currentPage="设置">
+                    <SettingsPage />
                   </AppShell>
                 }
               />
