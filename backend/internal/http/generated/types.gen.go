@@ -11,6 +11,7 @@ import (
 const (
 	AlreadyInitialized     APIErrorCode = "already_initialized"
 	AuthenticationRequired APIErrorCode = "authentication_required"
+	Conflict               APIErrorCode = "conflict"
 	CsrfInvalid            APIErrorCode = "csrf_invalid"
 	InternalError          APIErrorCode = "internal_error"
 	InvalidCredentials     APIErrorCode = "invalid_credentials"
@@ -30,6 +31,8 @@ func (e APIErrorCode) Valid() bool {
 	case AlreadyInitialized:
 		return true
 	case AuthenticationRequired:
+		return true
+	case Conflict:
 		return true
 	case CsrfInvalid:
 		return true
@@ -88,6 +91,258 @@ func (e InitializeRequestSessionLifetimeDays) Valid() bool {
 	case InitializeRequestSessionLifetimeDaysN30:
 		return true
 	case InitializeRequestSessionLifetimeDaysN7:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryFilenameRule.
+const (
+	LibraryFilenameRuleOriginal LibraryFilenameRule = "original"
+)
+
+// Valid indicates whether the value is a known member of the LibraryFilenameRule enum.
+func (e LibraryFilenameRule) Valid() bool {
+	switch e {
+	case LibraryFilenameRuleOriginal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryLinkExpiry.
+const (
+	LibraryLinkExpiryDefault LibraryLinkExpiry = "default"
+	LibraryLinkExpiryNever   LibraryLinkExpiry = "never"
+)
+
+// Valid indicates whether the value is a known member of the LibraryLinkExpiry enum.
+func (e LibraryLinkExpiry) Valid() bool {
+	switch e {
+	case LibraryLinkExpiryDefault:
+		return true
+	case LibraryLinkExpiryNever:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryLinkType.
+const (
+	LibraryLinkTypeDirect LibraryLinkType = "direct"
+	LibraryLinkTypeProxy  LibraryLinkType = "proxy"
+)
+
+// Valid indicates whether the value is a known member of the LibraryLinkType enum.
+func (e LibraryLinkType) Valid() bool {
+	switch e {
+	case LibraryLinkTypeDirect:
+		return true
+	case LibraryLinkTypeProxy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryMediaType.
+const (
+	LibraryMediaTypeAnime       LibraryMediaType = "anime"
+	LibraryMediaTypeDocumentary LibraryMediaType = "documentary"
+	LibraryMediaTypeMixed       LibraryMediaType = "mixed"
+	LibraryMediaTypeMovie       LibraryMediaType = "movie"
+	LibraryMediaTypeTv          LibraryMediaType = "tv"
+)
+
+// Valid indicates whether the value is a known member of the LibraryMediaType enum.
+func (e LibraryMediaType) Valid() bool {
+	switch e {
+	case LibraryMediaTypeAnime:
+		return true
+	case LibraryMediaTypeDocumentary:
+		return true
+	case LibraryMediaTypeMixed:
+		return true
+	case LibraryMediaTypeMovie:
+		return true
+	case LibraryMediaTypeTv:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryNfoName.
+const (
+	LibraryNfoNameSameAsVideo LibraryNfoName = "same_as_video"
+)
+
+// Valid indicates whether the value is a known member of the LibraryNfoName enum.
+func (e LibraryNfoName) Valid() bool {
+	switch e {
+	case LibraryNfoNameSameAsVideo:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryStrmExtension.
+const (
+	LibraryStrmExtensionDotStrm LibraryStrmExtension = ".strm"
+)
+
+// Valid indicates whether the value is a known member of the LibraryStrmExtension enum.
+func (e LibraryStrmExtension) Valid() bool {
+	switch e {
+	case LibraryStrmExtensionDotStrm:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryStructureMode.
+const (
+	LibraryStructureModeFlatten LibraryStructureMode = "flatten"
+	LibraryStructureModeFull    LibraryStructureMode = "full"
+)
+
+// Valid indicates whether the value is a known member of the LibraryStructureMode enum.
+func (e LibraryStructureMode) Valid() bool {
+	switch e {
+	case LibraryStructureModeFlatten:
+		return true
+	case LibraryStructureModeFull:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryConfigFilenameRule.
+const (
+	LibraryConfigFilenameRuleOriginal LibraryConfigFilenameRule = "original"
+)
+
+// Valid indicates whether the value is a known member of the LibraryConfigFilenameRule enum.
+func (e LibraryConfigFilenameRule) Valid() bool {
+	switch e {
+	case LibraryConfigFilenameRuleOriginal:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryConfigLinkExpiry.
+const (
+	LibraryConfigLinkExpiryDefault LibraryConfigLinkExpiry = "default"
+	LibraryConfigLinkExpiryNever   LibraryConfigLinkExpiry = "never"
+)
+
+// Valid indicates whether the value is a known member of the LibraryConfigLinkExpiry enum.
+func (e LibraryConfigLinkExpiry) Valid() bool {
+	switch e {
+	case LibraryConfigLinkExpiryDefault:
+		return true
+	case LibraryConfigLinkExpiryNever:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryConfigLinkType.
+const (
+	LibraryConfigLinkTypeDirect LibraryConfigLinkType = "direct"
+	LibraryConfigLinkTypeProxy  LibraryConfigLinkType = "proxy"
+)
+
+// Valid indicates whether the value is a known member of the LibraryConfigLinkType enum.
+func (e LibraryConfigLinkType) Valid() bool {
+	switch e {
+	case LibraryConfigLinkTypeDirect:
+		return true
+	case LibraryConfigLinkTypeProxy:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryConfigMediaType.
+const (
+	LibraryConfigMediaTypeAnime       LibraryConfigMediaType = "anime"
+	LibraryConfigMediaTypeDocumentary LibraryConfigMediaType = "documentary"
+	LibraryConfigMediaTypeMixed       LibraryConfigMediaType = "mixed"
+	LibraryConfigMediaTypeMovie       LibraryConfigMediaType = "movie"
+	LibraryConfigMediaTypeTv          LibraryConfigMediaType = "tv"
+)
+
+// Valid indicates whether the value is a known member of the LibraryConfigMediaType enum.
+func (e LibraryConfigMediaType) Valid() bool {
+	switch e {
+	case LibraryConfigMediaTypeAnime:
+		return true
+	case LibraryConfigMediaTypeDocumentary:
+		return true
+	case LibraryConfigMediaTypeMixed:
+		return true
+	case LibraryConfigMediaTypeMovie:
+		return true
+	case LibraryConfigMediaTypeTv:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryConfigNfoName.
+const (
+	LibraryConfigNfoNameSameAsVideo LibraryConfigNfoName = "same_as_video"
+)
+
+// Valid indicates whether the value is a known member of the LibraryConfigNfoName enum.
+func (e LibraryConfigNfoName) Valid() bool {
+	switch e {
+	case LibraryConfigNfoNameSameAsVideo:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryConfigStrmExtension.
+const (
+	LibraryConfigStrmExtensionDotStrm LibraryConfigStrmExtension = ".strm"
+)
+
+// Valid indicates whether the value is a known member of the LibraryConfigStrmExtension enum.
+func (e LibraryConfigStrmExtension) Valid() bool {
+	switch e {
+	case LibraryConfigStrmExtensionDotStrm:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for LibraryConfigStructureMode.
+const (
+	LibraryConfigStructureModeFlatten LibraryConfigStructureMode = "flatten"
+	LibraryConfigStructureModeFull    LibraryConfigStructureMode = "full"
+)
+
+// Valid indicates whether the value is a known member of the LibraryConfigStructureMode enum.
+func (e LibraryConfigStructureMode) Valid() bool {
+	switch e {
+	case LibraryConfigStructureModeFlatten:
+		return true
+	case LibraryConfigStructureModeFull:
 		return true
 	default:
 		return false
@@ -375,6 +630,114 @@ type InitializeRequest struct {
 // InitializeRequestSessionLifetimeDays defines model for InitializeRequest.SessionLifetimeDays.
 type InitializeRequestSessionLifetimeDays int
 
+// Library defines model for Library.
+type Library struct {
+	CreatedAt     time.Time           `json:"created_at"`
+	Description   string              `json:"description"`
+	DirectoryId   string              `json:"directory_id"`
+	DirectoryPath string              `json:"directory_path"`
+	Enabled       bool                `json:"enabled"`
+	FilenameRule  LibraryFilenameRule `json:"filename_rule"`
+	GenerateNfo   bool                `json:"generate_nfo"`
+	GenerateStrm  bool                `json:"generate_strm"`
+	Id            string              `json:"id"`
+	LinkExpiry    LibraryLinkExpiry   `json:"link_expiry"`
+	LinkType      LibraryLinkType     `json:"link_type"`
+	MediaType     LibraryMediaType    `json:"media_type"`
+	MinFileSizeMb int                 `json:"min_file_size_mb"`
+	Name          string              `json:"name"`
+	NfoName       LibraryNfoName      `json:"nfo_name"`
+
+	// OutputPath Absolute local path
+	OutputPath        string               `json:"output_path"`
+	PathMappings      []LibraryPathMapping `json:"path_mappings"`
+	PreserveStructure bool                 `json:"preserve_structure"`
+	Revision          int64                `json:"revision"`
+	ScrapeMetadata    bool                 `json:"scrape_metadata"`
+	StrmExtension     LibraryStrmExtension `json:"strm_extension"`
+	StructureMode     LibraryStructureMode `json:"structure_mode"`
+	UpdatedAt         time.Time            `json:"updated_at"`
+}
+
+// LibraryFilenameRule defines model for Library.FilenameRule.
+type LibraryFilenameRule string
+
+// LibraryLinkExpiry defines model for Library.LinkExpiry.
+type LibraryLinkExpiry string
+
+// LibraryLinkType defines model for Library.LinkType.
+type LibraryLinkType string
+
+// LibraryMediaType defines model for Library.MediaType.
+type LibraryMediaType string
+
+// LibraryNfoName defines model for Library.NfoName.
+type LibraryNfoName string
+
+// LibraryStrmExtension defines model for Library.StrmExtension.
+type LibraryStrmExtension string
+
+// LibraryStructureMode defines model for Library.StructureMode.
+type LibraryStructureMode string
+
+// LibraryConfig defines model for LibraryConfig.
+type LibraryConfig struct {
+	Description   string                    `json:"description"`
+	DirectoryId   string                    `json:"directory_id"`
+	DirectoryPath string                    `json:"directory_path"`
+	Enabled       bool                      `json:"enabled"`
+	FilenameRule  LibraryConfigFilenameRule `json:"filename_rule"`
+	GenerateNfo   bool                      `json:"generate_nfo"`
+	GenerateStrm  bool                      `json:"generate_strm"`
+	LinkExpiry    LibraryConfigLinkExpiry   `json:"link_expiry"`
+	LinkType      LibraryConfigLinkType     `json:"link_type"`
+	MediaType     LibraryConfigMediaType    `json:"media_type"`
+	MinFileSizeMb int                       `json:"min_file_size_mb"`
+	Name          string                    `json:"name"`
+	NfoName       LibraryConfigNfoName      `json:"nfo_name"`
+
+	// OutputPath Absolute local path
+	OutputPath        string                     `json:"output_path"`
+	PathMappings      []LibraryPathMapping       `json:"path_mappings"`
+	PreserveStructure bool                       `json:"preserve_structure"`
+	ScrapeMetadata    bool                       `json:"scrape_metadata"`
+	StrmExtension     LibraryConfigStrmExtension `json:"strm_extension"`
+	StructureMode     LibraryConfigStructureMode `json:"structure_mode"`
+}
+
+// LibraryConfigFilenameRule defines model for LibraryConfig.FilenameRule.
+type LibraryConfigFilenameRule string
+
+// LibraryConfigLinkExpiry defines model for LibraryConfig.LinkExpiry.
+type LibraryConfigLinkExpiry string
+
+// LibraryConfigLinkType defines model for LibraryConfig.LinkType.
+type LibraryConfigLinkType string
+
+// LibraryConfigMediaType defines model for LibraryConfig.MediaType.
+type LibraryConfigMediaType string
+
+// LibraryConfigNfoName defines model for LibraryConfig.NfoName.
+type LibraryConfigNfoName string
+
+// LibraryConfigStrmExtension defines model for LibraryConfig.StrmExtension.
+type LibraryConfigStrmExtension string
+
+// LibraryConfigStructureMode defines model for LibraryConfig.StructureMode.
+type LibraryConfigStructureMode string
+
+// LibraryPage defines model for LibraryPage.
+type LibraryPage struct {
+	Items      []Library `json:"items"`
+	NextCursor *string   `json:"next_cursor"`
+}
+
+// LibraryPathMapping defines model for LibraryPathMapping.
+type LibraryPathMapping struct {
+	Source string `json:"source"`
+	Target string `json:"target"`
+}
+
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
 	// Password 8–32 printable non-space ASCII characters (U+0021–U+007E); letters, digits and ASCII symbols; no required mixture
@@ -500,6 +863,9 @@ type AuthError = ErrorResponse
 // Healthy defines model for Healthy.
 type Healthy = HealthResponse
 
+// LibraryResult defines model for LibraryResult.
+type LibraryResult = Library
+
 // SessionStarted defines model for SessionStarted.
 type SessionStarted = AuthSession
 
@@ -543,6 +909,40 @@ type ListCloudDriveFilesParamsOrder string
 // ListCloudDriveFilesParamsType defines parameters for ListCloudDriveFiles.
 type ListCloudDriveFilesParamsType string
 
+// ListLibrariesParams defines parameters for ListLibraries.
+type ListLibrariesParams struct {
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// CreateLibraryParams defines parameters for CreateLibrary.
+type CreateLibraryParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
+// DeleteLibraryParams defines parameters for DeleteLibrary.
+type DeleteLibraryParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
+// UpdateLibraryParams defines parameters for UpdateLibrary.
+type UpdateLibraryParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+
+	// XLibraryRevision Decimal revision from the library being edited.
+	XLibraryRevision string `json:"X-Library-Revision"`
+}
+
+// SetLibraryEnabledJSONBody defines parameters for SetLibraryEnabled.
+type SetLibraryEnabledJSONBody struct {
+	Enabled bool `json:"enabled"`
+}
+
+// SetLibraryEnabledParams defines parameters for SetLibraryEnabled.
+type SetLibraryEnabledParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
 // Delete115AccountParams defines parameters for Delete115Account.
 type Delete115AccountParams struct {
 	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
@@ -578,6 +978,15 @@ type InitializeAdministratorJSONRequestBody = InitializeRequest
 
 // LoginAdministratorJSONRequestBody defines body for LoginAdministrator for application/json ContentType.
 type LoginAdministratorJSONRequestBody = LoginRequest
+
+// CreateLibraryJSONRequestBody defines body for CreateLibrary for application/json ContentType.
+type CreateLibraryJSONRequestBody = LibraryConfig
+
+// UpdateLibraryJSONRequestBody defines body for UpdateLibrary for application/json ContentType.
+type UpdateLibraryJSONRequestBody = LibraryConfig
+
+// SetLibraryEnabledJSONRequestBody defines body for SetLibraryEnabled for application/json ContentType.
+type SetLibraryEnabledJSONRequestBody SetLibraryEnabledJSONBody
 
 // UpdateSecurityCredentialsJSONRequestBody defines body for UpdateSecurityCredentials for application/json ContentType.
 type UpdateSecurityCredentialsJSONRequestBody = SecurityCredentialsRequest

@@ -10,6 +10,11 @@ import { SetupPage } from "@/features/auth/setup-page";
 import { ThemeToggle } from "@/features/auth/theme-toggle";
 import { CloudDrivePage } from "@/features/cloud-drive/cloud-drive-page";
 import { DashboardPage } from "@/features/dashboard/dashboard-page";
+import {
+  LibraryDetailPage,
+  LibraryFormPage,
+  LibraryListPage,
+} from "@/features/media-library/library-page";
 import { SettingsPage } from "@/features/settings/settings-page";
 
 import { AppShell } from "./app-shell";
@@ -70,6 +75,38 @@ export function App() {
                 element={
                   <AppShell currentPage="网盘浏览">
                     <CloudDrivePage />
+                  </AppShell>
+                }
+              />
+              <Route
+                path="/libraries"
+                element={
+                  <AppShell currentPage="媒体库">
+                    <LibraryListPage />
+                  </AppShell>
+                }
+              />
+              <Route
+                path="/libraries/new"
+                element={
+                  <AppShell currentPage="媒体库">
+                    <LibraryFormPage />
+                  </AppShell>
+                }
+              />
+              <Route
+                path="/libraries/:id"
+                element={
+                  <AppShell currentPage="媒体库">
+                    <LibraryDetailPage />
+                  </AppShell>
+                }
+              />
+              <Route
+                path="/libraries/:id/edit"
+                element={
+                  <AppShell currentPage="媒体库">
+                    <LibraryFormPage />
                   </AppShell>
                 }
               />

@@ -13,6 +13,7 @@ import (
 	transport "github.com/wenzhengcheng/115-media-hub/backend/internal/http"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/repository/sqlite"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
+	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/provider115"
 )
 
@@ -35,7 +36,7 @@ func New(ctx context.Context, config Config, logger *slog.Logger, assets fs.FS) 
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("initialize authentication: %w", err), database.Close())
 	}
-	handler, err := transport.NewRouter(database, logger, assets, transport.AuthOptions{Service: authentication, CookieSecure: config.CookieSecure, Provider: provider115.New(database, logger)})
+	handler, err := transport.NewRouter(database, logger, assets, transport.AuthOptions{Service: authentication, CookieSecure: config.CookieSecure, Provider: provider115.New(database, logger), Library: library.New(database, logger)})
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("initialize HTTP routes: %w", err), database.Close())
 	}

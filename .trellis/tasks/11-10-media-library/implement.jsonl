@@ -1,0 +1,5 @@
+{"file":".trellis/spec/guides/project-baseline.md","reason":"Project architecture and media safety invariants"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"API, persistence, and frontend boundaries"}
+{"file":".trellis/spec/backend/index.md","reason":"Backend implementation guidelines"}
+{"file":".trellis/spec/backend/cloud-drive.md","reason":"115 directory browsing contract"}
+{"file":".trellis/spec/frontend/index.md","reason":"Frontend implementation guidelines"}

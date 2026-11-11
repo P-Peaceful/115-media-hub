@@ -32,7 +32,7 @@ import {
 import { useState } from "react";
 import { Link, useLocation, useSearchParams } from "react-router";
 
-import folderArtwork from "@/assets/media-folder.svg";
+import { PageBanner } from "@/components/page-banner";
 import { formatBytes } from "@/features/settings/account-details";
 import { ApiError } from "@/lib/api/errors";
 
@@ -249,15 +249,12 @@ function CloudDriveContent({
   );
   return (
     <main className="drive-page">
+      <PageBanner
+        title="网盘浏览"
+        description="浏览已授权的 115 网盘目录，查看文件、管理媒体库关联状态。"
+      />
       <div className={`drive-layout${selected ? " has-detail" : ""}`}>
         <div className="drive-content">
-          <section className="drive-banner">
-            <div>
-              <h1>网盘浏览</h1>
-              <p>浏览已授权的 115 网盘目录，查看文件、管理媒体库关联状态。</p>
-            </div>
-            <img src={folderArtwork} alt="" />
-          </section>
           <nav className="drive-path" aria-label="目录路径">
             <Home aria-hidden="true" />
             {listing?.path.map((part, index) => (

@@ -3,6 +3,110 @@ info:
   title: 115 Media Hub API
   version: 0.1.0
 paths:
+  /api/v1/libraries:
+    get:
+      operationId: listLibraries
+      summary: List library configurations ordered by ID
+      security: [{adminSession: []}]
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+        - {name: cursor, in: query, schema: {type: string}}
+      responses:
+        "200":
+          description: Library page
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/LibraryPage"}
+        "400": {$ref: "#/components/responses/AuthError"}
+        "401": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/Unavailable"}
+    post:
+      operationId: createLibrary
+      summary: Create a library configuration
+      security: [{adminSession: []}]
+      parameters: [{$ref: "#/components/parameters/CSRFToken"}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/LibraryConfig"}
+      responses:
+        "201": {$ref: "#/components/responses/LibraryResult"}
+        "400": {$ref: "#/components/responses/AuthError"}
+        "401": {$ref: "#/components/responses/AuthError"}
+        "403": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/Unavailable"}
+  /api/v1/libraries/{id}:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string}}
+    get:
+      operationId: getLibrary
+      security: [{adminSession: []}]
+      responses:
+        "200": {$ref: "#/components/responses/LibraryResult"}
+        "401": {$ref: "#/components/responses/AuthError"}
+        "404": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/Unavailable"}
+    put:
+      operationId: updateLibrary
+      description: Supply the revision read with the edited configuration. A stale revision returns 409.
+      security: [{adminSession: []}]
+      parameters:
+        - {$ref: "#/components/parameters/CSRFToken"}
+        - name: X-Library-Revision
+          in: header
+          required: true
+          description: Decimal revision from the library being edited.
+          schema: {type: string, pattern: '^[1-9][0-9]*$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/LibraryConfig"}
+      responses:
+        "200": {$ref: "#/components/responses/LibraryResult"}
+        "400": {$ref: "#/components/responses/AuthError"}
+        "401": {$ref: "#/components/responses/AuthError"}
+        "403": {$ref: "#/components/responses/AuthError"}
+        "404": {$ref: "#/components/responses/AuthError"}
+        "409": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/Unavailable"}
+    delete:
+      operationId: deleteLibrary
+      summary: Delete configuration only; never delete files
+      security: [{adminSession: []}]
+      parameters: [{$ref: "#/components/parameters/CSRFToken"}]
+      responses:
+        "204": {description: Deleted}
+        "401": {$ref: "#/components/responses/AuthError"}
+        "403": {$ref: "#/components/responses/AuthError"}
+        "404": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/Unavailable"}
+  /api/v1/libraries/{id}/enabled:
+    patch:
+      operationId: setLibraryEnabled
+      security: [{adminSession: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+        - {$ref: "#/components/parameters/CSRFToken"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [enabled]
+              properties:
+                enabled: {type: boolean}
+      responses:
+        "200": {$ref: "#/components/responses/LibraryResult"}
+        "400": {$ref: "#/components/responses/AuthError"}
+        "401": {$ref: "#/components/responses/AuthError"}
+        "403": {$ref: "#/components/responses/AuthError"}
+        "404": {$ref: "#/components/responses/AuthError"}
+        "409": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/Unavailable"}
   /health/live:
     get:
       operationId: getLiveness
@@ -410,6 +514,11 @@ components:
         maxLength: 64
         pattern: "^[A-Za-z0-9._-]+$"
   responses:
+    LibraryResult:
+      description: Saved library configuration
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/Library"}
     AuthError:
       description: Safe authentication error; validation_failed, invalid_credentials, authentication_required, csrf_invalid, setup_required or already_initialized as applicable
       headers:
@@ -456,6 +565,71 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    LibraryPathMapping:
+      type: object
+      additionalProperties: false
+      required: [source, target]
+      properties:
+        source: {type: string, minLength: 1, maxLength: 1024}
+        target: {type: string, minLength: 1, maxLength: 1024}
+    LibraryConfig:
+      type: object
+      additionalProperties: false
+      required: [name, description, directory_id, directory_path, media_type, enabled, output_path, generate_strm, scrape_metadata, generate_nfo, preserve_structure, structure_mode, path_mappings, link_type, link_expiry, filename_rule, strm_extension, nfo_name, min_file_size_mb]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+        description: {type: string, maxLength: 200}
+        directory_id: {type: string, pattern: '^[0-9]{1,32}$'}
+        directory_path: {type: string, minLength: 1, maxLength: 1024}
+        media_type: {type: string, enum: [movie, tv, anime, documentary, mixed]}
+        enabled: {type: boolean}
+        output_path: {type: string, minLength: 1, maxLength: 1024, description: Absolute local path}
+        generate_strm: {type: boolean}
+        scrape_metadata: {type: boolean}
+        generate_nfo: {type: boolean}
+        preserve_structure: {type: boolean}
+        structure_mode: {type: string, enum: [full, flatten]}
+        path_mappings: {type: array, maxItems: 100, items: {$ref: "#/components/schemas/LibraryPathMapping"}}
+        link_type: {type: string, enum: [direct, proxy]}
+        link_expiry: {type: string, enum: [default, never]}
+        filename_rule: {type: string, enum: [original]}
+        strm_extension: {type: string, enum: ['.strm']}
+        nfo_name: {type: string, enum: [same_as_video]}
+        min_file_size_mb: {type: integer, minimum: 0, maximum: 1048576}
+    Library:
+      type: object
+      additionalProperties: false
+      required: [name, description, directory_id, directory_path, media_type, enabled, output_path, generate_strm, scrape_metadata, generate_nfo, preserve_structure, structure_mode, path_mappings, link_type, link_expiry, filename_rule, strm_extension, nfo_name, min_file_size_mb, id, created_at, updated_at, revision]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+        description: {type: string, maxLength: 200}
+        directory_id: {type: string, pattern: '^[0-9]{1,32}$'}
+        directory_path: {type: string, minLength: 1, maxLength: 1024}
+        media_type: {type: string, enum: [movie, tv, anime, documentary, mixed]}
+        enabled: {type: boolean}
+        output_path: {type: string, minLength: 1, maxLength: 1024, description: Absolute local path}
+        generate_strm: {type: boolean}
+        scrape_metadata: {type: boolean}
+        generate_nfo: {type: boolean}
+        preserve_structure: {type: boolean}
+        structure_mode: {type: string, enum: [full, flatten]}
+        path_mappings: {type: array, maxItems: 100, items: {$ref: "#/components/schemas/LibraryPathMapping"}}
+        link_type: {type: string, enum: [direct, proxy]}
+        link_expiry: {type: string, enum: [default, never]}
+        filename_rule: {type: string, enum: [original]}
+        strm_extension: {type: string, enum: ['.strm']}
+        nfo_name: {type: string, enum: [same_as_video]}
+        min_file_size_mb: {type: integer, minimum: 0, maximum: 1048576}
+        id: {type: string}
+        revision: {type: integer, format: int64, minimum: 1}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    LibraryPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/Library"}}
+        next_cursor: {type: string, nullable: true}
     CloudDrivePage:
       type: object
       required: [directory_id, path, items, next_cursor]
@@ -743,6 +917,7 @@ components:
               not_found,
               method_not_allowed,
               internal_error,
+              conflict,
               validation_failed,
               invalid_credentials,
               authentication_required,

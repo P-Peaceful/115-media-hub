@@ -18,7 +18,6 @@ import {
   LogOut,
   QrCode,
   RefreshCw,
-  Settings,
   ShieldCheck,
   UserRound,
 } from "lucide-react";
@@ -26,6 +25,7 @@ import type { SyntheticEvent } from "react";
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 
+import { PageBanner } from "@/components/page-banner";
 import { AuthError } from "@/features/auth/auth-error";
 import { useAuth } from "@/features/auth/auth-provider";
 import {
@@ -632,18 +632,10 @@ export function SettingsPage() {
   }
   return (
     <main className="settings-page">
-      <section className="settings-banner">
-        <div>
-          <h1>设置</h1>
-          <p>
-            管理系统配置，包括账号安全、115
-            授权、服务访问、生成规则、元数据、性能等。
-          </p>
-        </div>
-        <div className="settings-banner-art" aria-hidden="true">
-          <Settings />
-        </div>
-      </section>
+      <PageBanner
+        title="设置"
+        description="管理系统配置，包括账号安全、115 授权、服务访问、生成规则、元数据、性能等。"
+      />
       <nav className="settings-tabs" aria-label="设置分类">
         <button
           className={tab === "security" ? "selected" : ""}

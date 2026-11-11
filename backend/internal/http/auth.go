@@ -20,6 +20,7 @@ import (
 	domain "github.com/wenzhengcheng/115-media-hub/backend/internal/domain/auth"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/http/generated"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
+	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/provider115"
 )
 
@@ -31,6 +32,7 @@ type AuthOptions struct {
 	Service      *auth.Service
 	CookieSecure bool
 	Provider     *provider115.Service
+	Library      *library.Service
 }
 
 type authenticationHandler struct {

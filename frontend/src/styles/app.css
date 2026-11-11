@@ -44,7 +44,7 @@ body {
   color: var(--page-muted);
   font-weight: 600;
 }
-h1 {
+h1:not([data-page-banner-title]) {
   font-size: clamp(1.8rem, 6vw, 2.7rem);
   font-weight: 650;
   letter-spacing: -0.04em;
@@ -69,11 +69,11 @@ h1 {
   color: var(--page-muted);
   font-size: 0.85rem;
 }
-a {
+a:not([data-rac]):not([data-slot]) {
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }
-:focus-visible {
+:focus-visible:not([data-rac]):not([data-slot]) {
   outline: 3px solid var(--color-accent, #2563eb);
   outline-offset: 4px;
 }
@@ -1052,31 +1052,6 @@ a {
   max-width: 1600px;
   margin: auto;
 }
-.dashboard-welcome {
-  min-height: 125px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  overflow: hidden;
-  padding: 24px 34px;
-  border-radius: 16px;
-  background: linear-gradient(110deg, #f0f0ff, #dbdafa 70%, #bfc7ff);
-  color: #11152a;
-}
-.dashboard-welcome h1 {
-  font-size: clamp(24px, 2.4vw, 34px);
-  margin: 0 0 7px;
-  letter-spacing: -0.03em;
-}
-.dashboard-welcome p {
-  color: #555e7a;
-  margin: 0;
-}
-.dashboard-welcome img {
-  width: 210px;
-  max-height: 125px;
-  object-fit: contain;
-}
 .dashboard-grid {
   display: grid;
   gap: 14px;
@@ -1337,12 +1312,6 @@ a {
   .dashboard {
     padding: 14px;
   }
-  .dashboard-welcome {
-    padding: 20px;
-  }
-  .dashboard-welcome img {
-    width: 90px;
-  }
   .first-row,
   .stats-row {
     grid-template-columns: 1fr;
@@ -1539,30 +1508,6 @@ a {
 .app-topbar .theme-toggle svg {
   width: 18px;
 }
-.dashboard-welcome {
-  position: relative;
-}
-.dashboard-welcome::after {
-  content: "";
-  position: absolute;
-  right: -30px;
-  top: -80px;
-  width: 400px;
-  height: 290px;
-  transform: rotate(35deg);
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgb(255 255 255 / 15%),
-    transparent
-  );
-  pointer-events: none;
-}
-.dashboard-welcome img {
-  align-self: stretch;
-  width: 270px;
-  max-height: 125px;
-}
 .dashboard-card h2 svg {
   color: #59617a;
 }
@@ -1735,13 +1680,6 @@ a {
   }
 }
 @media (min-width: 701px) {
-  .dashboard-welcome {
-    height: 126px;
-    min-height: 0;
-  }
-  .dashboard-welcome img {
-    height: 125px;
-  }
   .system-card {
     position: relative;
   }
@@ -1757,48 +1695,10 @@ a {
 
 /* Settings content uses the same shell as the rest of the application. */
 .settings-page {
-  padding: 24px 30px 48px;
+  padding: 24px 24px 48px;
   max-width: 1600px;
   width: 100%;
   margin: 0 auto;
-}
-.settings-banner {
-  position: relative;
-  overflow: hidden;
-  min-height: 126px;
-  display: flex;
-  align-items: center;
-  padding: 24px 30px;
-  border: 1px solid #dce0fb;
-  border-radius: 16px;
-  background: linear-gradient(110deg, #f7f8ff 4%, #e1e4ff 65%, #cbd2ff);
-  box-shadow: 0 2px 6px #686bc41a;
-}
-.settings-banner h1 {
-  font-size: 30px;
-  font-weight: 750;
-  margin: 0 0 8px;
-}
-.settings-banner p {
-  margin: 0;
-  color: #56617f;
-  font-weight: 600;
-}
-.settings-banner-art {
-  margin-left: auto;
-  width: 100px;
-  height: 100px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  background: radial-gradient(circle, #6b64f7, #a8b4ff 60%, transparent 72%);
-  color: white;
-  flex: none;
-}
-.settings-banner-art svg {
-  width: 56px;
-  height: 56px;
-  filter: drop-shadow(0 5px 8px #4941c8);
 }
 .settings-tabs {
   display: flex;
@@ -1962,37 +1862,13 @@ a {
   margin: 12px 0;
   font-weight: 600;
 }
-.dark .settings-banner {
-  background: linear-gradient(110deg, #24273e, #383b70);
-  border-color: #454a77;
-}
-.dark .settings-banner p {
-  color: #c7cbea;
-}
 .dark .settings-icon {
   background: #383666;
   color: #b5abff;
 }
 @media (max-width: 700px) {
   .settings-page {
-    padding: 16px;
-  }
-  .settings-banner {
-    padding: 20px;
-  }
-  .settings-banner h1 {
-    font-size: 25px;
-  }
-  .settings-banner p {
-    font-size: 13px;
-  }
-  .settings-banner-art {
-    width: 65px;
-    height: 65px;
-  }
-  .settings-banner-art svg {
-    width: 38px;
-    height: 38px;
+    padding: 14px;
   }
   .settings-card > [data-slot="card-content"] {
     padding: 20px;
@@ -2445,11 +2321,14 @@ a {
 
 /* Keep the mobile navigation compact while the desktop authorization card is hidden. */
 @media (max-width: 700px) {
-  .cloud-drive-shell .sidebar-provider-card {
+  .cloud-drive-shell .sidebar-provider-card,
+  .media-library-shell .sidebar-provider-card {
     display: none;
   }
   .cloud-drive-shell .app-sidebar nav,
-  .cloud-drive-shell .nav-group {
+  .cloud-drive-shell .nav-group,
+  .media-library-shell .app-sidebar nav,
+  .media-library-shell .nav-group {
     align-items: center;
   }
 }

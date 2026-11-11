@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { Link as RouterLink } from "react-router";
 
-import folderArtwork from "@/assets/media-folder.svg";
+import { PageBanner } from "@/components/page-banner";
 import { useReadiness } from "@/features/health/use-readiness";
 import {
   formatBytes,
@@ -80,16 +80,10 @@ export function DashboardPage() {
   }
   return (
     <main className="dashboard">
-      <section className="dashboard-welcome">
-        <div>
-          <h1>欢迎使用 115 Media Hub</h1>
-          <p>
-            基于 115 网盘的媒体管理与 STRM
-            生态解决方案，统一管理资源、任务与同步回传。
-          </p>
-        </div>
-        <img src={folderArtwork} alt="" aria-hidden="true" />
-      </section>
+      <PageBanner
+        title="欢迎使用 115 Media Hub"
+        description="基于 115 网盘的媒体管理与 STRM 生态解决方案，统一管理资源、任务与同步回传。"
+      />
       <div className="dashboard-grid first-row">
         <section
           className="dashboard-card system-card"

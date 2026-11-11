@@ -82,7 +82,7 @@ export function AppShell({
   }
   return (
     <div
-      className={`app-layout${currentPage === "网盘浏览" ? " cloud-drive-shell" : ""}`}
+      className={`app-layout${currentPage === "网盘浏览" ? " cloud-drive-shell" : currentPage === "媒体库" ? " media-library-shell" : ""}`}
     >
       <aside className="app-sidebar" aria-label="主导航">
         <div className="app-brand">
@@ -102,10 +102,18 @@ export function AppShell({
                     <Icon aria-hidden="true" />
                     {label}
                   </span>
-                ) : label === "总览" || label === "网盘浏览" ? (
+                ) : label === "总览" ||
+                  label === "网盘浏览" ||
+                  label === "媒体库" ? (
                   <RouterLink
                     className="nav-item"
-                    to={label === "总览" ? "/" : "/cloud-drive"}
+                    to={
+                      label === "总览"
+                        ? "/"
+                        : label === "网盘浏览"
+                          ? "/cloud-drive"
+                          : "/libraries"
+                    }
                     key={label}
                   >
                     <Icon aria-hidden="true" />
@@ -226,8 +234,10 @@ export function AppShell({
         <header className="app-topbar">
           <div className="breadcrumbs">
             <Home aria-hidden="true" /> <span>/</span>{" "}
-            {currentPage === "网盘浏览" ? "资源管理" : "工作台"} <span>/</span>{" "}
-            <strong>{currentPage}</strong>
+            {currentPage === "网盘浏览" || currentPage === "媒体库"
+              ? "资源管理"
+              : "工作台"}{" "}
+            <span>/</span> <strong>{currentPage}</strong>
           </div>
           <div className="top-actions">
             <button className="running-tasks" disabled title="功能尚未开放">

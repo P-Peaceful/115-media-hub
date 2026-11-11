@@ -14,6 +14,7 @@ const messages: Record<string, string> = {
   setup_required: "请先完成系统初始化。",
   rate_limited: "操作过于频繁，请稍后再试。",
   validation_failed: "请检查填写的内容。",
+  conflict: "媒体库已被修改，请刷新后重试。",
   service_unavailable: "服务暂时不可用，请稍后重试。",
 };
 

@@ -1,34 +1,8 @@
 .drive-page {
-  padding: 24px 30px 48px;
+  padding: 24px 24px 48px;
   max-width: 1600px;
   width: 100%;
   margin: 0 auto;
-}
-.drive-banner {
-  min-height: 126px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  overflow: hidden;
-  padding: 20px 30px;
-  border-radius: 16px;
-  background: linear-gradient(110deg, #f2f2ff, #e4e5ff 63%, #c9d1ff);
-  border: 1px solid #dce0fb;
-}
-.drive-banner h1 {
-  margin: 0 0 8px;
-  font-size: 30px;
-  font-weight: 750;
-}
-.drive-banner p {
-  margin: 0;
-  color: #56617f;
-  font-weight: 600;
-}
-.drive-banner img {
-  width: 210px;
-  height: 100px;
-  object-fit: contain;
 }
 .drive-layout {
   display: grid;
@@ -353,13 +327,6 @@
   margin-top: auto;
   padding-top: 24px;
 }
-:root[data-theme="dark"] .drive-banner {
-  background: linear-gradient(110deg, #24273e, #383b70);
-  border-color: #454a77;
-}
-:root[data-theme="dark"] .drive-banner p {
-  color: #c7cbea;
-}
 :root[data-theme="dark"] .drive-selected {
   background: #38345b;
 }
@@ -377,19 +344,7 @@
 }
 @media (max-width: 700px) {
   .drive-page {
-    padding: 16px;
-  }
-  .drive-banner {
-    padding: 20px;
-  }
-  .drive-banner h1 {
-    font-size: 25px;
-  }
-  .drive-banner p {
-    font-size: 13px;
-  }
-  .drive-banner img {
-    width: 90px;
+    padding: 14px;
   }
   .drive-toolbar {
     gap: 6px;

@@ -1,0 +1,5 @@
+{"file":".trellis/spec/guides/project-baseline.md","reason":"Project and safety invariants"}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Backend quality gates"}
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Frontend quality gates"}
+{"file":".trellis/spec/backend/cloud-drive.md","reason":"Directory selection contract"}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Cross-layer contract review"}

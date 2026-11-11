@@ -46,6 +46,9 @@ func NewRouter(database Readiness, logger *slog.Logger, assets fs.FS, options ..
 	router.Use(authHandler.managementBoundary())
 	if authOptions.Service != nil {
 		authHandler.register(router)
+		if authOptions.Library != nil {
+			(&libraryHandler{service: authOptions.Library}).register(router)
+		}
 		if authOptions.Provider != nil {
 			(&providerHandler{service: authOptions.Provider}).register(router)
 		}

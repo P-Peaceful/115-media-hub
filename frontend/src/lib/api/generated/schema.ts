@@ -4,6 +4,60 @@
  */
 
 export interface paths {
+  "/api/v1/libraries": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List library configurations ordered by ID */
+    get: operations["listLibraries"];
+    put?: never;
+    /** Create a library configuration */
+    post: operations["createLibrary"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/libraries/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get: operations["getLibrary"];
+    /** @description Supply the revision read with the edited configuration. A stale revision returns 409. */
+    put: operations["updateLibrary"];
+    post?: never;
+    /** Delete configuration only; never delete files */
+    delete: operations["deleteLibrary"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/libraries/{id}/enabled": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch: operations["setLibraryEnabled"];
+    trace?: never;
+  };
   "/health/live": {
     parameters: {
       query?: never;
@@ -299,6 +353,79 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    LibraryPathMapping: {
+      source: string;
+      target: string;
+    };
+    LibraryConfig: {
+      name: string;
+      description: string;
+      directory_id: string;
+      directory_path: string;
+      /** @enum {string} */
+      media_type: "movie" | "tv" | "anime" | "documentary" | "mixed";
+      enabled: boolean;
+      /** @description Absolute local path */
+      output_path: string;
+      generate_strm: boolean;
+      scrape_metadata: boolean;
+      generate_nfo: boolean;
+      preserve_structure: boolean;
+      /** @enum {string} */
+      structure_mode: "full" | "flatten";
+      path_mappings: components["schemas"]["LibraryPathMapping"][];
+      /** @enum {string} */
+      link_type: "direct" | "proxy";
+      /** @enum {string} */
+      link_expiry: "default" | "never";
+      /** @enum {string} */
+      filename_rule: "original";
+      /** @enum {string} */
+      strm_extension: ".strm";
+      /** @enum {string} */
+      nfo_name: "same_as_video";
+      min_file_size_mb: number;
+    };
+    Library: {
+      name: string;
+      description: string;
+      directory_id: string;
+      directory_path: string;
+      /** @enum {string} */
+      media_type: "movie" | "tv" | "anime" | "documentary" | "mixed";
+      enabled: boolean;
+      /** @description Absolute local path */
+      output_path: string;
+      generate_strm: boolean;
+      scrape_metadata: boolean;
+      generate_nfo: boolean;
+      preserve_structure: boolean;
+      /** @enum {string} */
+      structure_mode: "full" | "flatten";
+      path_mappings: components["schemas"]["LibraryPathMapping"][];
+      /** @enum {string} */
+      link_type: "direct" | "proxy";
+      /** @enum {string} */
+      link_expiry: "default" | "never";
+      /** @enum {string} */
+      filename_rule: "original";
+      /** @enum {string} */
+      strm_extension: ".strm";
+      /** @enum {string} */
+      nfo_name: "same_as_video";
+      min_file_size_mb: number;
+      id: string;
+      /** Format: int64 */
+      revision: number;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
+    };
+    LibraryPage: {
+      items: components["schemas"]["Library"][];
+      next_cursor: string | null;
+    };
     CloudDrivePage: {
       directory_id: string;
       path: components["schemas"]["CloudDrivePath"][];
@@ -457,6 +584,7 @@ export interface components {
         | "not_found"
         | "method_not_allowed"
         | "internal_error"
+        | "conflict"
         | "validation_failed"
         | "invalid_credentials"
         | "authentication_required"
@@ -473,6 +601,15 @@ export interface components {
     };
   };
   responses: {
+    /** @description Saved library configuration */
+    LibraryResult: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["Library"];
+      };
+    };
     /** @description Safe authentication error; validation_failed, invalid_credentials, authentication_required, csrf_invalid, setup_required or already_initialized as applicable */
     AuthError: {
       headers: {
@@ -536,6 +673,153 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  listLibraries: {
+    parameters: {
+      query?: {
+        limit?: number;
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Library page */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["LibraryPage"];
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  createLibrary: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LibraryConfig"];
+      };
+    };
+    responses: {
+      201: components["responses"]["LibraryResult"];
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getLibrary: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      200: components["responses"]["LibraryResult"];
+      401: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  updateLibrary: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+        /** @description Decimal revision from the library being edited. */
+        "X-Library-Revision": string;
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LibraryConfig"];
+      };
+    };
+    responses: {
+      200: components["responses"]["LibraryResult"];
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      409: components["responses"]["AuthError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  deleteLibrary: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  setLibraryEnabled: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": {
+          enabled: boolean;
+        };
+      };
+    };
+    responses: {
+      200: components["responses"]["LibraryResult"];
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      409: components["responses"]["AuthError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
   getLiveness: {
     parameters: {
       query?: never;
