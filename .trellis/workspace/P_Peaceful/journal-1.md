@@ -190,3 +190,25 @@ Implemented persistent media library configuration, management UI and shared pag
 ### Status
 
 [OK] **Completed**
+
+
+## Session 8: 统一 HeroUI 主题与前端模块改造
+<!-- trellis-session: v=2 fp=1a64c37c5db12b84 -->
+
+**Date**: 2026-11-16
+**Task**: 统一 HeroUI 主题与前端模块改造
+**Branch**: `main`
+
+### Summary
+
+完成 HeroUI 主题统一及总览、侧栏、媒体库和网盘浏览界面改造；补充 115 文件总数分页透传与媒体库目录必填校验。前后端检查及相关 Playwright 验证通过，任务已归档。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `94c06f8` | feat: unify HeroUI theme and refresh frontend modules |
+
+### Status
+
+[OK] **Completed**
