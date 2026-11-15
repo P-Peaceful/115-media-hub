@@ -166,3 +166,63 @@ test("健康接口保持公开", async ({ request }) => {
   expect(ready.status()).toBe(200);
   expect(await ready.json()).toEqual({ status: "ok" });
 });
+
+test("总览前两排桌面列边缘对齐且窄屏不溢出", async ({ page }) => {
+  await page.route("**/api/v1/auth/bootstrap", async (route) => {
+    await route.fulfill({
+      json: {
+        initialized: true,
+        authenticated: true,
+        administrator: { id: "test-admin", username: "admin" },
+        expires_at: "2099-01-01T00:00:00Z",
+        csrf_token: "test-csrf",
+      },
+    });
+  });
+  await page.route("**/health/ready", async (route) => {
+    await route.fulfill({ json: { status: "ok" } });
+  });
+  await page.route("**/api/v1/system/status", async (route) => {
+    await route.fulfill({ json: { uptime_seconds: 62, version: "dev" } });
+  });
+  await page.route("**/api/v1/settings/115/details", async (route) => {
+    await route.fulfill({
+      json: {
+        status: "unconfigured",
+        profile: null,
+        space: null,
+        space_status: "unavailable",
+        devices: [],
+        devices_status: "unavailable",
+      },
+    });
+  });
+  await page.setViewportSize({ width: 1448, height: 900 });
+  await page.goto("/");
+  const firstRow = page.locator(".first-row > .dashboard-card");
+  const statsRow = page.locator(".stats-row > .dashboard-card");
+  await expect(firstRow).toHaveCount(3);
+  await expect(statsRow).toHaveCount(3);
+  for (const width of [1448, 1280]) {
+    await page.setViewportSize({ width, height: 900 });
+    for (let index = 0; index < 3; index++) {
+      const [first, stats] = await Promise.all([
+        firstRow.nth(index).boundingBox(),
+        statsRow.nth(index).boundingBox(),
+      ]);
+      if (!first || !stats) throw new Error("无法读取卡片布局尺寸");
+      expect(Math.abs(first.x - stats.x)).toBeLessThan(1);
+      expect(
+        Math.abs(first.x + first.width - stats.x - stats.width),
+      ).toBeLessThan(1);
+    }
+  }
+  for (const width of [701, 390]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+  }
+});

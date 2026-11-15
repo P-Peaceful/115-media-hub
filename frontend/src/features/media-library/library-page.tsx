@@ -30,6 +30,7 @@ import {
   Layers,
   Link as LinkIcon,
   Monitor,
+  Panda,
   Pencil,
   Plus,
   Settings2,
@@ -46,7 +47,6 @@ import { ApiError } from "@/lib/api/errors";
 import type { Library, LibraryInput } from "./api";
 import { changeLibrary, getLibrary, listLibraries, setEnabled } from "./api";
 import { DirectoryPicker } from "./directory-picker";
-import { libraryTheme } from "./theme";
 
 const typeLabels: Record<LibraryInput["media_type"], string> = {
   movie: "电影",
@@ -121,7 +121,7 @@ function Banner({
             <Link
               to="/libraries"
               aria-label="返回媒体库"
-              className="mr-3 inline-flex align-middle text-[#11152a]"
+              className="mr-3 inline-flex align-middle text-foreground"
             >
               <ArrowLeft />
             </Link>
@@ -148,22 +148,34 @@ function ErrorMessage({ error }: { error: unknown }) {
 function Status({ enabled }: { enabled: boolean }) {
   return (
     <Chip size="sm" variant="soft" color={enabled ? "success" : "warning"}>
-      {enabled ? "● 已启用" : "● 已暂停"}
+      <span
+        aria-hidden="true"
+        className="inline-block size-2 rounded-full bg-current"
+      />
+      {enabled ? "已启用" : "已暂停"}
     </Chip>
   );
 }
-function LibraryIcon({ type }: { type: LibraryInput["media_type"] }) {
+function LibraryIcon({
+  type,
+  large = false,
+}: {
+  type: LibraryInput["media_type"];
+  large?: boolean;
+}) {
   const Icon =
     type === "tv"
       ? Monitor
       : type === "documentary"
         ? FileText
-        : type === "mixed"
-          ? Layers
-          : Film;
+        : type === "anime"
+          ? Panda
+          : type === "mixed"
+            ? Layers
+            : Film;
   return (
     <span className="inline-flex size-12 shrink-0 items-center justify-center">
-      <Icon />
+      <Icon aria-hidden="true" className={large ? "size-8" : "size-6"} />
     </span>
   );
 }
@@ -199,9 +211,7 @@ export function LibraryListPage() {
       (item) => filter === "all" || item.enabled === (filter === "enabled"),
     ) ?? [];
   return (
-    <main
-      className={`${libraryTheme} mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12`}
-    >
+    <main className="mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12">
       <Banner
         title="媒体库"
         description="管理基于 115 网盘的媒体库，配置目录和输出规则。"
@@ -269,33 +279,40 @@ export function LibraryListPage() {
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {items.map((item) => (
             <Card className="min-w-0" key={item.id}>
-              <div className="flex flex-wrap items-start gap-3">
-                <LibraryIcon type={item.media_type} />
+              <div className="flex min-w-0 items-start gap-4">
+                <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-accent/10 text-accent">
+                  <LibraryIcon type={item.media_type} large />
+                </div>
                 <div className="min-w-0 flex-1">
-                  <Link className="wrap-anywhere" to={`/libraries/${item.id}`}>
+                  <Link
+                    className="wrap-anywhere font-semibold"
+                    to={`/libraries/${item.id}`}
+                  >
                     {item.name}
                   </Link>
-                  <div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
                     <Chip size="sm" variant="soft" color="accent">
                       {typeLabels[item.media_type]}
-                    </Chip>{" "}
+                    </Chip>
                     <Status enabled={item.enabled} />
                   </div>
+                  <div className="mt-4 grid min-w-0 grid-cols-1 gap-x-3 gap-y-2 wrap-anywhere text-sm min-[1200px]:grid-cols-2">
+                    <p className="m-0">
+                      <span className="text-muted">绑定目录</span>{" "}
+                      {item.directory_path}
+                    </p>
+                    <p className="m-0 min-[1200px]:border-l min-[1200px]:border-border min-[1200px]:pl-3">
+                      <span className="text-muted">输出目录</span>{" "}
+                      {item.output_path}
+                    </p>
+                    <p className="m-0">
+                      <span className="text-muted">STRM 数量</span> 暂无数据
+                    </p>
+                    <p className="m-0 min-[1200px]:border-l min-[1200px]:border-border min-[1200px]:pl-3">
+                      <span className="text-muted">最近同步</span> 暂无数据
+                    </p>
+                  </div>
                 </div>
-              </div>
-              <div className="mt-4 grid min-w-0 grid-cols-1 gap-x-4 gap-y-1 wrap-anywhere text-sm sm:ml-15 lg:grid-cols-2">
-                <p>
-                  <span>绑定目录</span> {item.directory_path}
-                </p>
-                <p>
-                  <span>输出目录</span> {item.output_path}
-                </p>
-                <p>
-                  <span>STRM 统计</span> 暂无数据
-                </p>
-                <p>
-                  <span>最近同步</span> 暂无数据
-                </p>
               </div>
               <footer className="mt-auto flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
@@ -337,7 +354,6 @@ export function LibraryListPage() {
       )}
       {deleting && (
         <Modal.Backdrop
-          className={libraryTheme}
           isOpen
           onOpenChange={(open) => {
             if (!open) setDeleting(null);
@@ -429,7 +445,7 @@ function LibrarySelect({
         <Select.Value />
         <Select.Indicator />
       </Select.Trigger>
-      <Select.Popover className={libraryTheme}>
+      <Select.Popover>
         <ListBox>
           {options.map(([key, text]) => (
             <ListBox.Item id={key} key={key} textValue={text}>
@@ -472,17 +488,13 @@ export function LibraryFormPage() {
   });
   if (id && query.isPending)
     return (
-      <main
-        className={`${libraryTheme} mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12`}
-      >
+      <main className="mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12">
         正在加载配置…
       </main>
     );
   if (id && !query.data)
     return (
-      <main
-        className={`${libraryTheme} mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12`}
-      >
+      <main className="mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12">
         <ErrorMessage error={query.error} />
         <Link to="/libraries">返回媒体库</Link>
       </main>
@@ -566,6 +578,9 @@ function LibraryForm({
       void navigate("/libraries");
     },
   });
+  const directoryError = !value.directory_id
+    ? "请选择绑定的 115 网盘目录。"
+    : "";
   const nameError = !value.name.trim() ? "请输入媒体库名称。" : "";
   const outputError = !value.output_path.startsWith("/")
     ? "请输入以 / 开头的本地绝对路径。"
@@ -590,9 +605,7 @@ function LibraryForm({
       ? "请输入 0 到 1048576 之间的整数。"
       : "";
   return (
-    <main
-      className={`${libraryTheme} mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12`}
-    >
+    <main className="mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12">
       <Banner
         title={id ? "编辑媒体库" : "新建媒体库"}
         description="配置目录、输出、STRM 链接及文件规则。"
@@ -608,7 +621,7 @@ function LibraryForm({
             outputError ||
             mappingError ||
             sizeError ||
-            !value.directory_id
+            directoryError
           )
             return;
           mutation.mutate(value);
@@ -641,19 +654,43 @@ function LibraryForm({
             <small>{value.description.length} / 200</small>
           </Section>
           <Section title="绑定 115 网盘目录" icon={Folder}>
-            <div className="my-2 w-full">
-              <span id="library-directory-label">选择绑定目录 *</span>
+            <TextField
+              className="my-2 w-full"
+              isInvalid={attempted && !!directoryError}
+            >
+              <Label id="library-directory-label">选择绑定目录 *</Label>
               <Button
                 aria-labelledby="library-directory-label"
+                render={(props) => (
+                  <button
+                    {...props}
+                    aria-describedby={
+                      [
+                        value.directory_path ? "library-directory-value" : "",
+                        attempted && directoryError
+                          ? "library-directory-error"
+                          : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ") || undefined
+                    }
+                  />
+                )}
                 variant="ghost"
                 className="w-full justify-between"
                 type="button"
                 onPress={() => setPicker(true)}
               >
-                <Folder /> {value.directory_path || "请选择网盘目录"}{" "}
+                <Folder />{" "}
+                <span id="library-directory-value">
+                  {value.directory_path || "请选择网盘目录"}
+                </span>{" "}
                 <span>›</span>
               </Button>
-            </div>
+              <FieldError id="library-directory-error">
+                {directoryError}
+              </FieldError>
+            </TextField>
             <small>目录路径仅供展示，目录是否存在以网盘实际情况为准。</small>
           </Section>
           <Section title="媒体类型" icon={Film}>
@@ -671,7 +708,7 @@ function LibraryForm({
                 (type) => (
                   <Radio key={type} value={type}>
                     <Radio.Content>
-                      <Radio.Control className="ring-1 ring-foreground/60">
+                      <Radio.Control>
                         <Radio.Indicator />
                       </Radio.Control>
                       <LibraryIcon type={type} />
@@ -891,9 +928,6 @@ function LibraryForm({
         <p className="mt-2 text-sm text-muted">
           以上选项仅保存为配置，扫描、同步和文件生成将在后续版本开放。
         </p>
-        {!value.directory_id && (
-          <p className="mt-2 text-sm text-muted">请选择绑定的 115 网盘目录。</p>
-        )}
         <ErrorMessage error={mutation.error} />
         {mutation.error instanceof ApiError && mutation.error.fields && (
           <Alert status="danger" role="alert">
@@ -947,26 +981,20 @@ export function LibraryDetailPage() {
   const actions = useActions();
   if (query.isPending)
     return (
-      <main
-        className={`${libraryTheme} mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12`}
-      >
+      <main className="mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12">
         正在加载媒体库…
       </main>
     );
   if (!query.data)
     return (
-      <main
-        className={`${libraryTheme} mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12`}
-      >
+      <main className="mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12">
         <ErrorMessage error={query.error} />
         <Link to="/libraries">返回媒体库</Link>
       </main>
     );
   const item = query.data;
   return (
-    <main
-      className={`${libraryTheme} mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12`}
-    >
+    <main className="mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12">
       <Banner title={item.name} description="查看媒体库配置与状态。" back />
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Button variant="ghost" isDisabled>

@@ -34,6 +34,8 @@ Use HeroUI components’ built-in styles and documented variants. Do not overrid
 
 Use Tailwind CSS v4 utilities and centralized CSS design tokens for color, spacing, radius, typography, and light/dark themes. Prefer semantic tokens over scattered literal colors and arbitrary values. Dynamic class choices must use complete statically discoverable class strings. Keep shared class-composition helpers in one owner only when needed. Use CSS transitions first and respect `prefers-reduced-motion`.
 
+The project-wide HeroUI Theme Builder export lives in `frontend/src/styles/globals.css` and is imported after `@heroui/styles` by `app.css`. Keep its light/dark semantic variables authoritative across pages and portal overlays; do not reintroduce page-scoped palette overrides. Layout classes belong on ordinary wrappers when they would otherwise override a HeroUI component or internal slot.
+
 For plain React/Vite theme switching, follow HeroUI's official v3 `useTheme` hook and root `.light`/`.dark` plus `data-theme` attributes. Do not add a second theme controller or use a framework-specific provider in Vite. HeroUI components adapt through semantic theme variables; use `dark:` variants only for one-off app-owned styling.
 
 ## Async UI and accessibility

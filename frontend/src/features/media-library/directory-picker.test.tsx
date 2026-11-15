@@ -27,6 +27,10 @@ it("缓存目录重新验证失败后不能选择旧数据", async () => {
   });
   client.setQueryData(["library-directory", "0", null], {
     directory_id: "0",
+    total: 0,
+    page: 1,
+    page_size: 50,
+    total_pages: 1,
     path: [{ id: "0", name: "115 网盘" }],
     items: [],
     next_cursor: null,

@@ -66,6 +66,10 @@ for (const theme of ["light", "dark"] as const) {
       route.fulfill({
         json: {
           directory_id: "0",
+          total: 1,
+          page: 1,
+          page_size: 50,
+          total_pages: 1,
           path: [{ id: "0", name: "115 网盘" }],
           items: [
             {
@@ -96,7 +100,7 @@ for (const theme of ["light", "dark"] as const) {
       ["detail", "/libraries/1", library.name],
       ["edit", "/libraries/1/edit", "编辑媒体库"],
     ] as const;
-    let gradient = "";
+    let background = "";
     let baseline: {
       left: number;
       width: number;
@@ -114,16 +118,98 @@ for (const theme of ["light", "dark"] as const) {
       await expect(banner.getByRole("heading", { level: 1 })).toContainText(
         title,
       );
-      const style = await banner.evaluate(
-        (element) => getComputedStyle(element).backgroundImage,
-      );
-      if (!gradient) gradient = style;
-      expect(style).toBe(gradient);
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      const colors = await banner.evaluate((element) => {
+        const color = (token: string) => {
+          const probe = document.createElement("span");
+          probe.style.color = `var(--${token})`;
+          document.body.append(probe);
+          const value = getComputedStyle(probe).color;
+          probe.remove();
+          return value;
+        };
+        const result = {
+          background: getComputedStyle(element).backgroundColor,
+          foreground: color("foreground"),
+        };
+        return result;
+      });
+      if (!background) background = colors.background;
+      expect(colors.background).toBe(background);
       await expect(banner.getByRole("heading", { level: 1 })).toHaveCSS(
         "color",
-        "rgb(17, 21, 42)",
+        colors.foreground,
       );
-      await expect(banner.locator("p")).toHaveCSS("color", "rgb(85, 94, 122)");
+      await expect(banner.locator("p")).toHaveCSS("color", colors.foreground);
+      if (name === "overview") {
+        const screenshot = await page.screenshot();
+        const difference = await banner.evaluate(async (element, encoded) => {
+          const bytes = Uint8Array.from(atob(encoded), (character) =>
+            character.charCodeAt(0),
+          );
+          const image = await createImageBitmap(
+            new Blob([bytes], { type: "image/png" }),
+          );
+          const canvas = document.createElement("canvas");
+          canvas.width = image.width;
+          canvas.height = image.height;
+          const context = canvas.getContext("2d");
+          if (!context) throw new Error("无法读取横幅截图");
+          context.drawImage(image, 0, 0);
+          const bounds = element.getBoundingClientRect();
+          const ratio = image.width / window.innerWidth;
+          const pixel = context.getImageData(
+            Math.round((bounds.left + 20) * ratio),
+            Math.round((bounds.top + 8) * ratio),
+            1,
+            1,
+          ).data;
+          const backgroundPixel = context.getImageData(
+            Math.round((bounds.left - 5) * ratio),
+            Math.round((bounds.top + 8) * ratio),
+            1,
+            1,
+          ).data;
+          const colorPixel = (color: string) => {
+            context.fillStyle = color;
+            context.fillRect(0, 0, 1, 1);
+            return context.getImageData(0, 0, 1, 1).data;
+          };
+          const luminance = (rgb: Uint8ClampedArray) =>
+            [0, 1, 2].reduce((total, index) => {
+              const value = rgb[index]! / 255;
+              return (
+                total +
+                [0.2126, 0.7152, 0.0722][index]! *
+                  (value <= 0.04045
+                    ? value / 12.92
+                    : ((value + 0.055) / 1.055) ** 2.4)
+              );
+            }, 0);
+          const contrast = (rgb: Uint8ClampedArray) => {
+            const a = luminance(rgb);
+            const b = luminance(pixel);
+            return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+          };
+          return {
+            difference: Math.max(
+              ...[0, 1, 2].map((index) =>
+                Math.abs(pixel[index]! - backgroundPixel[index]!),
+              ),
+            ),
+            headingContrast: contrast(
+              colorPixel(getComputedStyle(element.querySelector("h1")!).color),
+            ),
+            descriptionContrast: contrast(
+              colorPixel(getComputedStyle(element.querySelector("p")!).color),
+            ),
+          };
+        }, screenshot.toString("base64"));
+        if (theme === "light")
+          expect(difference.difference).toBeGreaterThan(10);
+        expect(difference.headingContrast).toBeGreaterThanOrEqual(4.5);
+        expect(difference.descriptionContrast).toBeGreaterThanOrEqual(4.5);
+      }
       const metrics = await banner.evaluate((element) => {
         const bounds = element.getBoundingClientRect();
         const style = getComputedStyle(element);
@@ -160,12 +246,13 @@ for (const theme of ["light", "dark"] as const) {
           .getByRole("button", { name: "影片.mp4", exact: true })
           .click();
         await expect(
-          page.getByRole("complementary", { name: "文件详情" }),
+          page.getByRole("dialog", { name: "文件详情" }),
         ).toBeVisible();
         const expandedWidth = await banner.evaluate(
           (element) => element.getBoundingClientRect().width,
         );
         expect(expandedWidth).toBe(baseline.width);
+        await page.keyboard.press("Escape");
       }
       const dimensions = await banner.evaluate((element) => {
         const box = element.getBoundingClientRect();

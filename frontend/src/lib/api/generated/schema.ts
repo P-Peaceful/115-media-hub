@@ -428,6 +428,22 @@ export interface components {
     };
     CloudDrivePage: {
       directory_id: string;
+      /**
+       * Format: int64
+       * @description Null for a legacy cursor not aligned to a page boundary.
+       */
+      page: number | null;
+      page_size: number;
+      /**
+       * Format: int64
+       * @description At least one even for an empty directory; may change between requests.
+       */
+      total_pages: number;
+      /**
+       * Format: int64
+       * @description Provider count for the current request at response time; may change between pages. Filter semantics are not yet verified against a live provider.
+       */
+      total: number;
       path: components["schemas"]["CloudDrivePath"][];
       items: components["schemas"]["CloudDriveItem"][];
       next_cursor: string | null;
@@ -1050,7 +1066,10 @@ export interface operations {
       query?: {
         directory_id?: string;
         limit?: number;
+        /** @description Legacy opaque cursor; mutually exclusive with page. */
         cursor?: string;
+        /** @description One-based page; mutually exclusive with cursor. Page offset must not exceed JavaScript safe integer range. */
+        page?: number;
         sort?: "name" | "size" | "modified_at";
         order?: "asc" | "desc";
         type?: "all" | "video" | "audio" | "image" | "document";

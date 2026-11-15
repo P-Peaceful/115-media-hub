@@ -110,6 +110,7 @@ for (const theme of ["light", "dark"] as const) {
     const dialog = page.getByRole("dialog", { name: "删除媒体库？" });
     await expect(dialog).toBeVisible();
     await dialog.getByRole("button", { name: "取消" }).click();
+    await expect(remove).toBeFocused();
     await edit.focus();
     await expect(edit).toBeFocused();
     await page.keyboard.press("Enter");

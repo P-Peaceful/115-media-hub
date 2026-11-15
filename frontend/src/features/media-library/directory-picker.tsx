@@ -5,8 +5,6 @@ import { useState } from "react";
 
 import { getDirectory } from "@/features/cloud-drive/api";
 
-import { libraryTheme } from "./theme";
-
 export function DirectoryPicker({
   onSelect,
   onClose,
@@ -34,7 +32,6 @@ export function DirectoryPicker({
   const path = query.data?.path.map((part) => part.name).join("/") ?? "";
   return (
     <Modal.Backdrop
-      className={libraryTheme}
       isOpen
       onOpenChange={(open) => {
         if (!open) onClose();

@@ -327,7 +327,12 @@ paths:
           schema: {type: integer, minimum: 1, maximum: 200, default: 50}
         - name: cursor
           in: query
+          description: Legacy opaque cursor; mutually exclusive with page.
           schema: {type: string, maxLength: 512}
+        - name: page
+          in: query
+          description: One-based page; mutually exclusive with cursor. Page offset must not exceed JavaScript safe integer range.
+          schema: {type: integer, format: int64, minimum: 1, maximum: 9007199254740991}
         - name: sort
           in: query
           schema: {type: string, enum: [name, size, modified_at], default: name}
@@ -632,9 +637,18 @@ components:
         next_cursor: {type: string, nullable: true}
     CloudDrivePage:
       type: object
-      required: [directory_id, path, items, next_cursor]
+      required: [directory_id, path, items, next_cursor, total, page, page_size, total_pages]
       properties:
         directory_id: {type: string}
+        page: {type: integer, format: int64, minimum: 1, nullable: true, description: Null for a legacy cursor not aligned to a page boundary.}
+        page_size: {type: integer, minimum: 1, maximum: 200}
+        total_pages: {type: integer, format: int64, minimum: 1, maximum: 9007199254740991, description: At least one even for an empty directory; may change between requests.}
+        total:
+          type: integer
+          format: int64
+          minimum: 0
+          maximum: 9007199254740991
+          description: Provider count for the current request at response time; may change between pages. Filter semantics are not yet verified against a live provider.
         path:
           type: array
           items: {$ref: "#/components/schemas/CloudDrivePath"}

@@ -1,7 +1,9 @@
 package provider115
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -25,7 +27,7 @@ func TestFilesPaginationAndProviderFailures(t *testing.T) {
 	service.filesURL = server.URL
 	query := FileQuery{DirectoryID: "123", Limit: 1, Sort: "modified_at", Order: "desc", Type: "video"}
 	page, err := service.Files(t.Context(), query, "request")
-	if err != nil || len(page.Items) != 1 || page.Items[0].ID != "999999999999999999" || page.Items[0].SizeBytes == nil || *page.Items[0].SizeBytes != "12345" || page.Items[0].ModifiedAt == nil || page.NextCursor == nil || len(page.Path) != 2 {
+	if err != nil || len(page.Items) != 1 || page.Items[0].ID != "999999999999999999" || page.Items[0].SizeBytes == nil || *page.Items[0].SizeBytes != "12345" || page.Items[0].ModifiedAt == nil || page.NextCursor == nil || len(page.Path) != 2 || page.Total != 2 {
 		t.Fatalf("page: %+v, %v", page, err)
 	}
 	query.Cursor = *page.NextCursor
@@ -65,6 +67,81 @@ func TestFilesPaginationAndProviderFailures(t *testing.T) {
 	}
 	if strings.Contains(logs.String(), "UID=private") {
 		t.Fatal("credential in logs")
+	}
+}
+
+func TestFilesRejectsInvalidCount(t *testing.T) {
+	for _, count := range []string{"", `,"count":null`, `,"count":-1`, `,"count":1.5`, `,"count":"2"`, `,"count":9007199254740992`} {
+		t.Run(count, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(w, `{"state":true,"cid":"0","path":[{"cid":"0","name":"115网盘"}],"data":[]`+count+`}`)
+			}))
+			defer server.Close()
+			service := New(&detailsRepository{credential: "UID=private"}, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+			service.filesURL = server.URL
+			_, err := service.Files(t.Context(), FileQuery{DirectoryID: "0", Limit: 50, Sort: "name", Order: "asc", Type: "all"}, "req")
+			if !errors.Is(err, ErrUpstream) {
+				t.Fatalf("invalid count %q: %v", count, err)
+			}
+		})
+	}
+}
+
+func TestFilesAcceptsZeroCount(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(w, `{"state":true,"cid":"0","count":0,"path":[{"cid":"0","name":"115网盘"}],"data":[]}`)
+	}))
+	defer server.Close()
+	service := New(&detailsRepository{credential: "UID=private"}, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	service.filesURL = server.URL
+	page, err := service.Files(t.Context(), FileQuery{DirectoryID: "0", Limit: 50, Sort: "name", Order: "asc", Type: "all"}, "req")
+	if err != nil || page.Total != 0 || page.NextCursor != nil || len(page.Items) != 0 {
+		t.Fatalf("empty page: %+v %v", page, err)
+	}
+}
+
+func TestFilesDirectPageAndShortPage(t *testing.T) {
+	short := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("offset") != "50" {
+			t.Errorf("offset %s", r.URL.Query().Get("offset"))
+		}
+		items := make([]map[string]string, 50)
+		if short {
+			items = items[:1]
+		}
+		for i := range items {
+			items[i] = map[string]string{"fid": fmt.Sprint(i + 51), "n": fmt.Sprintf("%d.mp4", i)}
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{"state": true, "cid": "0", "count": 101, "path": []map[string]string{{"cid": "0", "name": "115网盘"}}, "data": items})
+	}))
+	defer server.Close()
+	service := New(&detailsRepository{credential: "UID=private"}, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	service.filesURL = server.URL
+	q := FileQuery{DirectoryID: "0", Limit: 50, Page: 2, Sort: "name", Order: "asc", Type: "all"}
+	result, err := service.Files(t.Context(), q, "req")
+	if err != nil || result.Page == nil || *result.Page != 2 || result.PageSize != 50 || result.TotalPages != 3 || len(result.Items) != 50 {
+		t.Fatalf("page %+v %v", result, err)
+	}
+	short = true
+	if _, err = service.Files(t.Context(), q, "req"); !errors.Is(err, ErrUpstream) {
+		t.Fatalf("short page: %v", err)
+	}
+}
+
+func TestFilesPagePastEndAfterDirectoryShrinks(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("offset") != "150" {
+			t.Errorf("unexpected offset %s", r.URL.Query().Get("offset"))
+		}
+		_, _ = io.WriteString(w, `{"state":true,"cid":"0","count":101,"path":[{"cid":"0","name":"115网盘"}],"data":[]}`)
+	}))
+	defer server.Close()
+	service := New(&detailsRepository{credential: "UID=private"}, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	service.filesURL = server.URL
+	result, err := service.Files(t.Context(), FileQuery{DirectoryID: "0", Limit: 50, Page: 4, Sort: "name", Order: "asc", Type: "all"}, "req")
+	if err != nil || result.Page == nil || *result.Page != 4 || result.TotalPages != 3 || len(result.Items) != 0 {
+		t.Fatalf("page %+v %v", result, err)
 	}
 }
 

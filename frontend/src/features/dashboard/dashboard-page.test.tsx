@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
-import { MemoryRouter } from "react-router";
+import { MemoryRouter, useLocation } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { server } from "@/test/server";
@@ -20,8 +20,19 @@ function renderPage() {
     >
       <MemoryRouter>
         <DashboardPage />
+        <LocationProbe />
       </MemoryRouter>
     </QueryClientProvider>,
+  );
+}
+
+function LocationProbe() {
+  const location = useLocation();
+  return (
+    <span data-testid="location">
+      {location.pathname}
+      {location.search}
+    </span>
   );
 }
 
@@ -45,6 +56,28 @@ describe("总览页面", () => {
     expect(screen.getByText("dev")).toBeVisible();
     expect(screen.getByRole("button", { name: /新建媒体库/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: /查看任务/ })).toBeDisabled();
+  });
+  it("完整展示已标记的活动与禁用的异常示例", () => {
+    renderPage();
+    const alertCard = screen
+      .getByRole("heading", { name: /异常提醒/ })
+      .closest("section, div[data-slot=card], div.card");
+    expect(alertCard).not.toBeNull();
+    const alerts = within(alertCard as HTMLElement);
+    expect(alerts.getByText("示例数据")).toBeVisible();
+    expect(alerts.getByText("115 授权即将失效")).toBeVisible();
+    expect(alerts.getByText("目录不可用")).toBeVisible();
+    expect(alerts.getByText("任务执行失败")).toBeVisible();
+    expect(alerts.getAllByRole("button")).toHaveLength(3);
+    alerts
+      .getAllByRole("button")
+      .forEach((button) => expect(button).toBeDisabled());
+    expect(
+      screen.getByText("共生成 128 个 STRM，耗时 2 分 17 秒"),
+    ).toBeVisible();
+    expect(screen.getByText("发现 36 个新增文件，2 个变更")).toBeVisible();
+    expect(screen.getByText("成功回传 8 个文件（约 2.4 GB）")).toBeVisible();
+    expect(screen.getByText("新增 24 部剧集，更新 6 部剧集")).toBeVisible();
   });
   it("显示安全错误和请求编号，并允许重新检查", async () => {
     server.use(
@@ -132,12 +165,17 @@ describe("总览页面", () => {
     expect(
       screen.getByRole("progressbar", { name: "网盘空间使用率" }),
     ).toHaveAttribute("aria-valuenow", "50");
-    expect(screen.getByRole("link", { name: "管理 115 授权" })).toHaveAttribute(
-      "href",
+    await userEvent.click(screen.getByRole("button", { name: "容量详情" }));
+    expect(screen.getByTestId("location")).toHaveTextContent(
       "/settings?tab=account",
     );
-    expect(screen.queryByText(/剩余\s+\d+\s+天/)).not.toBeInTheDocument();
-    expect(screen.queryByText("115 授权即将失效")).not.toBeInTheDocument();
+    const accountCard = screen.getByRole("region", { name: "115 连接状态" });
+    expect(
+      within(accountCard).queryByText(/剩余\s+\d+\s+天/),
+    ).not.toBeInTheDocument();
+    expect(
+      within(accountCard).queryByText("115 授权即将失效"),
+    ).not.toBeInTheDocument();
   });
   it("系统和 115 状态卡都提供徽标与说明，再展示对应详情行", async () => {
     server.use(
@@ -193,7 +231,15 @@ describe("总览页面", () => {
     );
     renderPage();
     expect(await screen.findByText("授权失效")).toBeVisible();
-    expect(screen.getByRole("link", { name: "重新授权 115" })).toBeVisible();
+    expect(
+      within(screen.getByRole("region", { name: "115 连接状态" })).queryByRole(
+        "link",
+      ),
+    ).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "容量详情" }));
+    expect(screen.getByTestId("location")).toHaveTextContent(
+      "/settings?tab=account",
+    );
   });
   it("上游失败与容量不可用不会显示虚构数据", async () => {
     server.use(

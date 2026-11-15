@@ -90,7 +90,16 @@ func (h *providerHandler) files(c *gin.Context) {
 		writeError(c, http.StatusBadRequest, generated.ValidationFailed, "无效的分页参数")
 		return
 	}
-	query := provider115.FileQuery{DirectoryID: c.DefaultQuery("directory_id", "0"), Limit: limit, Cursor: c.Query("cursor"), Sort: c.DefaultQuery("sort", "name"), Order: c.DefaultQuery("order", "asc"), Type: c.DefaultQuery("type", "all")}
+	page := int64(0)
+	if rawPage, ok := c.GetQuery("page"); ok {
+		page, err = strconv.ParseInt(rawPage, 10, 64)
+		_, hasCursor := c.GetQuery("cursor")
+		if err != nil || page < 1 || hasCursor {
+			writeError(c, http.StatusBadRequest, generated.ValidationFailed, "无效的分页参数")
+			return
+		}
+	}
+	query := provider115.FileQuery{DirectoryID: c.DefaultQuery("directory_id", "0"), Limit: limit, Cursor: c.Query("cursor"), Page: page, Sort: c.DefaultQuery("sort", "name"), Order: c.DefaultQuery("order", "asc"), Type: c.DefaultQuery("type", "all")}
 	result, err := h.service.Files(c.Request.Context(), query, c.GetString("request_id"))
 	switch {
 	case errors.Is(err, provider115.ErrInvalidQuery):

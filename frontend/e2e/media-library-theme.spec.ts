@@ -28,6 +28,10 @@ test("媒体库沿用工作台主题且弹窗和输入可辨认", async ({ page 
     route.fulfill({
       json: {
         directory_id: "0",
+        total: 0,
+        page: 1,
+        page_size: 50,
+        total_pages: 1,
         path: [{ id: "0", name: "115 网盘" }],
         items: [],
         next_cursor: null,
@@ -69,26 +73,35 @@ test("媒体库沿用工作台主题且弹窗和输入可辨认", async ({ page 
     }),
   );
   await page.goto("/libraries/new");
-  const dark = testInfo.project.name === "mobile-dark";
-  const card = page.locator('main [data-slot="card"]').first();
-  await expect(card).toHaveCSS(
-    "background-color",
-    dark ? "rgb(34, 37, 54)" : "rgb(255, 255, 255)",
+  await expect(page.locator("html")).toHaveAttribute(
+    "data-theme",
+    testInfo.project.name === "mobile-dark" ? "dark" : "light",
   );
+  const themeColor = async (token: string) =>
+    page.evaluate((name) => {
+      const probe = document.createElement("span");
+      probe.style.color = `var(--${name})`;
+      document.body.append(probe);
+      const color = getComputedStyle(probe).color;
+      probe.remove();
+      return color;
+    }, token);
+  const card = page.locator('main [data-slot="card"]').first();
+  await expect(card).toHaveCSS("background-color", await themeColor("surface"));
   await expect(page.getByLabel("媒体库名称 *")).toHaveCSS(
     "background-color",
-    dark ? "rgb(24, 26, 40)" : "rgb(242, 243, 249)",
+    await themeColor("field-background"),
   );
   await expect(page.getByRole("heading", { name: /新建媒体库/ })).toHaveCSS(
     "color",
-    "rgb(17, 21, 42)",
+    await themeColor("foreground"),
   );
   await page.getByRole("button", { name: /链接类型/ }).click();
   const popover = page.locator('[data-slot="select-popover"]');
   await expect(popover).toBeVisible();
   await expect(popover).toHaveCSS(
     "background-color",
-    dark ? "rgb(34, 37, 54)" : "rgb(255, 255, 255)",
+    await themeColor("overlay"),
   );
   await page.keyboard.press("Escape");
   await page.getByRole("button", { name: /选择绑定目录/ }).click();
@@ -96,11 +109,11 @@ test("媒体库沿用工作台主题且弹窗和输入可辨认", async ({ page 
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveCSS(
     "background-color",
-    dark ? "rgb(34, 37, 54)" : "rgb(255, 255, 255)",
+    await themeColor("overlay"),
   );
   await expect(dialog).toHaveCSS(
     "color",
-    dark ? "rgb(240, 241, 250)" : "rgb(17, 21, 42)",
+    await themeColor("overlay-foreground"),
   );
   await expect(
     dialog.getByRole("button", { name: "选择当前目录" }),
@@ -111,11 +124,11 @@ test("媒体库沿用工作台主题且弹窗和输入可辨认", async ({ page 
   await expect(deleteDialog).toBeVisible();
   await expect(deleteDialog).toHaveCSS(
     "background-color",
-    dark ? "rgb(34, 37, 54)" : "rgb(255, 255, 255)",
+    await themeColor("overlay"),
   );
   await expect(deleteDialog).toHaveCSS(
     "color",
-    dark ? "rgb(240, 241, 250)" : "rgb(17, 21, 42)",
+    await themeColor("overlay-foreground"),
   );
   await expect(
     deleteDialog.getByRole("button", { name: "确认删除" }),

@@ -21,6 +21,7 @@ type FileQuery struct {
 	DirectoryID string
 	Limit       int
 	Cursor      string
+	Page        int64
 	Sort        string
 	Order       string
 	Type        string
@@ -42,6 +43,10 @@ type FilePage struct {
 	Path        []FilePath `json:"path"`
 	Items       []FileItem `json:"items"`
 	NextCursor  *string    `json:"next_cursor"`
+	Total       int64      `json:"total"`
+	Page        *int64     `json:"page"`
+	PageSize    int        `json:"page_size"`
+	TotalPages  int64      `json:"total_pages"`
 }
 type fileCursor struct {
 	DirectoryID string `json:"d"`
@@ -62,14 +67,21 @@ func (s *Service) Files(ctx context.Context, q FileQuery, requestID string) (res
 	if q.DirectoryID == "" || len(q.DirectoryID) > 32 || strings.Trim(q.DirectoryID, "0123456789") != "" || q.Limit < 1 || q.Limit > 200 || sorts[q.Sort] == "" || types[q.Type] == "" || (q.Order != "asc" && q.Order != "desc") {
 		return result, ErrInvalidQuery
 	}
+	const maxSafeInteger int64 = 9007199254740991
+	if q.Page < 0 || q.Page > maxSafeInteger || (q.Page > 0 && q.Cursor != "") || (q.Page > 0 && q.Page-1 > maxSafeInteger/int64(q.Limit)) {
+		return result, ErrInvalidQuery
+	}
 	offset := 0
+	if q.Page > 0 {
+		offset = int((q.Page - 1) * int64(q.Limit))
+	}
 	if q.Cursor != "" {
 		if len(q.Cursor) > 512 {
 			return result, ErrInvalidQuery
 		}
 		raw, err := base64.RawURLEncoding.DecodeString(q.Cursor)
 		var cursor fileCursor
-		if err != nil || len(raw) > 512 || json.Unmarshal(raw, &cursor) != nil || cursor.Offset < 0 || cursor.Offset > 1000000000 || cursor.DirectoryID != q.DirectoryID || cursor.Limit != q.Limit || cursor.Sort != q.Sort || cursor.Order != q.Order || cursor.Type != q.Type {
+		if err != nil || len(raw) > 512 || json.Unmarshal(raw, &cursor) != nil || cursor.Offset < 0 || int64(cursor.Offset) > maxSafeInteger || cursor.DirectoryID != q.DirectoryID || cursor.Limit != q.Limit || cursor.Sort != q.Sort || cursor.Order != q.Order || cursor.Type != q.Type {
 			return result, ErrInvalidQuery
 		}
 		offset = cursor.Offset
@@ -105,7 +117,7 @@ func (s *Service) Files(ctx context.Context, q FileQuery, requestID string) (res
 		State upstreamState     `json:"state"`
 		Error string            `json:"error"`
 		CID   json.RawMessage   `json:"cid"`
-		Count int               `json:"count"`
+		Count *int64            `json:"count"`
 		Data  []json.RawMessage `json:"data"`
 		Path  []struct {
 			CID  json.RawMessage `json:"cid"`
@@ -121,14 +133,26 @@ func (s *Service) Files(ctx context.Context, q FileQuery, requestID string) (res
 		}
 		return result, ErrUpstream
 	}
-	if response.Count < 0 || (offset < response.Count && len(response.Data) == 0) {
+	if response.Count == nil || *response.Count < 0 || *response.Count > 9007199254740991 || len(response.Data) > q.Limit || int64(len(response.Data)) > *response.Count || (int64(offset) < *response.Count && len(response.Data) == 0) || (len(response.Data) > 0 && int64(offset)+int64(len(response.Data)) > *response.Count) || (q.Page > 0 && int64(offset)+int64(len(response.Data)) < *response.Count && len(response.Data) != q.Limit) {
 		return result, ErrUpstream
 	}
 	id := parseID(response.CID)
 	if id == nil || *id != q.DirectoryID {
 		return result, ErrDirectoryNotFound
 	}
-	result = FilePage{DirectoryID: q.DirectoryID, Path: []FilePath{}, Items: []FileItem{}}
+	totalPages := (*response.Count / int64(q.Limit))
+	if *response.Count%int64(q.Limit) != 0 {
+		totalPages++
+	}
+	if totalPages == 0 {
+		totalPages = 1
+	}
+	var currentPage *int64
+	if offset%q.Limit == 0 && int64(offset/q.Limit) < maxSafeInteger {
+		page := int64(offset/q.Limit) + 1
+		currentPage = &page
+	}
+	result = FilePage{DirectoryID: q.DirectoryID, Path: []FilePath{}, Items: []FileItem{}, Total: *response.Count, Page: currentPage, PageSize: q.Limit, TotalPages: totalPages}
 	for _, p := range response.Path {
 		id := parseID(p.CID)
 		if id == nil || p.Name == "" {
@@ -169,7 +193,7 @@ func (s *Service) Files(ctx context.Context, q FileQuery, requestID string) (res
 		}
 		result.Items = append(result.Items, item)
 	}
-	if len(response.Data) > 0 && offset+len(response.Data) < response.Count {
+	if len(response.Data) > 0 && int64(offset+len(response.Data)) < *response.Count {
 		raw, _ := json.Marshal(fileCursor{q.DirectoryID, offset + len(response.Data), q.Limit, q.Sort, q.Order, q.Type})
 		cursor := base64.RawURLEncoding.EncodeToString(raw)
 		result.NextCursor = &cursor

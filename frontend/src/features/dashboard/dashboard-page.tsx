@@ -1,16 +1,19 @@
-import { Button, Chip } from "@heroui/react";
+import { Button, Card, Chip, ProgressBar } from "@heroui/react";
 import {
   Activity,
   AlertTriangle,
   Box,
   ChevronRight,
   CircleAlert,
+  CirclePause,
+  CirclePlay,
   CircleX,
   Clock,
   Cloud,
   Database,
   Film,
   FolderOpen,
+  Hourglass,
   Layers,
   Link,
   Play,
@@ -20,7 +23,7 @@ import {
   UploadCloud,
   Zap,
 } from "lucide-react";
-import { Link as RouterLink } from "react-router";
+import { useNavigate } from "react-router";
 
 import { PageBanner } from "@/components/page-banner";
 import { useReadiness } from "@/features/health/use-readiness";
@@ -35,6 +38,7 @@ import { ApiError } from "@/lib/api/errors";
 import { formatUptime, useSystemStatus } from "./system-status";
 
 export function DashboardPage() {
+  const navigate = useNavigate();
   const health = useReadiness();
   const system = useSystemStatus();
   const account = useAccountDetails();
@@ -85,176 +89,199 @@ export function DashboardPage() {
         description="基于 115 网盘的媒体管理与 STRM 生态解决方案，统一管理资源、任务与同步回传。"
       />
       <div className="dashboard-grid first-row">
-        <section
+        <Card
           className="dashboard-card system-card"
+          role="region"
           aria-labelledby="system-title"
         >
-          <h2 id="system-title">
-            <Box />
-            系统状态
-          </h2>
-          <div
-            className="dashboard-status-block"
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            <Chip
-              className="dashboard-status-badge"
-              color={
-                health.isError
-                  ? "danger"
-                  : health.isSuccess
-                    ? "success"
-                    : "default"
-              }
-              variant="soft"
+          <Card.Content>
+            <div className="dashboard-card-heading">
+              <h2 id="system-title">
+                <Box />
+                系统状态
+              </h2>
+              <Button
+                variant="secondary"
+                size="sm"
+                aria-label={
+                  health.isFetching || system.isFetching
+                    ? "检查中…"
+                    : "重新检查"
+                }
+                isPending={health.isFetching || system.isFetching}
+                onPress={() => {
+                  void health.refetch();
+                  void system.refetch();
+                }}
+              >
+                <RefreshCw aria-hidden="true" className="size-4" />
+                <span className="dashboard-action-label">
+                  {health.isFetching || system.isFetching
+                    ? "检查中…"
+                    : "重新检查"}
+                </span>
+              </Button>
+            </div>
+            <div
+              className="dashboard-status-block"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
             >
-              <span
-                className={`provider-state-dot ${health.isError ? "is-invalid" : health.isSuccess ? "is-valid" : ""}`}
-                aria-hidden="true"
-              />
-              {label}
-            </Chip>
-            <p className="dashboard-status-description">{description}</p>
-          </div>
-          <div className="system-line">
-            <span>
-              <Clock />
-              运行时长
-            </span>
-            <span>
-              {system.data && !system.isError
-                ? formatUptime(system.data.uptime_seconds)
-                : system.isPending
-                  ? "加载中…"
-                  : "暂无数据"}
-            </span>
-          </div>
-          <div className="system-line">
-            <span>
-              <Box />
-              版本信息
-            </span>
-            <span>
-              {system.data && !system.isError
-                ? system.data.version
-                : system.isPending
-                  ? "加载中…"
-                  : "暂无数据"}
-            </span>
-          </div>
-          {system.isError && (
-            <p className="system-description">系统信息获取失败，请重新检查。</p>
-          )}
-          {health.isError &&
-            health.error instanceof ApiError &&
-            health.error.requestId && (
+              <Chip
+                className="dashboard-status-badge"
+                size="sm"
+                color={
+                  health.isError
+                    ? "danger"
+                    : health.isSuccess
+                      ? "success"
+                      : "default"
+                }
+                variant="soft"
+              >
+                <span
+                  className={`provider-state-dot ${health.isError ? "is-invalid" : health.isSuccess ? "is-valid" : ""}`}
+                  aria-hidden="true"
+                />
+                {label}
+              </Chip>
+              <p className="dashboard-status-description">{description}</p>
+            </div>
+            <div className="system-line">
+              <span>
+                <Clock />
+                运行时长
+              </span>
+              <span>
+                {system.data && !system.isError
+                  ? formatUptime(system.data.uptime_seconds)
+                  : system.isPending
+                    ? "加载中…"
+                    : "暂无数据"}
+              </span>
+            </div>
+            <div className="system-line">
+              <span>
+                <Box />
+                版本信息
+              </span>
+              <span>
+                {system.data && !system.isError
+                  ? system.data.version
+                  : system.isPending
+                    ? "加载中…"
+                    : "暂无数据"}
+              </span>
+            </div>
+            {system.isError && (
               <p className="system-description">
-                请求编号：{health.error.requestId}
+                系统信息获取失败，请重新检查。
               </p>
             )}
-          <Button
-            variant="secondary"
-            isPending={health.isFetching || system.isFetching}
-            onPress={() => {
-              void health.refetch();
-              void system.refetch();
-            }}
-          >
-            <RefreshCw aria-hidden="true" className="size-4" />
-            {health.isFetching || system.isFetching ? "检查中…" : "重新检查"}
-          </Button>
-        </section>
-        <section
+            {health.isError &&
+              health.error instanceof ApiError &&
+              health.error.requestId && (
+                <p className="system-description">
+                  请求编号：{health.error.requestId}
+                </p>
+              )}
+          </Card.Content>
+        </Card>
+        <Card
           className="dashboard-card provider-connection-card"
+          role="region"
           aria-labelledby="provider-connection-title"
         >
-          <h2 id="provider-connection-title">
-            <Cloud />
-            115 连接状态
-          </h2>
-          <div
-            className="dashboard-status-block"
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            <Chip
-              className="dashboard-status-badge"
-              color={accountColor}
-              variant="soft"
+          <Card.Content>
+            <div className="dashboard-card-heading">
+              <h2 id="provider-connection-title">
+                <Cloud />
+                115 连接状态
+              </h2>
+            </div>
+            <div
+              className="dashboard-status-block"
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
             >
-              <span
-                className={`provider-state-dot ${accountDotClass}`}
-                aria-hidden="true"
-              />
-              {accountLabel}
-            </Chip>
-            <p className="dashboard-status-description">{accountDescription}</p>
-          </div>
-          <div className="provider-detail-line">
-            <span>
-              <ShieldCheck aria-hidden="true" />
-              授权状态
-            </span>
-            <span>{accountStatusText}</span>
-          </div>
-          <div className="provider-detail-line">
-            <span>
-              <RefreshCw aria-hidden="true" />
-              最近检测
-            </span>
-            <span>
-              {account.isError
-                ? "本次检测失败"
-                : formatCheckedAt(account.dataUpdatedAt || undefined)}
-            </span>
-          </div>
-          <RouterLink
-            className="provider-card-manage"
-            to="/settings?tab=account"
-            aria-label={
-              account.data?.status === "invalid"
-                ? "重新授权 115"
-                : "管理 115 授权"
-            }
-          >
-            管理授权 <ChevronRight aria-hidden="true" />
-          </RouterLink>
-        </section>
-        <section className="dashboard-card provider-capacity-card">
-          <h2>
-            <Database />
-            <span>网盘容量</span>
-            <RouterLink
-              className="capacity-details-link"
-              to="/settings?tab=account"
-            >
-              容量详情 <ChevronRight aria-hidden="true" />
-            </RouterLink>
-          </h2>
-          {account.isPending ? (
-            <p className="capacity-empty" role="status">
-              正在加载容量…
-            </p>
-          ) : account.isError ? (
-            <p className="capacity-empty" role="status">
-              容量暂不可用
-            </p>
-          ) : account.data.status !== "valid" ? (
-            <p className="capacity-empty" role="status">
-              授权后可查看容量
-            </p>
-          ) : account.data.space_status !== "available" ||
-            !account.data.space ? (
-            <p className="capacity-empty" role="status">
-              容量信息暂不可用
-            </p>
-          ) : (
-            <CapacitySummary space={account.data.space} />
-          )}
-        </section>
+              <Chip
+                className="dashboard-status-badge"
+                size="sm"
+                color={accountColor}
+                variant="soft"
+              >
+                <span
+                  className={`provider-state-dot ${accountDotClass}`}
+                  aria-hidden="true"
+                />
+                {accountLabel}
+              </Chip>
+              <p className="dashboard-status-description">
+                {accountDescription}
+              </p>
+            </div>
+            <div className="provider-detail-line">
+              <span>
+                <ShieldCheck aria-hidden="true" />
+                授权状态
+              </span>
+              <span>{accountStatusText}</span>
+            </div>
+            <div className="provider-detail-line">
+              <span>
+                <RefreshCw aria-hidden="true" />
+                最近检测
+              </span>
+              <span>
+                {account.isError
+                  ? "本次检测失败"
+                  : formatCheckedAt(account.dataUpdatedAt || undefined)}
+              </span>
+            </div>
+          </Card.Content>
+        </Card>
+        <Card className="dashboard-card provider-capacity-card">
+          <Card.Content>
+            <div className="dashboard-card-heading">
+              <h2>
+                <Database />
+                <span>网盘容量</span>
+              </h2>
+              <Button
+                className="capacity-details-button"
+                variant="secondary"
+                size="sm"
+                onPress={() => {
+                  void navigate("/settings?tab=account");
+                }}
+              >
+                容量详情 <ChevronRight aria-hidden="true" />
+              </Button>
+            </div>
+            {account.isPending ? (
+              <p className="capacity-empty" role="status">
+                正在加载容量…
+              </p>
+            ) : account.isError ? (
+              <p className="capacity-empty" role="status">
+                容量暂不可用
+              </p>
+            ) : account.data.status !== "valid" ? (
+              <p className="capacity-empty" role="status">
+                授权后可查看容量
+              </p>
+            ) : account.data.space_status !== "available" ||
+              !account.data.space ? (
+              <p className="capacity-empty" role="status">
+                容量信息暂不可用
+              </p>
+            ) : (
+              <CapacitySummary space={account.data.space} />
+            )}
+          </Card.Content>
+        </Card>
       </div>
       <div className="dashboard-grid stats-row">
         <Stat
@@ -262,8 +289,22 @@ export function DashboardPage() {
           title="媒体库统计"
           values={[
             ["1,248", "媒体总数"],
-            ["1,186", "已启用"],
-            ["62", "已暂停"],
+            [
+              "1,186",
+              "已启用",
+              <CirclePlay
+                aria-hidden="true"
+                className="inline size-4 text-success"
+              />,
+            ],
+            [
+              "62",
+              "已暂停",
+              <CirclePause
+                aria-hidden="true"
+                className="inline size-4 text-warning"
+              />,
+            ],
           ]}
         />
         <Stat
@@ -271,8 +312,22 @@ export function DashboardPage() {
           title="STRM 统计"
           values={[
             ["28,560", "已生成"],
-            ["342", "已失效"],
-            ["27", "待处理异常"],
+            [
+              "342",
+              "已失效",
+              <CircleAlert
+                aria-hidden="true"
+                className="inline size-4 text-danger"
+              />,
+            ],
+            [
+              "27",
+              "待处理异常",
+              <Clock
+                aria-hidden="true"
+                className="inline size-4 text-warning"
+              />,
+            ],
           ]}
         />
         <Stat
@@ -280,119 +335,165 @@ export function DashboardPage() {
           title="任务摘要"
           values={[
             ["3", "运行中"],
-            ["8", "排队中"],
-            ["6", "失败"],
+            [
+              "8",
+              "排队中",
+              <Hourglass
+                aria-hidden="true"
+                className="inline size-4 text-accent"
+              />,
+            ],
+            [
+              "6",
+              "失败",
+              <CircleX
+                aria-hidden="true"
+                className="inline size-4 text-danger"
+              />,
+            ],
           ]}
         />
       </div>
       <div className="dashboard-grid lower-row">
-        <section className="dashboard-card">
-          <h2>
-            <Activity />
-            近期活动 <span className="example-label">示例数据</span>
-          </h2>
-          <ul className="activity-list">
-            {[
-              [
-                "今天 10:24",
-                "同步",
-                "完成媒体库「电影」的增量同步",
-                "新增 12 个文件，更新 3 个文件",
-              ],
-              [
-                "今天 10:12",
-                "生成",
-                "生成 STRM 文件（电影 / 4K）",
-                "共生成 128 个 STRM",
-              ],
-              [
-                "今天 09:56",
-                "扫描",
-                "完成目录扫描：/我的设备/影视",
-                "发现 36 个新增文件",
-              ],
-              ["今天 09:21", "回传", "回传处理完成", "成功回传 8 个文件"],
-              [
-                "昨天 22:30",
-                "媒体库",
-                "媒体库「电视剧」更新完成",
-                "新增 24 部剧集",
-              ],
-            ].map(([time, type, title, detail], index) => (
-              <li key={title}>
-                <span className="activity-dot" />
-                <span className={`activity-icon activity-icon-${index}`}>
-                  {index === 0 ? (
-                    <RefreshCw />
-                  ) : index === 1 ? (
-                    <Link />
-                  ) : index === 2 ? (
-                    <Search />
-                  ) : index === 3 ? (
-                    <UploadCloud />
-                  ) : (
-                    <Film />
-                  )}
-                </span>
-                <time>{time}</time>
-                <span className="activity-type">{type}</span>
-                <div>
-                  <strong>{title}</strong>
-                  <p>{detail}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
-        <div className="lower-stack">
-          <section className="dashboard-card">
+        <Card className="dashboard-card">
+          <Card.Content>
             <h2>
-              <AlertTriangle />
-              异常提醒 <span className="example-label">示例数据</span>
+              <Activity />
+              近期活动 <span className="example-label">示例数据</span>
             </h2>
-            <div className="alert-list">
-              <p>
-                <FolderOpen aria-hidden="true" />
-                <span className="alert-copy">
-                  <strong>目录不可用</strong>
-                  <span>目录无法访问，已跳过扫描。</span>
-                </span>
-                <button disabled>去处理</button>
-              </p>
-              <p>
-                <CircleX aria-hidden="true" />
-                <span className="alert-copy">
-                  <strong>任务执行失败</strong>
-                  <span>STRM 生成任务执行失败。</span>
-                </span>
-                <button disabled>查看详情</button>
-              </p>
-            </div>
-          </section>
-          <section className="dashboard-card">
-            <h2>
-              <Zap />
-              快捷入口
-            </h2>
-            <div className="shortcut-grid">
-              {["新建媒体库", "查看任务", "处理异常"].map((name, index) => (
-                <button disabled key={name}>
-                  <div className="shortcut-icon">
+            <ul className="activity-list">
+              {[
+                [
+                  "今天 10:24",
+                  "同步",
+                  "完成媒体库「电影」的增量同步",
+                  "新增 12 个文件，更新 3 个文件",
+                ],
+                [
+                  "今天 10:12",
+                  "生成",
+                  "生成 STRM 文件（电影 / 4K）",
+                  "共生成 128 个 STRM，耗时 2 分 17 秒",
+                ],
+                [
+                  "今天 09:56",
+                  "扫描",
+                  "完成目录扫描：/我的设备/影视",
+                  "发现 36 个新增文件，2 个变更",
+                ],
+                [
+                  "今天 09:21",
+                  "回传",
+                  "回传处理完成",
+                  "成功回传 8 个文件（约 2.4 GB）",
+                ],
+                [
+                  "昨天 22:30",
+                  "媒体库",
+                  "媒体库「电视剧」更新完成",
+                  "新增 24 部剧集，更新 6 部剧集",
+                ],
+              ].map(([time, type, title, detail], index) => (
+                <li key={title}>
+                  <span className="activity-dot" />
+                  <span className={`activity-icon activity-icon-${index}`}>
                     {index === 0 ? (
-                      <Layers />
+                      <RefreshCw />
                     ) : index === 1 ? (
-                      <Play />
+                      <Link />
+                    ) : index === 2 ? (
+                      <Search />
+                    ) : index === 3 ? (
+                      <UploadCloud />
                     ) : (
-                      <CircleAlert />
+                      <Film />
                     )}
-                    <ChevronRight />
+                  </span>
+                  <time>{time}</time>
+                  <span className="activity-type">{type}</span>
+                  <div>
+                    <strong>{title}</strong>
+                    <p>{detail}</p>
                   </div>
-                  <strong>{name}</strong>
-                  <span>功能尚未开放</span>
-                </button>
+                </li>
               ))}
-            </div>
-          </section>
+            </ul>
+          </Card.Content>
+        </Card>
+        <div className="lower-stack">
+          <Card className="dashboard-card">
+            <Card.Content>
+              <h2>
+                <AlertTriangle />
+                异常提醒 <span className="example-label">示例数据</span>
+              </h2>
+              <div className="alert-list">
+                <p>
+                  <CircleAlert aria-hidden="true" />
+                  <span className="alert-copy">
+                    <strong>115 授权即将失效</strong>
+                    <span>当前授权剩余 7 天，请及时重新授权。</span>
+                  </span>
+                  <Button variant="ghost" isDisabled>
+                    去处理
+                  </Button>
+                </p>
+                <p className="alert-warning">
+                  <FolderOpen aria-hidden="true" />
+                  <span className="alert-copy">
+                    <strong>目录不可用</strong>
+                    <span>
+                      目录「/我的设备/影视/剧集」无法访问，已跳过扫描。
+                    </span>
+                  </span>
+                  <Button variant="ghost" isDisabled>
+                    去处理
+                  </Button>
+                </p>
+                <p>
+                  <CircleX aria-hidden="true" />
+                  <span className="alert-copy">
+                    <strong>任务执行失败</strong>
+                    <span>STRM 生成任务失败（ID: #48291），请查看日志。</span>
+                  </span>
+                  <Button variant="ghost" isDisabled>
+                    查看详情
+                  </Button>
+                </p>
+              </div>
+            </Card.Content>
+          </Card>
+          <Card className="dashboard-card">
+            <Card.Content>
+              <h2>
+                <Zap />
+                快捷入口
+              </h2>
+              <div className="shortcut-grid">
+                {["新建媒体库", "查看任务", "处理异常"].map((name, index) => (
+                  <Button
+                    variant="secondary"
+                    className="shortcut-action"
+                    isDisabled
+                    key={name}
+                  >
+                    <div className="shortcut-icon">
+                      {index === 0 ? (
+                        <Layers />
+                      ) : index === 1 ? (
+                        <Play />
+                      ) : (
+                        <CircleAlert />
+                      )}
+                      <ChevronRight />
+                    </div>
+                    <strong>{name}</strong>
+                    <span>功能尚未开放</span>
+                  </Button>
+                ))}
+              </div>
+            </Card.Content>
+          </Card>
         </div>
       </div>
     </main>
@@ -420,16 +521,11 @@ function CapacitySummary({
       </div>
       {metrics ? (
         <div className="capacity-progress">
-          <div
-            className="progress-track"
-            role="progressbar"
-            aria-label="网盘空间使用率"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={metrics.percent}
-          >
-            <span style={{ width: `${metrics.percent}%` }} />
-          </div>
+          <ProgressBar aria-label="网盘空间使用率" value={metrics.percent}>
+            <ProgressBar.Track>
+              <ProgressBar.Fill />
+            </ProgressBar.Track>
+          </ProgressBar>
           <span>{metrics.percentLabel}</span>
         </div>
       ) : (
@@ -446,23 +542,27 @@ function Stat({
 }: {
   icon: React.ReactNode;
   title: string;
-  values: string[][];
+  values: [string, string, React.ReactNode?][];
 }) {
   return (
-    <section className="dashboard-card">
-      <h2>
-        {icon}
-        {title}
-        <span className="example-label">示例数据</span>
-      </h2>
-      <div className="stat-values">
-        {values.map(([value, label]) => (
-          <div key={label}>
-            <strong>{value}</strong>
-            <span>{label}</span>
-          </div>
-        ))}
-      </div>
-    </section>
+    <Card className="dashboard-card">
+      <Card.Content>
+        <h2>
+          {icon}
+          {title}
+          <span className="example-label">示例数据</span>
+        </h2>
+        <div className="stat-values">
+          {values.map(([value, label, statusIcon]) => (
+            <div key={label}>
+              <strong>
+                {statusIcon} {value}
+              </strong>
+              <span>{label}</span>
+            </div>
+          ))}
+        </div>
+      </Card.Content>
+    </Card>
   );
 }

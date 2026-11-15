@@ -20,6 +20,18 @@ async function mockAuthentication(page: Page, initialized = false) {
   await page.route("**/api/v1/system/status", async (route) => {
     await route.fulfill({ json: { uptime_seconds: 62, version: "dev" } });
   });
+  await page.route("**/api/v1/settings/115/details", async (route) => {
+    await route.fulfill({
+      json: {
+        status: "unconfigured",
+        profile: null,
+        space: null,
+        space_status: "unavailable",
+        devices: [],
+        devices_status: "unavailable",
+      },
+    });
+  });
   let authenticated = false;
   await page.route("**/api/v1/auth/**", async (route) => {
     const action = new URL(route.request().url()).pathname.split("/").at(-1);

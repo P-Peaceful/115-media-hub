@@ -1,4 +1,4 @@
-import { Button } from "@heroui/react";
+import { Button, RouterProvider } from "@heroui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { BrowserRouter, Route, Routes, useNavigate } from "react-router";
@@ -18,6 +18,19 @@ import {
 import { SettingsPage } from "@/features/settings/settings-page";
 
 import { AppShell } from "./app-shell";
+
+function AppRouter({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
+  return (
+    <RouterProvider
+      navigate={(path, options) => {
+        void navigate(path, options);
+      }}
+    >
+      {children}
+    </RouterProvider>
+  );
+}
 
 function NotFound() {
   const navigate = useNavigate();
@@ -41,95 +54,97 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <AuthProvider>
-          <Routes>
-            <Route element={<AuthBoundary />}>
-              <Route
-                path="/setup"
-                element={
-                  <>
-                    <ThemeToggle />
-                    <SetupPage />
-                  </>
-                }
-              />
-              <Route
-                path="/login"
-                element={
-                  <>
-                    <ThemeToggle />
-                    <LoginPage />
-                  </>
-                }
-              />
-              <Route
-                path="/"
-                element={
-                  <AppShell currentPage="总览">
-                    <DashboardPage />
-                  </AppShell>
-                }
-              />
-              <Route
-                path="/cloud-drive"
-                element={
-                  <AppShell currentPage="网盘浏览">
-                    <CloudDrivePage />
-                  </AppShell>
-                }
-              />
-              <Route
-                path="/libraries"
-                element={
-                  <AppShell currentPage="媒体库">
-                    <LibraryListPage />
-                  </AppShell>
-                }
-              />
-              <Route
-                path="/libraries/new"
-                element={
-                  <AppShell currentPage="媒体库">
-                    <LibraryFormPage />
-                  </AppShell>
-                }
-              />
-              <Route
-                path="/libraries/:id"
-                element={
-                  <AppShell currentPage="媒体库">
-                    <LibraryDetailPage />
-                  </AppShell>
-                }
-              />
-              <Route
-                path="/libraries/:id/edit"
-                element={
-                  <AppShell currentPage="媒体库">
-                    <LibraryFormPage />
-                  </AppShell>
-                }
-              />
-              <Route
-                path="/settings"
-                element={
-                  <AppShell currentPage="设置">
-                    <SettingsPage />
-                  </AppShell>
-                }
-              />
-              <Route
-                path="*"
-                element={
-                  <>
-                    <ThemeToggle />
-                    <NotFound />
-                  </>
-                }
-              />
-            </Route>
-          </Routes>
-        </AuthProvider>
+        <AppRouter>
+          <AuthProvider>
+            <Routes>
+              <Route element={<AuthBoundary />}>
+                <Route
+                  path="/setup"
+                  element={
+                    <>
+                      <ThemeToggle />
+                      <SetupPage />
+                    </>
+                  }
+                />
+                <Route
+                  path="/login"
+                  element={
+                    <>
+                      <ThemeToggle />
+                      <LoginPage />
+                    </>
+                  }
+                />
+                <Route
+                  path="/"
+                  element={
+                    <AppShell currentPage="总览">
+                      <DashboardPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/cloud-drive"
+                  element={
+                    <AppShell currentPage="网盘浏览">
+                      <CloudDrivePage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/libraries"
+                  element={
+                    <AppShell currentPage="媒体库">
+                      <LibraryListPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/libraries/new"
+                  element={
+                    <AppShell currentPage="媒体库">
+                      <LibraryFormPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/libraries/:id"
+                  element={
+                    <AppShell currentPage="媒体库">
+                      <LibraryDetailPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/libraries/:id/edit"
+                  element={
+                    <AppShell currentPage="媒体库">
+                      <LibraryFormPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/settings"
+                  element={
+                    <AppShell currentPage="设置">
+                      <SettingsPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="*"
+                  element={
+                    <>
+                      <ThemeToggle />
+                      <NotFound />
+                    </>
+                  }
+                />
+              </Route>
+            </Routes>
+          </AuthProvider>
+        </AppRouter>
       </BrowserRouter>
     </QueryClientProvider>
   );

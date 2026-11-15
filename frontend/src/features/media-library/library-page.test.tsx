@@ -87,8 +87,12 @@ describe("媒体库管理", () => {
     const toggle = screen.getByRole("switch", { name: "电影库启用状态" });
     expect(toggle).toBeChecked();
     await user.click(toggle);
-    expect(await screen.findByText("● 已暂停")).toBeVisible();
-    expect(toggle).not.toBeChecked();
+    await vi.waitFor(() => expect(toggle).not.toBeChecked());
+    const card = screen
+      .getByRole("link", { name: "电影库" })
+      .closest('[data-slot="card"]');
+    expect(card).not.toBeNull();
+    expect(within(card as HTMLElement).getAllByText("已暂停")).toHaveLength(2);
     await user.click(toggle);
     await vi.waitFor(() => expect(toggle).toBeChecked());
     await user.click(toggle);
@@ -189,6 +193,10 @@ it("选择 115 目录并保存配置", async () => {
     http.get("/api/v1/cloud-drive/files", () =>
       HttpResponse.json({
         directory_id: "0",
+        total: 0,
+        page: 1,
+        page_size: 50,
+        total_pages: 1,
         path: [{ id: "0", name: "115 网盘" }],
         items: [],
         next_cursor: null,
@@ -236,6 +244,66 @@ it("选择 115 目录并保存配置", async () => {
       media_type: "tv",
       generate_strm: false,
       link_type: "proxy",
+    }),
+  );
+});
+
+it("未选绑定目录时在字段处提示，选中后清除并允许提交", async () => {
+  let submitted: unknown;
+  server.use(
+    http.get("/api/v1/cloud-drive/files", () =>
+      HttpResponse.json({
+        directory_id: "0",
+        total: 0,
+        page: 1,
+        page_size: 50,
+        total_pages: 1,
+        path: [{ id: "0", name: "115 网盘" }],
+        items: [],
+        next_cursor: null,
+      }),
+    ),
+    http.post("/api/v1/libraries", async ({ request }) => {
+      submitted = await request.json();
+      return HttpResponse.json(library, { status: 201 });
+    }),
+  );
+  const user = userEvent.setup();
+  render(
+    <QueryClientProvider
+      client={
+        new QueryClient({ defaultOptions: { queries: { retry: false } } })
+      }
+    >
+      <MemoryRouter>
+        <LibraryFormPage />
+      </MemoryRouter>
+    </QueryClientProvider>,
+  );
+  const directory = screen.getByRole("button", { name: /选择绑定目录/ });
+  await user.click(screen.getByRole("button", { name: "创建媒体库" }));
+  expect(await screen.findByText("请选择绑定的 115 网盘目录。")).toBeVisible();
+  expect(directory).toHaveAccessibleDescription("请选择绑定的 115 网盘目录。");
+  expect(submitted).toBeUndefined();
+  await user.type(screen.getByLabelText("媒体库名称 *"), "我的电影");
+  await user.type(
+    screen.getByLabelText("输出目录（本地） *"),
+    "/app/media/电影",
+  );
+  await user.click(screen.getByRole("button", { name: "创建媒体库" }));
+  expect(screen.getByText("请选择绑定的 115 网盘目录。")).toBeVisible();
+  expect(submitted).toBeUndefined();
+  await user.click(directory);
+  await user.click(await screen.findByRole("button", { name: "选择当前目录" }));
+  expect(
+    screen.queryByText("请选择绑定的 115 网盘目录。"),
+  ).not.toBeInTheDocument();
+  expect(directory).toHaveAccessibleDescription("115 网盘");
+  await user.click(screen.getByRole("button", { name: "创建媒体库" }));
+  await vi.waitFor(() =>
+    expect(submitted).toMatchObject({
+      directory_id: "0",
+      directory_path: "115 网盘",
     }),
   );
 });

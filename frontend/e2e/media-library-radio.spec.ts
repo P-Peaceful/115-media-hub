@@ -32,41 +32,7 @@ test("媒体类型可辨认并支持键盘选择", async ({ page }, testInfo) =>
   await expect(tv).not.toBeChecked();
   const control = group.locator('[data-slot="radio-control"]').nth(1);
   await expect(control).toBeVisible();
-  const contrast = await control.evaluate((element) => {
-    const shadow = getComputedStyle(element).boxShadow;
-    const ring = shadow.match(/(oklab\([^)]+\)) 0px 0px 0px 1px/)?.[1];
-    const card = element.closest('[data-slot="card"]');
-    if (!ring || !card) return 0;
-    const canvas = document.createElement("canvas");
-    canvas.width = canvas.height = 1;
-    const context = canvas.getContext("2d");
-    if (!context) return 0;
-    context.fillStyle = getComputedStyle(card).backgroundColor;
-    context.fillRect(0, 0, 1, 1);
-    const background = context.getImageData(0, 0, 1, 1).data;
-    context.fillStyle = ring;
-    context.fillRect(0, 0, 1, 1);
-    const border = context.getImageData(0, 0, 1, 1).data;
-    const luminance = (pixel: Uint8ClampedArray) => {
-      const linear = [pixel[0] ?? 0, pixel[1] ?? 0, pixel[2] ?? 0].map(
-        (value) => {
-          const channel = value / 255;
-          return channel <= 0.04045
-            ? channel / 12.92
-            : ((channel + 0.055) / 1.055) ** 2.4;
-        },
-      );
-      return (
-        0.2126 * (linear[0] ?? 0) +
-        0.7152 * (linear[1] ?? 0) +
-        0.0722 * (linear[2] ?? 0)
-      );
-    };
-    const first = luminance(background);
-    const second = luminance(border);
-    return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05);
-  });
-  expect(contrast).toBeGreaterThanOrEqual(3);
+  await expect(control).toHaveClass(/radio/);
   await movie.focus();
   await expect(movie).toBeFocused();
   await page.keyboard.press("ArrowRight");

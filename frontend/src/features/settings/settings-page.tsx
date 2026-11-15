@@ -637,22 +637,22 @@ export function SettingsPage() {
         description="管理系统配置，包括账号安全、115 授权、服务访问、生成规则、元数据、性能等。"
       />
       <nav className="settings-tabs" aria-label="设置分类">
-        <button
-          className={tab === "security" ? "selected" : ""}
-          aria-current={tab === "security" ? "page" : undefined}
-          onClick={() => setTab("security")}
+        <Button
+          variant={tab === "security" ? "primary" : "ghost"}
+          {...(tab === "security" ? { "aria-current": "page" as const } : {})}
+          onPress={() => setTab("security")}
         >
           <ShieldCheck aria-hidden="true" />
           管理员与安全
-        </button>
-        <button
-          className={tab === "account" ? "selected" : ""}
-          aria-current={tab === "account" ? "page" : undefined}
-          onClick={() => setTab("account")}
+        </Button>
+        <Button
+          variant={tab === "account" ? "primary" : "ghost"}
+          {...(tab === "account" ? { "aria-current": "page" as const } : {})}
+          onPress={() => setTab("account")}
         >
           <Cloud aria-hidden="true" />
           115 账号
-        </button>
+        </Button>
       </nav>
       {tab === "security" ? <SecuritySettings /> : <AccountSettings />}
     </main>

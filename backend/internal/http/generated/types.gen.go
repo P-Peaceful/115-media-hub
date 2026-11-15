@@ -591,7 +591,17 @@ type CloudDrivePage struct {
 	DirectoryId string           `json:"directory_id"`
 	Items       []CloudDriveItem `json:"items"`
 	NextCursor  *string          `json:"next_cursor"`
-	Path        []CloudDrivePath `json:"path"`
+
+	// Page Null for a legacy cursor not aligned to a page boundary.
+	Page     *int64           `json:"page"`
+	PageSize int              `json:"page_size"`
+	Path     []CloudDrivePath `json:"path"`
+
+	// Total Provider count for the current request at response time; may change between pages. Filter semantics are not yet verified against a live provider.
+	Total int64 `json:"total"`
+
+	// TotalPages At least one even for an empty directory; may change between requests.
+	TotalPages int64 `json:"total_pages"`
 }
 
 // CloudDrivePath defines model for CloudDrivePath.
@@ -892,12 +902,17 @@ type LogoutAdministratorParams struct {
 
 // ListCloudDriveFilesParams defines parameters for ListCloudDriveFiles.
 type ListCloudDriveFilesParams struct {
-	DirectoryId *string                         `form:"directory_id,omitempty" json:"directory_id,omitempty"`
-	Limit       *int                            `form:"limit,omitempty" json:"limit,omitempty"`
-	Cursor      *string                         `form:"cursor,omitempty" json:"cursor,omitempty"`
-	Sort        *ListCloudDriveFilesParamsSort  `form:"sort,omitempty" json:"sort,omitempty"`
-	Order       *ListCloudDriveFilesParamsOrder `form:"order,omitempty" json:"order,omitempty"`
-	Type        *ListCloudDriveFilesParamsType  `form:"type,omitempty" json:"type,omitempty"`
+	DirectoryId *string `form:"directory_id,omitempty" json:"directory_id,omitempty"`
+	Limit       *int    `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Legacy opaque cursor; mutually exclusive with page.
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Page One-based page; mutually exclusive with cursor. Page offset must not exceed JavaScript safe integer range.
+	Page  *int64                          `form:"page,omitempty" json:"page,omitempty"`
+	Sort  *ListCloudDriveFilesParamsSort  `form:"sort,omitempty" json:"sort,omitempty"`
+	Order *ListCloudDriveFilesParamsOrder `form:"order,omitempty" json:"order,omitempty"`
+	Type  *ListCloudDriveFilesParamsType  `form:"type,omitempty" json:"type,omitempty"`
 }
 
 // ListCloudDriveFilesParamsSort defines parameters for ListCloudDriveFiles.

@@ -20,6 +20,26 @@ export function decodeListing(value: unknown): DirectoryListing {
     typeof value.directory_id !== "string" ||
     !Array.isArray(value.path) ||
     !Array.isArray(value.items) ||
+    typeof value.total !== "number" ||
+    !Number.isSafeInteger(value.total) ||
+    value.total < 0 ||
+    !(
+      value.page === null ||
+      (typeof value.page === "number" &&
+        Number.isSafeInteger(value.page) &&
+        value.page >= 1)
+    ) ||
+    typeof value.page_size !== "number" ||
+    !Number.isInteger(value.page_size) ||
+    value.page_size < 1 ||
+    value.page_size > 200 ||
+    value.items.length > value.page_size ||
+    (typeof value.page === "number" &&
+      value.page - 1 > Math.floor(Number.MAX_SAFE_INTEGER / value.page_size)) ||
+    typeof value.total_pages !== "number" ||
+    !Number.isSafeInteger(value.total_pages) ||
+    value.total_pages !==
+      Math.max(1, Math.ceil(value.total / value.page_size)) ||
     !nullableString(value.next_cursor)
   )
     return invalid();
@@ -55,6 +75,10 @@ export function decodeListing(value: unknown): DirectoryListing {
   });
   return {
     directory_id: value.directory_id,
+    total: value.total,
+    page: value.page,
+    page_size: value.page_size,
+    total_pages: value.total_pages,
     path,
     items,
     next_cursor: value.next_cursor,
@@ -64,7 +88,10 @@ export async function getDirectory(
   params: URLSearchParams,
   signal: AbortSignal,
 ) {
-  return decodeListing(
+  const listing = decodeListing(
     await requestJson(`/api/v1/cloud-drive/files?${params}`, { signal }),
   );
+  if (params.has("page") && listing.page !== Number(params.get("page")))
+    return invalid();
+  return listing;
 }
