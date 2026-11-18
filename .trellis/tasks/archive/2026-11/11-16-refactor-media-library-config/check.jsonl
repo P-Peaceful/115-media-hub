@@ -1,0 +1,7 @@
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"Frontend format, lint, type, unit, build, accessibility, and responsive verification gates."}
+{"file":".trellis/spec/backend/media-library.md","reason":"Check library CRUD round trips, legacy configuration compatibility, and preservation invariants."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Backend test, validation, generated contract, and logging review expectations."}
+{"file":".trellis/spec/guides/cross-layer-thinking-guide.md","reason":"Ensure OpenAPI, generated Go/TypeScript types, backend validation, and frontend forms remain consistent."}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "Review detail reference, responsive cards, theme and accessible actions."}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Verify mock labels, real system info and browser coverage."}
+{"file": ".trellis/spec/backend/system-status.md", "reason": "Reuse real authenticated uptime/version; never substitute mock values for request failures."}

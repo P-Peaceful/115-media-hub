@@ -1,0 +1,6 @@
+{"file":".trellis/spec/guides/project-baseline.md","reason":"Shared frontend/backend architecture and API contract rules for the library configuration change."}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"HeroUI v3 form components, visual-reference alignment, accessibility, and responsive layout requirements."}
+{"file":".trellis/spec/frontend/type-safety.md","reason":"Generated API type ownership and strict frontend decoding requirements for new configuration fields."}
+{"file":".trellis/spec/backend/media-library.md","reason":"Existing media-library persistence, revision, validation, and no-execution behavior contract."}
+{"file":".trellis/spec/backend/quality-guidelines.md","reason":"Go backend validation and test expectations for configuration compatibility changes."}
+{"file": ".trellis/spec/backend/system-status.md", "reason": "Reuse real authenticated uptime/version; never substitute mock values for request failures."}
