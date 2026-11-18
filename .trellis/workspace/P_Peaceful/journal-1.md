@@ -212,3 +212,39 @@ Implemented persistent media library configuration, management UI and shared pag
 ### Status
 
 [OK] **Completed**
+
+
+## Session 9: 重构媒体库配置与详情页
+<!-- trellis-session: v=2 fp=a1e38d62a961e3c3 -->
+
+**Date**: 2026-11-19
+**Task**: 重构媒体库配置与详情页
+**Branch**: `codex/refactor-media-library-config`
+
+### Summary
+
+完成媒体库配置表单、STRM 同名文件策略与动态示例、详情页布局及演示数据、删除 AlertDialog；修复缺失新增 JSON 字段导致已有媒体库加载失败的问题。
+
+### Main Changes
+
+- 重构四分组配置表单，同步 OpenAPI、Go 与 TypeScript 契约及配置持久化。
+- 新增 STRM 已存在时跳过/覆盖策略，优化格式标签对齐和随域名、格式变化的示例。
+- 按设计图调整详情页，真实系统与配置数据搭配明确标记的演示统计和记录。
+- 删除确认使用 HeroUI AlertDialog，覆盖焦点、提交保护、失败重试与主题布局。
+- 对持久化 JSON 缺少新增策略的记录提供只读默认值；本地数据备份后补齐。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `af20414` | feat: refactor media library configuration and detail views |
+
+### Testing
+
+- [OK] 生成一致性、Go 全量测试、go vet、CGO race、前后端 lint 通过。
+- [OK] 前端 format/typecheck、137 项单元测试、生产构建及相关桌面/手机暗色浏览器检查通过。
+- [OK] 未验证指定 Node 24（当前 Node 22），未进行最终 Docker 镜像集成冒烟。
+
+### Status
+
+[OK] **Completed**
