@@ -97,33 +97,30 @@ func (e InitializeRequestSessionLifetimeDays) Valid() bool {
 	}
 }
 
-// Defines values for LibraryFilenameRule.
+// Defines values for LibraryFileEncoding.
 const (
-	LibraryFilenameRuleOriginal LibraryFilenameRule = "original"
+	LibraryFileEncodingUTF8 LibraryFileEncoding = "UTF-8"
 )
 
-// Valid indicates whether the value is a known member of the LibraryFilenameRule enum.
-func (e LibraryFilenameRule) Valid() bool {
+// Valid indicates whether the value is a known member of the LibraryFileEncoding enum.
+func (e LibraryFileEncoding) Valid() bool {
 	switch e {
-	case LibraryFilenameRuleOriginal:
+	case LibraryFileEncodingUTF8:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for LibraryLinkExpiry.
+// Defines values for LibraryLanguagePreference.
 const (
-	LibraryLinkExpiryDefault LibraryLinkExpiry = "default"
-	LibraryLinkExpiryNever   LibraryLinkExpiry = "never"
+	LibraryLanguagePreferenceZhCN LibraryLanguagePreference = "zh-CN"
 )
 
-// Valid indicates whether the value is a known member of the LibraryLinkExpiry enum.
-func (e LibraryLinkExpiry) Valid() bool {
+// Valid indicates whether the value is a known member of the LibraryLanguagePreference enum.
+func (e LibraryLanguagePreference) Valid() bool {
 	switch e {
-	case LibraryLinkExpiryDefault:
-		return true
-	case LibraryLinkExpiryNever:
+	case LibraryLanguagePreferenceZhCN:
 		return true
 	default:
 		return false
@@ -175,81 +172,87 @@ func (e LibraryMediaType) Valid() bool {
 	}
 }
 
-// Defines values for LibraryNfoName.
+// Defines values for LibraryScrapeSource.
 const (
-	LibraryNfoNameSameAsVideo LibraryNfoName = "same_as_video"
+	LibraryScrapeSourceMetatube LibraryScrapeSource = "metatube"
+	LibraryScrapeSourceNone     LibraryScrapeSource = "none"
+	LibraryScrapeSourceTmdb     LibraryScrapeSource = "tmdb"
 )
 
-// Valid indicates whether the value is a known member of the LibraryNfoName enum.
-func (e LibraryNfoName) Valid() bool {
+// Valid indicates whether the value is a known member of the LibraryScrapeSource enum.
+func (e LibraryScrapeSource) Valid() bool {
 	switch e {
-	case LibraryNfoNameSameAsVideo:
+	case LibraryScrapeSourceMetatube:
+		return true
+	case LibraryScrapeSourceNone:
+		return true
+	case LibraryScrapeSourceTmdb:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for LibraryStrmExtension.
+// Defines values for LibraryStrmExistingFilePolicy.
 const (
-	LibraryStrmExtensionDotStrm LibraryStrmExtension = ".strm"
+	LibraryStrmExistingFilePolicyOverwrite LibraryStrmExistingFilePolicy = "overwrite"
+	LibraryStrmExistingFilePolicySkip      LibraryStrmExistingFilePolicy = "skip"
 )
 
-// Valid indicates whether the value is a known member of the LibraryStrmExtension enum.
-func (e LibraryStrmExtension) Valid() bool {
+// Valid indicates whether the value is a known member of the LibraryStrmExistingFilePolicy enum.
+func (e LibraryStrmExistingFilePolicy) Valid() bool {
 	switch e {
-	case LibraryStrmExtensionDotStrm:
+	case LibraryStrmExistingFilePolicyOverwrite:
+		return true
+	case LibraryStrmExistingFilePolicySkip:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for LibraryStructureMode.
+// Defines values for LibraryStrmLinkFormat.
 const (
-	LibraryStructureModeFlatten LibraryStructureMode = "flatten"
-	LibraryStructureModeFull    LibraryStructureMode = "full"
+	LibraryStrmLinkFormatFileId       LibraryStrmLinkFormat = "file_id"
+	LibraryStrmLinkFormatOriginalName LibraryStrmLinkFormat = "original_name"
 )
 
-// Valid indicates whether the value is a known member of the LibraryStructureMode enum.
-func (e LibraryStructureMode) Valid() bool {
+// Valid indicates whether the value is a known member of the LibraryStrmLinkFormat enum.
+func (e LibraryStrmLinkFormat) Valid() bool {
 	switch e {
-	case LibraryStructureModeFlatten:
+	case LibraryStrmLinkFormatFileId:
 		return true
-	case LibraryStructureModeFull:
+	case LibraryStrmLinkFormatOriginalName:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for LibraryConfigFilenameRule.
+// Defines values for LibraryConfigFileEncoding.
 const (
-	LibraryConfigFilenameRuleOriginal LibraryConfigFilenameRule = "original"
+	LibraryConfigFileEncodingUTF8 LibraryConfigFileEncoding = "UTF-8"
 )
 
-// Valid indicates whether the value is a known member of the LibraryConfigFilenameRule enum.
-func (e LibraryConfigFilenameRule) Valid() bool {
+// Valid indicates whether the value is a known member of the LibraryConfigFileEncoding enum.
+func (e LibraryConfigFileEncoding) Valid() bool {
 	switch e {
-	case LibraryConfigFilenameRuleOriginal:
+	case LibraryConfigFileEncodingUTF8:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for LibraryConfigLinkExpiry.
+// Defines values for LibraryConfigLanguagePreference.
 const (
-	LibraryConfigLinkExpiryDefault LibraryConfigLinkExpiry = "default"
-	LibraryConfigLinkExpiryNever   LibraryConfigLinkExpiry = "never"
+	LibraryConfigLanguagePreferenceZhCN LibraryConfigLanguagePreference = "zh-CN"
 )
 
-// Valid indicates whether the value is a known member of the LibraryConfigLinkExpiry enum.
-func (e LibraryConfigLinkExpiry) Valid() bool {
+// Valid indicates whether the value is a known member of the LibraryConfigLanguagePreference enum.
+func (e LibraryConfigLanguagePreference) Valid() bool {
 	switch e {
-	case LibraryConfigLinkExpiryDefault:
-		return true
-	case LibraryConfigLinkExpiryNever:
+	case LibraryConfigLanguagePreferenceZhCN:
 		return true
 	default:
 		return false
@@ -301,48 +304,57 @@ func (e LibraryConfigMediaType) Valid() bool {
 	}
 }
 
-// Defines values for LibraryConfigNfoName.
+// Defines values for LibraryConfigScrapeSource.
 const (
-	LibraryConfigNfoNameSameAsVideo LibraryConfigNfoName = "same_as_video"
+	LibraryConfigScrapeSourceMetatube LibraryConfigScrapeSource = "metatube"
+	LibraryConfigScrapeSourceNone     LibraryConfigScrapeSource = "none"
+	LibraryConfigScrapeSourceTmdb     LibraryConfigScrapeSource = "tmdb"
 )
 
-// Valid indicates whether the value is a known member of the LibraryConfigNfoName enum.
-func (e LibraryConfigNfoName) Valid() bool {
+// Valid indicates whether the value is a known member of the LibraryConfigScrapeSource enum.
+func (e LibraryConfigScrapeSource) Valid() bool {
 	switch e {
-	case LibraryConfigNfoNameSameAsVideo:
+	case LibraryConfigScrapeSourceMetatube:
+		return true
+	case LibraryConfigScrapeSourceNone:
+		return true
+	case LibraryConfigScrapeSourceTmdb:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for LibraryConfigStrmExtension.
+// Defines values for LibraryConfigStrmExistingFilePolicy.
 const (
-	LibraryConfigStrmExtensionDotStrm LibraryConfigStrmExtension = ".strm"
+	LibraryConfigStrmExistingFilePolicyOverwrite LibraryConfigStrmExistingFilePolicy = "overwrite"
+	LibraryConfigStrmExistingFilePolicySkip      LibraryConfigStrmExistingFilePolicy = "skip"
 )
 
-// Valid indicates whether the value is a known member of the LibraryConfigStrmExtension enum.
-func (e LibraryConfigStrmExtension) Valid() bool {
+// Valid indicates whether the value is a known member of the LibraryConfigStrmExistingFilePolicy enum.
+func (e LibraryConfigStrmExistingFilePolicy) Valid() bool {
 	switch e {
-	case LibraryConfigStrmExtensionDotStrm:
+	case LibraryConfigStrmExistingFilePolicyOverwrite:
+		return true
+	case LibraryConfigStrmExistingFilePolicySkip:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for LibraryConfigStructureMode.
+// Defines values for LibraryConfigStrmLinkFormat.
 const (
-	LibraryConfigStructureModeFlatten LibraryConfigStructureMode = "flatten"
-	LibraryConfigStructureModeFull    LibraryConfigStructureMode = "full"
+	LibraryConfigStrmLinkFormatFileId       LibraryConfigStrmLinkFormat = "file_id"
+	LibraryConfigStrmLinkFormatOriginalName LibraryConfigStrmLinkFormat = "original_name"
 )
 
-// Valid indicates whether the value is a known member of the LibraryConfigStructureMode enum.
-func (e LibraryConfigStructureMode) Valid() bool {
+// Valid indicates whether the value is a known member of the LibraryConfigStrmLinkFormat enum.
+func (e LibraryConfigStrmLinkFormat) Valid() bool {
 	switch e {
-	case LibraryConfigStructureModeFlatten:
+	case LibraryConfigStrmLinkFormatFileId:
 		return true
-	case LibraryConfigStructureModeFull:
+	case LibraryConfigStrmLinkFormatOriginalName:
 		return true
 	default:
 		return false
@@ -642,38 +654,40 @@ type InitializeRequestSessionLifetimeDays int
 
 // Library defines model for Library.
 type Library struct {
-	CreatedAt     time.Time           `json:"created_at"`
-	Description   string              `json:"description"`
-	DirectoryId   string              `json:"directory_id"`
-	DirectoryPath string              `json:"directory_path"`
-	Enabled       bool                `json:"enabled"`
-	FilenameRule  LibraryFilenameRule `json:"filename_rule"`
-	GenerateNfo   bool                `json:"generate_nfo"`
-	GenerateStrm  bool                `json:"generate_strm"`
-	Id            string              `json:"id"`
-	LinkExpiry    LibraryLinkExpiry   `json:"link_expiry"`
-	LinkType      LibraryLinkType     `json:"link_type"`
-	MediaType     LibraryMediaType    `json:"media_type"`
-	MinFileSizeMb int                 `json:"min_file_size_mb"`
-	Name          string              `json:"name"`
-	NfoName       LibraryNfoName      `json:"nfo_name"`
+	CreatedAt              time.Time                 `json:"created_at"`
+	DirectoryId            string                    `json:"directory_id"`
+	DirectoryPath          string                    `json:"directory_path"`
+	Enabled                bool                      `json:"enabled"`
+	ExcludeDirectoryPath   string                    `json:"exclude_directory_path"`
+	FileEncoding           LibraryFileEncoding       `json:"file_encoding"`
+	FollowDirectoryChanges bool                      `json:"follow_directory_changes"`
+	GenerateNfo            bool                      `json:"generate_nfo"`
+	GeneratePosterCover    bool                      `json:"generate_poster_cover"`
+	GenerateStrm           bool                      `json:"generate_strm"`
+	Id                     string                    `json:"id"`
+	IncludeSubdirectories  bool                      `json:"include_subdirectories"`
+	LanguagePreference     LibraryLanguagePreference `json:"language_preference"`
+	LinkType               LibraryLinkType           `json:"link_type"`
+	MediaType              LibraryMediaType          `json:"media_type"`
+	Name                   string                    `json:"name"`
 
 	// OutputPath Absolute local path
-	OutputPath        string               `json:"output_path"`
-	PathMappings      []LibraryPathMapping `json:"path_mappings"`
-	PreserveStructure bool                 `json:"preserve_structure"`
-	Revision          int64                `json:"revision"`
-	ScrapeMetadata    bool                 `json:"scrape_metadata"`
-	StrmExtension     LibraryStrmExtension `json:"strm_extension"`
-	StructureMode     LibraryStructureMode `json:"structure_mode"`
-	UpdatedAt         time.Time            `json:"updated_at"`
+	OutputPath       string              `json:"output_path"`
+	Revision         int64               `json:"revision"`
+	ScrapeSource     LibraryScrapeSource `json:"scrape_source"`
+	StrmDirectDomain string              `json:"strm_direct_domain"`
+
+	// StrmExistingFilePolicy Preference for an existing STRM at the target output path; no file operations are executed.
+	StrmExistingFilePolicy LibraryStrmExistingFilePolicy `json:"strm_existing_file_policy"`
+	StrmLinkFormat         LibraryStrmLinkFormat         `json:"strm_link_format"`
+	UpdatedAt              time.Time                     `json:"updated_at"`
 }
 
-// LibraryFilenameRule defines model for Library.FilenameRule.
-type LibraryFilenameRule string
+// LibraryFileEncoding defines model for Library.FileEncoding.
+type LibraryFileEncoding string
 
-// LibraryLinkExpiry defines model for Library.LinkExpiry.
-type LibraryLinkExpiry string
+// LibraryLanguagePreference defines model for Library.LanguagePreference.
+type LibraryLanguagePreference string
 
 // LibraryLinkType defines model for Library.LinkType.
 type LibraryLinkType string
@@ -681,45 +695,46 @@ type LibraryLinkType string
 // LibraryMediaType defines model for Library.MediaType.
 type LibraryMediaType string
 
-// LibraryNfoName defines model for Library.NfoName.
-type LibraryNfoName string
+// LibraryScrapeSource defines model for Library.ScrapeSource.
+type LibraryScrapeSource string
 
-// LibraryStrmExtension defines model for Library.StrmExtension.
-type LibraryStrmExtension string
+// LibraryStrmExistingFilePolicy Preference for an existing STRM at the target output path; no file operations are executed.
+type LibraryStrmExistingFilePolicy string
 
-// LibraryStructureMode defines model for Library.StructureMode.
-type LibraryStructureMode string
+// LibraryStrmLinkFormat defines model for Library.StrmLinkFormat.
+type LibraryStrmLinkFormat string
 
 // LibraryConfig defines model for LibraryConfig.
 type LibraryConfig struct {
-	Description   string                    `json:"description"`
-	DirectoryId   string                    `json:"directory_id"`
-	DirectoryPath string                    `json:"directory_path"`
-	Enabled       bool                      `json:"enabled"`
-	FilenameRule  LibraryConfigFilenameRule `json:"filename_rule"`
-	GenerateNfo   bool                      `json:"generate_nfo"`
-	GenerateStrm  bool                      `json:"generate_strm"`
-	LinkExpiry    LibraryConfigLinkExpiry   `json:"link_expiry"`
-	LinkType      LibraryConfigLinkType     `json:"link_type"`
-	MediaType     LibraryConfigMediaType    `json:"media_type"`
-	MinFileSizeMb int                       `json:"min_file_size_mb"`
-	Name          string                    `json:"name"`
-	NfoName       LibraryConfigNfoName      `json:"nfo_name"`
+	DirectoryId            string                          `json:"directory_id"`
+	DirectoryPath          string                          `json:"directory_path"`
+	ExcludeDirectoryPath   string                          `json:"exclude_directory_path"`
+	FileEncoding           LibraryConfigFileEncoding       `json:"file_encoding"`
+	FollowDirectoryChanges bool                            `json:"follow_directory_changes"`
+	GenerateNfo            bool                            `json:"generate_nfo"`
+	GeneratePosterCover    bool                            `json:"generate_poster_cover"`
+	GenerateStrm           bool                            `json:"generate_strm"`
+	IncludeSubdirectories  bool                            `json:"include_subdirectories"`
+	LanguagePreference     LibraryConfigLanguagePreference `json:"language_preference"`
+	LinkType               LibraryConfigLinkType           `json:"link_type"`
+	MediaType              LibraryConfigMediaType          `json:"media_type"`
+	Name                   string                          `json:"name"`
 
 	// OutputPath Absolute local path
-	OutputPath        string                     `json:"output_path"`
-	PathMappings      []LibraryPathMapping       `json:"path_mappings"`
-	PreserveStructure bool                       `json:"preserve_structure"`
-	ScrapeMetadata    bool                       `json:"scrape_metadata"`
-	StrmExtension     LibraryConfigStrmExtension `json:"strm_extension"`
-	StructureMode     LibraryConfigStructureMode `json:"structure_mode"`
+	OutputPath       string                    `json:"output_path"`
+	ScrapeSource     LibraryConfigScrapeSource `json:"scrape_source"`
+	StrmDirectDomain string                    `json:"strm_direct_domain"`
+
+	// StrmExistingFilePolicy Preference for an existing STRM at the target output path; no file operations are executed.
+	StrmExistingFilePolicy LibraryConfigStrmExistingFilePolicy `json:"strm_existing_file_policy"`
+	StrmLinkFormat         LibraryConfigStrmLinkFormat         `json:"strm_link_format"`
 }
 
-// LibraryConfigFilenameRule defines model for LibraryConfig.FilenameRule.
-type LibraryConfigFilenameRule string
+// LibraryConfigFileEncoding defines model for LibraryConfig.FileEncoding.
+type LibraryConfigFileEncoding string
 
-// LibraryConfigLinkExpiry defines model for LibraryConfig.LinkExpiry.
-type LibraryConfigLinkExpiry string
+// LibraryConfigLanguagePreference defines model for LibraryConfig.LanguagePreference.
+type LibraryConfigLanguagePreference string
 
 // LibraryConfigLinkType defines model for LibraryConfig.LinkType.
 type LibraryConfigLinkType string
@@ -727,25 +742,19 @@ type LibraryConfigLinkType string
 // LibraryConfigMediaType defines model for LibraryConfig.MediaType.
 type LibraryConfigMediaType string
 
-// LibraryConfigNfoName defines model for LibraryConfig.NfoName.
-type LibraryConfigNfoName string
+// LibraryConfigScrapeSource defines model for LibraryConfig.ScrapeSource.
+type LibraryConfigScrapeSource string
 
-// LibraryConfigStrmExtension defines model for LibraryConfig.StrmExtension.
-type LibraryConfigStrmExtension string
+// LibraryConfigStrmExistingFilePolicy Preference for an existing STRM at the target output path; no file operations are executed.
+type LibraryConfigStrmExistingFilePolicy string
 
-// LibraryConfigStructureMode defines model for LibraryConfig.StructureMode.
-type LibraryConfigStructureMode string
+// LibraryConfigStrmLinkFormat defines model for LibraryConfig.StrmLinkFormat.
+type LibraryConfigStrmLinkFormat string
 
 // LibraryPage defines model for LibraryPage.
 type LibraryPage struct {
 	Items      []Library `json:"items"`
 	NextCursor *string   `json:"next_cursor"`
-}
-
-// LibraryPathMapping defines model for LibraryPathMapping.
-type LibraryPathMapping struct {
-	Source string `json:"source"`
-	Target string `json:"target"`
 }
 
 // LoginRequest defines model for LoginRequest.

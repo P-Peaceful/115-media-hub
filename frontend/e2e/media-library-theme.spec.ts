@@ -48,24 +48,24 @@ test("媒体库沿用工作台主题且弹窗和输入可辨认", async ({ page 
             created_at: "2026-01-01T00:00:00Z",
             updated_at: "2026-01-01T00:00:00Z",
             name: "电影库",
-            description: "",
             directory_id: "0",
             directory_path: "115 网盘",
             media_type: "movie",
             enabled: true,
             output_path: "/app/media",
             generate_strm: true,
-            scrape_metadata: true,
+            strm_existing_file_policy: "skip",
+            generate_poster_cover: true,
+            language_preference: "zh-CN",
+            scrape_source: "tmdb",
+            exclude_directory_path: "",
+            include_subdirectories: true,
+            follow_directory_changes: true,
+            file_encoding: "UTF-8",
+            strm_direct_domain: "",
+            strm_link_format: "original_name",
             generate_nfo: true,
-            preserve_structure: true,
-            structure_mode: "full",
-            path_mappings: [],
             link_type: "direct",
-            link_expiry: "default",
-            filename_rule: "original",
-            strm_extension: ".strm",
-            nfo_name: "same_as_video",
-            min_file_size_mb: 100,
           },
         ],
         next_cursor: null,
@@ -120,7 +120,7 @@ test("媒体库沿用工作台主题且弹窗和输入可辨认", async ({ page 
   ).toBeEnabled();
   await page.goto("/libraries");
   await page.getByRole("button", { name: "删除" }).click();
-  const deleteDialog = page.getByRole("dialog", { name: "删除媒体库？" });
+  const deleteDialog = page.getByRole("alertdialog", { name: "删除媒体库？" });
   await expect(deleteDialog).toBeVisible();
   await expect(deleteDialog).toHaveCSS(
     "background-color",

@@ -15,7 +15,7 @@ import (
 )
 
 func validLibraryConfig(output string) library.Config {
-	return library.Config{Name: "电影", Description: "配置", DirectoryID: "12345678901234567890", DirectoryPath: "/我的资源/电影", MediaType: "movie", Enabled: true, OutputPath: output, GenerateSTRM: true, GenerateNFO: true, PreserveStructure: true, StructureMode: "full", PathMappings: []library.Mapping{{Source: "/source", Target: "/target"}}, LinkType: "direct", LinkExpiry: "default", FilenameRule: "original", STRMExtension: ".strm", NFOName: "same_as_video", MinFileSizeMB: 100}
+	return library.Config{Name: "电影", DirectoryID: "12345678901234567890", DirectoryPath: "/我的资源/电影", MediaType: "movie", Enabled: true, OutputPath: output, GenerateSTRM: true, STRMExistingFilePolicy: "skip", GenerateNFO: true, GeneratePosterCover: true, LanguagePreference: "zh-CN", ScrapeSource: "tmdb", IncludeSubdirectories: true, FollowDirectoryChanges: true, FileEncoding: "UTF-8", LinkType: "proxy", STRMLinkFormat: "original_name"}
 }
 func TestLibraryLifecycleAndDeleteAudit(t *testing.T) {
 	ctx := context.Background()
@@ -41,15 +41,24 @@ func TestLibraryLifecycleAndDeleteAudit(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, err := service.Get(ctx, created.ID, "get")
-	if err != nil || got.DirectoryID != cfg.DirectoryID || len(got.PathMappings) != 1 || got.PathMappings[0] != cfg.PathMappings[0] {
+	if err != nil || got.DirectoryID != cfg.DirectoryID || got.ScrapeSource != cfg.ScrapeSource || got.STRMExistingFilePolicy != "skip" {
 		t.Fatalf("round trip: %+v %v", got, err)
 	}
-	got.Description = "updated"
+	got.STRMExistingFilePolicy = "overwrite"
+	got.GenerateSTRM = false
 	if _, err = service.Update(ctx, got.ID, got.Config, got.Revision, "update-request"); err != nil {
 		t.Fatal(err)
 	}
+	got, err = service.Get(ctx, created.ID, "get-updated")
+	if err != nil || got.STRMExistingFilePolicy != "overwrite" || got.GenerateSTRM {
+		t.Fatalf("policy update round trip: %+v %v", got, err)
+	}
+	content, readErr := os.ReadFile(file)
+	if readErr != nil || string(content) != "keep" {
+		t.Fatalf("configuration update changed STRM: %q %v", content, readErr)
+	}
 	got, err = service.SetEnabled(ctx, got.ID, false, "pause-request")
-	if err != nil || got.Enabled || got.Description != "updated" {
+	if err != nil || got.Enabled {
 		t.Fatalf("pause: %+v %v", got, err)
 	}
 	items, err := service.List(ctx, "", 10, "list")
@@ -88,6 +97,22 @@ func TestLibraryLifecycleAndDeleteAudit(t *testing.T) {
 	}
 }
 func TestLibraryValidation(t *testing.T) {
+	for _, policy := range []string{"skip", "overwrite", "", "rename"} {
+		c := validLibraryConfig("/media")
+		c.GenerateSTRM = false
+		c.STRMExistingFilePolicy = policy
+		valid := policy == "skip" || policy == "overwrite"
+		if (library.Validate(c) == nil) != valid {
+			t.Errorf("existing-file policy %q: expected valid=%v", policy, valid)
+		}
+	}
+	for _, domain := range []string{"media.example.com:65536", "127.0.0.1:99999", "[::1]:99999", "media.example.com:"} {
+		c := validLibraryConfig("/media")
+		c.STRMDirectDomain = domain
+		if library.Validate(c) == nil {
+			t.Errorf("invalid direct domain accepted: %q", domain)
+		}
+	}
 	c := validLibraryConfig("/media")
 	c.DirectoryID = "1e12"
 	if library.Validate(c) == nil {
@@ -98,9 +123,19 @@ func TestLibraryValidation(t *testing.T) {
 		t.Fatal("relative path accepted")
 	}
 	c = validLibraryConfig("/media")
-	c.PathMappings = nil
+	c.STRMDirectDomain = "https://example.com/path"
 	if library.Validate(c) == nil {
-		t.Fatal("null mappings accepted")
+		t.Fatal("invalid direct domain accepted")
+	}
+	c = validLibraryConfig("/media")
+	c.STRMDirectDomain = "media.example.com:443"
+	if library.Validate(c) != nil {
+		t.Fatal("valid direct domain rejected")
+	}
+	c = validLibraryConfig("/media")
+	c.ExcludeDirectoryPath = "115 网盘/待排除"
+	if library.Validate(c) != nil {
+		t.Fatal("selected drive display path rejected")
 	}
 }
 

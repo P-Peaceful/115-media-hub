@@ -22,7 +22,21 @@ func TestLibraryManagementBoundaryAndCRUD(t *testing.T) {
 		t.Fatalf("unauthorized: %d", r.Code)
 	}
 	b.setup(t)
-	body := `{"name":"电影","description":"","directory_id":"123","directory_path":"/电影","media_type":"movie","enabled":true,"output_path":"/media","generate_strm":true,"scrape_metadata":true,"generate_nfo":true,"preserve_structure":true,"structure_mode":"full","path_mappings":[],"link_type":"direct","link_expiry":"default","filename_rule":"original","strm_extension":".strm","nfo_name":"same_as_video","min_file_size_mb":100}`
+	body := `{"name":"电影","directory_id":"123","directory_path":"/电影","media_type":"movie","output_path":"/media","generate_strm":true,"strm_existing_file_policy":"skip","generate_nfo":true,"generate_poster_cover":true,"language_preference":"zh-CN","scrape_source":"tmdb","exclude_directory_path":"","include_subdirectories":true,"follow_directory_changes":true,"file_encoding":"UTF-8","link_type":"proxy","strm_direct_domain":"","strm_link_format":"original_name"}`
+	for _, invalid := range []string{
+		strings.Replace(body, `"strm_existing_file_policy":"skip",`, "", 1),
+		strings.Replace(body, `"strm_existing_file_policy":"skip"`, `"strm_existing_file_policy":null`, 1),
+		strings.Replace(body, `"strm_existing_file_policy":"skip"`, `"strm_existing_file_policy":"rename"`, 1),
+		strings.Replace(body, `"strm_existing_file_policy":"skip"`, `"strm_existing_file_policy":true`, 1),
+	} {
+		if response := b.request(t, "POST", "/api/v1/libraries", invalid, nil); response.Code != 400 {
+			t.Fatalf("invalid existing-file policy accepted: %d %s", response.Code, response.Body)
+		}
+	}
+	withEnabled := strings.TrimSuffix(body, "}") + `,"enabled":false}`
+	if r := b.request(t, "POST", "/api/v1/libraries", withEnabled, nil); r.Code != 400 {
+		t.Fatalf("response-only enabled accepted: %d %s", r.Code, r.Body)
+	}
 	if r := b.request(t, "POST", "/api/v1/libraries", body, map[string]string{"X-CSRF-Token": "invalid"}); r.Code != 403 {
 		t.Fatalf("csrf: %d", r.Code)
 	}
@@ -31,7 +45,7 @@ func TestLibraryManagementBoundaryAndCRUD(t *testing.T) {
 		t.Fatalf("create: %d %s", r.Code, r.Body)
 	}
 	var item library.Library
-	if err = json.Unmarshal(r.Body.Bytes(), &item); err != nil {
+	if err = json.Unmarshal(r.Body.Bytes(), &item); err != nil || item.STRMExistingFilePolicy != "skip" {
 		t.Fatal(err)
 	}
 	if r = b.request(t, "PATCH", "/api/v1/libraries/"+item.ID+"/enabled", `{"enabled":false}`, nil); r.Code != 200 {
@@ -46,21 +60,26 @@ func TestLibraryManagementBoundaryAndCRUD(t *testing.T) {
 	if r = b.request(t, "PUT", "/api/v1/libraries/"+item.ID, body, map[string]string{"X-Library-Revision": "1"}); r.Code != 409 {
 		t.Fatalf("stale edit: %d %s", r.Code, r.Body)
 	}
-	updatedBody := strings.Replace(body, `"enabled":true`, `"enabled":false`, 1)
-	updatedBody = strings.Replace(updatedBody, `"description":""`, `"description":"updated"`, 1)
+	invalidUpdate := strings.Replace(body, `"strm_existing_file_policy":"skip"`, `"strm_existing_file_policy":"rename"`, 1)
+	if r = b.request(t, "PUT", "/api/v1/libraries/"+item.ID, invalidUpdate, map[string]string{"X-Library-Revision": "2"}); r.Code != 400 {
+		t.Fatalf("invalid update policy accepted: %d %s", r.Code, r.Body)
+	}
+	updatedBody := strings.Replace(body, `"scrape_source":"tmdb"`, `"scrape_source":"metatube"`, 1)
+	updatedBody = strings.Replace(updatedBody, `"strm_existing_file_policy":"skip"`, `"strm_existing_file_policy":"overwrite"`, 1)
+	updatedBody = strings.Replace(updatedBody, `"generate_strm":true`, `"generate_strm":false`, 1)
 	if r = b.request(t, "PUT", "/api/v1/libraries/"+item.ID, updatedBody, nil); r.Code != 400 {
 		t.Fatalf("missing revision: %d", r.Code)
 	}
 	if r = b.request(t, "PUT", "/api/v1/libraries/"+item.ID, updatedBody, map[string]string{"X-Library-Revision": "2"}); r.Code != 200 {
 		t.Fatalf("update: %d %s", r.Code, r.Body)
 	}
-	if err = json.Unmarshal(r.Body.Bytes(), &item); err != nil || item.Revision != 3 || item.Description != "updated" || item.Enabled {
+	if err = json.Unmarshal(r.Body.Bytes(), &item); err != nil || item.Revision != 3 || item.ScrapeSource != "metatube" || item.Enabled || item.STRMExistingFilePolicy != "overwrite" || item.GenerateSTRM {
 		t.Fatalf("updated: %+v %v", item, err)
 	}
 	if r = b.request(t, "GET", "/api/v1/libraries/"+item.ID, "", nil); r.Code != 200 {
 		t.Fatalf("get updated: %d", r.Code)
 	}
-	if err = json.Unmarshal(r.Body.Bytes(), &item); err != nil || item.Revision != 3 || item.Description != "updated" || item.Enabled {
+	if err = json.Unmarshal(r.Body.Bytes(), &item); err != nil || item.Revision != 3 || item.ScrapeSource != "metatube" || item.Enabled || item.STRMExistingFilePolicy != "overwrite" || item.GenerateSTRM {
 		t.Fatalf("round trip: %+v %v", item, err)
 	}
 	if r = b.request(t, "POST", "/api/v1/libraries", body, nil); r.Code != 201 {

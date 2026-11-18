@@ -23,8 +23,22 @@ type libraryModel struct {
 func (libraryModel) TableName() string { return "media_libraries" }
 func libraryFromModel(m libraryModel) (library.Library, error) {
 	var c library.Config
-	err := json.Unmarshal([]byte(m.ConfigJSON), &c)
-	return library.Library{Config: c, ID: m.ID, CreatedAt: m.CreatedAt.UTC(), UpdatedAt: m.UpdatedAt.UTC(), Revision: m.Revision}, err
+	if err := json.Unmarshal([]byte(m.ConfigJSON), &c); err != nil {
+		return library.Library{}, err
+	}
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(m.ConfigJSON), &fields); err != nil {
+		return library.Library{}, err
+	}
+	// Only the newly introduced policy has a persisted-read default. Explicit
+	// empty/null/invalid values are corruption, not pre-policy configuration.
+	if _, present := fields["strm_existing_file_policy"]; !present {
+		c.STRMExistingFilePolicy = "skip"
+	}
+	if c.STRMExistingFilePolicy != "skip" && c.STRMExistingFilePolicy != "overwrite" {
+		return library.Library{}, errors.New("invalid stored STRM existing-file policy")
+	}
+	return library.Library{Config: c, ID: m.ID, CreatedAt: m.CreatedAt.UTC(), UpdatedAt: m.UpdatedAt.UTC(), Revision: m.Revision}, nil
 }
 func modelFromLibrary(l library.Library) (libraryModel, error) {
 	b, err := json.Marshal(l.Config)

@@ -6,37 +6,36 @@ import (
 	"crypto/rand"
 	"errors"
 	"log/slog"
+	"net"
+	"net/url"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
 )
 
-type Mapping struct {
-	Source string `json:"source"`
-	Target string `json:"target"`
-}
 type Config struct {
-	Name              string    `json:"name"`
-	Description       string    `json:"description"`
-	DirectoryID       string    `json:"directory_id"`
-	DirectoryPath     string    `json:"directory_path"`
-	MediaType         string    `json:"media_type"`
-	Enabled           bool      `json:"enabled"`
-	OutputPath        string    `json:"output_path"`
-	GenerateSTRM      bool      `json:"generate_strm"`
-	ScrapeMetadata    bool      `json:"scrape_metadata"`
-	GenerateNFO       bool      `json:"generate_nfo"`
-	PreserveStructure bool      `json:"preserve_structure"`
-	StructureMode     string    `json:"structure_mode"`
-	PathMappings      []Mapping `json:"path_mappings"`
-	LinkType          string    `json:"link_type"`
-	LinkExpiry        string    `json:"link_expiry"`
-	FilenameRule      string    `json:"filename_rule"`
-	STRMExtension     string    `json:"strm_extension"`
-	NFOName           string    `json:"nfo_name"`
-	MinFileSizeMB     int       `json:"min_file_size_mb"`
+	Name                   string `json:"name"`
+	DirectoryID            string `json:"directory_id"`
+	DirectoryPath          string `json:"directory_path"`
+	MediaType              string `json:"media_type"`
+	OutputPath             string `json:"output_path"`
+	GenerateSTRM           bool   `json:"generate_strm"`
+	STRMExistingFilePolicy string `json:"strm_existing_file_policy"`
+	GenerateNFO            bool   `json:"generate_nfo"`
+	GeneratePosterCover    bool   `json:"generate_poster_cover"`
+	LanguagePreference     string `json:"language_preference"`
+	ScrapeSource           string `json:"scrape_source"`
+	ExcludeDirectoryPath   string `json:"exclude_directory_path"`
+	IncludeSubdirectories  bool   `json:"include_subdirectories"`
+	FollowDirectoryChanges bool   `json:"follow_directory_changes"`
+	FileEncoding           string `json:"file_encoding"`
+	LinkType               string `json:"link_type"`
+	STRMDirectDomain       string `json:"strm_direct_domain"`
+	STRMLinkFormat         string `json:"strm_link_format"`
+	Enabled                bool   `json:"enabled"`
 }
 type Library struct {
 	Config
@@ -79,14 +78,57 @@ func oneOf(s string, values ...string) bool {
 	}
 	return false
 }
-func Validate(c Config) error {
-	if strings.TrimSpace(c.Name) == "" || !validText(c.Name, 100) || !validText(c.Description, 200) || !directoryID.MatchString(c.DirectoryID) || strings.TrimSpace(c.DirectoryPath) == "" || !validText(c.DirectoryPath, 1024) || !filepath.IsAbs(c.OutputPath) || !validText(c.OutputPath, 1024) || !oneOf(c.MediaType, "movie", "tv", "anime", "documentary", "mixed") || !oneOf(c.StructureMode, "full", "flatten") || !oneOf(c.LinkType, "direct", "proxy") || !oneOf(c.LinkExpiry, "default", "never") || c.FilenameRule != "original" || c.STRMExtension != ".strm" || c.NFOName != "same_as_video" || c.MinFileSizeMB < 0 || c.MinFileSizeMB > 1048576 || c.PathMappings == nil || len(c.PathMappings) > 100 {
-		return ErrInvalid
+func validDirectDomain(domain string) bool {
+	if domain == "" {
+		return true
 	}
-	for _, m := range c.PathMappings {
-		if strings.TrimSpace(m.Source) == "" || strings.TrimSpace(m.Target) == "" || !validText(m.Source, 1024) || !validText(m.Target, 1024) {
-			return ErrInvalid
+	if !validText(domain, 253) || strings.TrimSpace(domain) != domain {
+		return false
+	}
+	parsed, err := url.Parse("//" + domain)
+	if err != nil || parsed.Host != domain || parsed.User != nil || parsed.Path != "" {
+		return false
+	}
+	if strings.HasSuffix(domain, ":") {
+		return false
+	}
+	if port := parsed.Port(); port != "" {
+		if _, err := strconv.ParseUint(port, 10, 16); err != nil {
+			return false
 		}
+	}
+	host := parsed.Hostname()
+	if net.ParseIP(host) != nil {
+		return true
+	}
+	if host == "" || len(host) > 253 {
+		return false
+	}
+	for _, label := range strings.Split(host, ".") {
+		if len(label) == 0 || len(label) > 63 || label[0] == '-' || label[len(label)-1] == '-' {
+			return false
+		}
+		for _, char := range label {
+			if (char < 'a' || char > 'z') && (char < 'A' || char > 'Z') &&
+				(char < '0' || char > '9') && char != '-' {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func Validate(c Config) error {
+	if strings.TrimSpace(c.Name) == "" || !validText(c.Name, 100) ||
+		!directoryID.MatchString(c.DirectoryID) || strings.TrimSpace(c.DirectoryPath) == "" ||
+		!validText(c.DirectoryPath, 1024) || !filepath.IsAbs(c.OutputPath) ||
+		!validText(c.OutputPath, 1024) || !oneOf(c.MediaType, "movie", "tv", "anime", "documentary", "mixed") ||
+		!oneOf(c.LanguagePreference, "zh-CN") || !oneOf(c.ScrapeSource, "tmdb", "metatube", "none") ||
+		!validText(c.ExcludeDirectoryPath, 1024) || !oneOf(c.FileEncoding, "UTF-8") ||
+		!oneOf(c.LinkType, "direct", "proxy") || !validDirectDomain(c.STRMDirectDomain) ||
+		!oneOf(c.STRMLinkFormat, "original_name", "file_id") ||
+		!oneOf(c.STRMExistingFilePolicy, "skip", "overwrite") {
+		return ErrInvalid
 	}
 	return nil
 }
@@ -137,6 +179,7 @@ func (s *Service) Create(ctx context.Context, c Config, req string) (item Librar
 		return
 	}
 	now := time.Now().UTC()
+	c.Enabled = true
 	item = Library{Config: c, ID: rand.Text(), CreatedAt: now, UpdatedAt: now, Revision: 1}
 	err = s.repo.CreateLibrary(ctx, item)
 	return
@@ -154,6 +197,7 @@ func (s *Service) Update(ctx context.Context, id string, c Config, revision int6
 		err = ErrConflict
 		return
 	}
+	c.Enabled = item.Enabled
 	item.Config = c
 	item.UpdatedAt = time.Now().UTC()
 	err = s.repo.UpdateLibrary(ctx, item)

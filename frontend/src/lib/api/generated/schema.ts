@@ -353,42 +353,39 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
-    LibraryPathMapping: {
-      source: string;
-      target: string;
-    };
     LibraryConfig: {
       name: string;
-      description: string;
       directory_id: string;
       directory_path: string;
       /** @enum {string} */
       media_type: "movie" | "tv" | "anime" | "documentary" | "mixed";
-      enabled: boolean;
       /** @description Absolute local path */
       output_path: string;
       generate_strm: boolean;
-      scrape_metadata: boolean;
+      /**
+       * @description Preference for an existing STRM at the target output path; no file operations are executed.
+       * @enum {string}
+       */
+      strm_existing_file_policy: "skip" | "overwrite";
       generate_nfo: boolean;
-      preserve_structure: boolean;
+      generate_poster_cover: boolean;
       /** @enum {string} */
-      structure_mode: "full" | "flatten";
-      path_mappings: components["schemas"]["LibraryPathMapping"][];
+      language_preference: "zh-CN";
+      /** @enum {string} */
+      scrape_source: "tmdb" | "metatube" | "none";
+      exclude_directory_path: string;
+      include_subdirectories: boolean;
+      follow_directory_changes: boolean;
+      /** @enum {string} */
+      file_encoding: "UTF-8";
       /** @enum {string} */
       link_type: "direct" | "proxy";
+      strm_direct_domain: string;
       /** @enum {string} */
-      link_expiry: "default" | "never";
-      /** @enum {string} */
-      filename_rule: "original";
-      /** @enum {string} */
-      strm_extension: ".strm";
-      /** @enum {string} */
-      nfo_name: "same_as_video";
-      min_file_size_mb: number;
+      strm_link_format: "original_name" | "file_id";
     };
     Library: {
       name: string;
-      description: string;
       directory_id: string;
       directory_path: string;
       /** @enum {string} */
@@ -397,23 +394,27 @@ export interface components {
       /** @description Absolute local path */
       output_path: string;
       generate_strm: boolean;
-      scrape_metadata: boolean;
+      /**
+       * @description Preference for an existing STRM at the target output path; no file operations are executed.
+       * @enum {string}
+       */
+      strm_existing_file_policy: "skip" | "overwrite";
       generate_nfo: boolean;
-      preserve_structure: boolean;
+      generate_poster_cover: boolean;
       /** @enum {string} */
-      structure_mode: "full" | "flatten";
-      path_mappings: components["schemas"]["LibraryPathMapping"][];
+      language_preference: "zh-CN";
+      /** @enum {string} */
+      scrape_source: "tmdb" | "metatube" | "none";
+      exclude_directory_path: string;
+      include_subdirectories: boolean;
+      follow_directory_changes: boolean;
+      /** @enum {string} */
+      file_encoding: "UTF-8";
       /** @enum {string} */
       link_type: "direct" | "proxy";
+      strm_direct_domain: string;
       /** @enum {string} */
-      link_expiry: "default" | "never";
-      /** @enum {string} */
-      filename_rule: "original";
-      /** @enum {string} */
-      strm_extension: ".strm";
-      /** @enum {string} */
-      nfo_name: "same_as_video";
-      min_file_size_mb: number;
+      strm_link_format: "original_name" | "file_id";
       id: string;
       /** Format: int64 */
       revision: number;

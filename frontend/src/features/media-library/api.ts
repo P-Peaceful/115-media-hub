@@ -19,42 +19,41 @@ function isLibrary(value: unknown): value is Library {
     value.revision < 1
   )
     return false;
+
   return (
     [
       "id",
       "created_at",
       "updated_at",
       "name",
-      "description",
       "directory_id",
       "directory_path",
       "output_path",
+      "exclude_directory_path",
+      "strm_direct_domain",
     ].every((key) => typeof value[key] === "string") &&
     [
       "enabled",
       "generate_strm",
-      "scrape_metadata",
       "generate_nfo",
-      "preserve_structure",
+      "generate_poster_cover",
+      "include_subdirectories",
+      "follow_directory_changes",
     ].every((key) => typeof value[key] === "boolean") &&
     typeof value.media_type === "string" &&
     ["movie", "tv", "anime", "documentary", "mixed"].includes(
       value.media_type,
     ) &&
-    (value.structure_mode === "full" || value.structure_mode === "flatten") &&
+    value.language_preference === "zh-CN" &&
+    (value.scrape_source === "tmdb" ||
+      value.scrape_source === "metatube" ||
+      value.scrape_source === "none") &&
+    value.file_encoding === "UTF-8" &&
     (value.link_type === "direct" || value.link_type === "proxy") &&
-    (value.link_expiry === "default" || value.link_expiry === "never") &&
-    value.filename_rule === "original" &&
-    value.strm_extension === ".strm" &&
-    value.nfo_name === "same_as_video" &&
-    typeof value.min_file_size_mb === "number" &&
-    Array.isArray(value.path_mappings) &&
-    value.path_mappings.every(
-      (item: unknown) =>
-        isRecord(item) &&
-        typeof item.source === "string" &&
-        typeof item.target === "string",
-    )
+    (value.strm_existing_file_policy === "skip" ||
+      value.strm_existing_file_policy === "overwrite") &&
+    (value.strm_link_format === "original_name" ||
+      value.strm_link_format === "file_id")
   );
 }
 export function decodeLibrary(value: unknown): Library {

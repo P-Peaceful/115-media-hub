@@ -6,6 +6,7 @@ import (
 	"io"
 	"mime"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -26,7 +27,7 @@ func (h *libraryHandler) register(r *gin.Engine) {
 	r.DELETE("/api/v1/libraries/:id", h.delete)
 }
 
-var configFields = []string{"name", "description", "directory_id", "directory_path", "media_type", "enabled", "output_path", "generate_strm", "scrape_metadata", "generate_nfo", "preserve_structure", "structure_mode", "path_mappings", "link_type", "link_expiry", "filename_rule", "strm_extension", "nfo_name", "min_file_size_mb"}
+var configFields = []string{"name", "directory_id", "directory_path", "media_type", "output_path", "generate_strm", "strm_existing_file_policy", "generate_nfo", "generate_poster_cover", "language_preference", "scrape_source", "exclude_directory_path", "include_subdirectories", "follow_directory_changes", "file_encoding", "link_type", "strm_direct_domain", "strm_link_format"}
 
 func decodeLibraryBody(c *gin.Context, target any, required []string) bool {
 	media, _, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
@@ -49,6 +50,12 @@ func decodeLibraryBody(c *gin.Context, target any, required []string) bool {
 	if json.Unmarshal(data, &fields) != nil {
 		writeError(c, 400, generated.ValidationFailed, "请求内容无效")
 		return false
+	}
+	for key := range fields {
+		if !slices.Contains(required, key) {
+			writeError(c, 400, generated.ValidationFailed, "请求内容包含不支持的字段")
+			return false
+		}
 	}
 	for _, key := range required {
 		if raw, ok := fields[key]; !ok || string(raw) == "null" {

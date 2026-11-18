@@ -570,61 +570,53 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
-    LibraryPathMapping:
-      type: object
-      additionalProperties: false
-      required: [source, target]
-      properties:
-        source: {type: string, minLength: 1, maxLength: 1024}
-        target: {type: string, minLength: 1, maxLength: 1024}
     LibraryConfig:
       type: object
       additionalProperties: false
-      required: [name, description, directory_id, directory_path, media_type, enabled, output_path, generate_strm, scrape_metadata, generate_nfo, preserve_structure, structure_mode, path_mappings, link_type, link_expiry, filename_rule, strm_extension, nfo_name, min_file_size_mb]
+      required: [name, directory_id, directory_path, media_type, output_path, generate_strm, strm_existing_file_policy, generate_nfo, generate_poster_cover, language_preference, scrape_source, exclude_directory_path, include_subdirectories, follow_directory_changes, file_encoding, link_type, strm_direct_domain, strm_link_format]
       properties:
         name: {type: string, minLength: 1, maxLength: 100}
-        description: {type: string, maxLength: 200}
         directory_id: {type: string, pattern: '^[0-9]{1,32}$'}
         directory_path: {type: string, minLength: 1, maxLength: 1024}
         media_type: {type: string, enum: [movie, tv, anime, documentary, mixed]}
-        enabled: {type: boolean}
         output_path: {type: string, minLength: 1, maxLength: 1024, description: Absolute local path}
         generate_strm: {type: boolean}
-        scrape_metadata: {type: boolean}
+        strm_existing_file_policy: {type: string, enum: [skip, overwrite], description: Preference for an existing STRM at the target output path; no file operations are executed.}
         generate_nfo: {type: boolean}
-        preserve_structure: {type: boolean}
-        structure_mode: {type: string, enum: [full, flatten]}
-        path_mappings: {type: array, maxItems: 100, items: {$ref: "#/components/schemas/LibraryPathMapping"}}
+        generate_poster_cover: {type: boolean}
+        language_preference: {type: string, enum: [zh-CN]}
+        scrape_source: {type: string, enum: [tmdb, metatube, none]}
+        exclude_directory_path: {type: string, maxLength: 1024}
+        include_subdirectories: {type: boolean}
+        follow_directory_changes: {type: boolean}
+        file_encoding: {type: string, enum: [UTF-8]}
         link_type: {type: string, enum: [direct, proxy]}
-        link_expiry: {type: string, enum: [default, never]}
-        filename_rule: {type: string, enum: [original]}
-        strm_extension: {type: string, enum: ['.strm']}
-        nfo_name: {type: string, enum: [same_as_video]}
-        min_file_size_mb: {type: integer, minimum: 0, maximum: 1048576}
+        strm_direct_domain: {type: string, maxLength: 253}
+        strm_link_format: {type: string, enum: [original_name, file_id]}
     Library:
       type: object
       additionalProperties: false
-      required: [name, description, directory_id, directory_path, media_type, enabled, output_path, generate_strm, scrape_metadata, generate_nfo, preserve_structure, structure_mode, path_mappings, link_type, link_expiry, filename_rule, strm_extension, nfo_name, min_file_size_mb, id, created_at, updated_at, revision]
+      required: [name, directory_id, directory_path, media_type, enabled, output_path, generate_strm, strm_existing_file_policy, generate_nfo, generate_poster_cover, language_preference, scrape_source, exclude_directory_path, include_subdirectories, follow_directory_changes, file_encoding, link_type, strm_direct_domain, strm_link_format, id, created_at, updated_at, revision]
       properties:
         name: {type: string, minLength: 1, maxLength: 100}
-        description: {type: string, maxLength: 200}
         directory_id: {type: string, pattern: '^[0-9]{1,32}$'}
         directory_path: {type: string, minLength: 1, maxLength: 1024}
         media_type: {type: string, enum: [movie, tv, anime, documentary, mixed]}
         enabled: {type: boolean}
         output_path: {type: string, minLength: 1, maxLength: 1024, description: Absolute local path}
         generate_strm: {type: boolean}
-        scrape_metadata: {type: boolean}
+        strm_existing_file_policy: {type: string, enum: [skip, overwrite], description: Preference for an existing STRM at the target output path; no file operations are executed.}
         generate_nfo: {type: boolean}
-        preserve_structure: {type: boolean}
-        structure_mode: {type: string, enum: [full, flatten]}
-        path_mappings: {type: array, maxItems: 100, items: {$ref: "#/components/schemas/LibraryPathMapping"}}
+        generate_poster_cover: {type: boolean}
+        language_preference: {type: string, enum: [zh-CN]}
+        scrape_source: {type: string, enum: [tmdb, metatube, none]}
+        exclude_directory_path: {type: string, maxLength: 1024}
+        include_subdirectories: {type: boolean}
+        follow_directory_changes: {type: boolean}
+        file_encoding: {type: string, enum: [UTF-8]}
         link_type: {type: string, enum: [direct, proxy]}
-        link_expiry: {type: string, enum: [default, never]}
-        filename_rule: {type: string, enum: [original]}
-        strm_extension: {type: string, enum: ['.strm']}
-        nfo_name: {type: string, enum: [same_as_video]}
-        min_file_size_mb: {type: integer, minimum: 0, maximum: 1048576}
+        strm_direct_domain: {type: string, maxLength: 253}
+        strm_link_format: {type: string, enum: [original_name, file_id]}
         id: {type: string}
         revision: {type: integer, format: int64, minimum: 1}
         created_at: {type: string, format: date-time}

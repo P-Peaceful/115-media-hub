@@ -1,20 +1,20 @@
 import {
   Alert,
+  AlertDialog,
   Button,
   Card,
+  Checkbox,
   Chip,
   FieldError,
   Form,
   Input,
+  InputGroup,
   Label,
   Link as HeroLink,
   ListBox,
-  Modal,
-  Radio,
-  RadioGroup,
   Select,
   Switch,
-  TextArea,
+  Tabs,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -22,8 +22,6 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   ArrowLeft,
-  CheckCircle2,
-  Clapperboard,
   FileText,
   Film,
   Folder,
@@ -35,7 +33,6 @@ import {
   Plus,
   Settings2,
   Trash2,
-  WandSparkles,
 } from "lucide-react";
 import { useState } from "react";
 import { Link as RouterLink, useNavigate, useParams } from "react-router";
@@ -47,6 +44,8 @@ import { ApiError } from "@/lib/api/errors";
 import type { Library, LibraryInput } from "./api";
 import { changeLibrary, getLibrary, listLibraries, setEnabled } from "./api";
 import { DirectoryPicker } from "./directory-picker";
+import { LibraryDetailView } from "./library-detail-view";
+import { formatSTRMExample } from "./strm-format-example";
 
 const typeLabels: Record<LibraryInput["media_type"], string> = {
   movie: "电影",
@@ -57,25 +56,26 @@ const typeLabels: Record<LibraryInput["media_type"], string> = {
 };
 const initial: LibraryInput = {
   name: "",
-  description: "",
   directory_id: "",
   directory_path: "",
   media_type: "movie",
-  enabled: true,
   output_path: "",
   generate_strm: true,
-  scrape_metadata: true,
+  strm_existing_file_policy: "skip",
   generate_nfo: true,
-  preserve_structure: true,
-  structure_mode: "full",
-  path_mappings: [],
-  link_type: "direct",
-  link_expiry: "default",
-  filename_rule: "original",
-  strm_extension: ".strm",
-  nfo_name: "same_as_video",
-  min_file_size_mb: 100,
+  generate_poster_cover: true,
+  language_preference: "zh-CN",
+  scrape_source: "tmdb",
+  exclude_directory_path: "",
+  include_subdirectories: true,
+  follow_directory_changes: true,
+  file_encoding: "UTF-8",
+  link_type: "proxy",
+  strm_direct_domain: "",
+  strm_link_format: "original_name",
 };
+const formRowClass =
+  "w-full gap-2 lg:grid lg:grid-cols-[7.5rem_minmax(0,1fr)] lg:items-center";
 function Link({
   to,
   children,
@@ -118,13 +118,13 @@ function Banner({
       title={
         <>
           {back && (
-            <Link
+            <RouterLink
               to="/libraries"
               aria-label="返回媒体库"
               className="mr-3 inline-flex align-middle text-foreground"
             >
               <ArrowLeft />
-            </Link>
+            </RouterLink>
           )}
           {title}
         </>
@@ -206,6 +206,7 @@ export function LibraryListPage() {
     retry: false,
   });
   const actions = useActions();
+  const deleteAction = useActions();
   const items =
     query.data?.filter(
       (item) => filter === "all" || item.enabled === (filter === "enabled"),
@@ -326,7 +327,11 @@ export function LibraryListPage() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onPress={() => setDeleting(item)}
+                    isDisabled={actions.isPending || deleteAction.isPending}
+                    onPress={() => {
+                      deleteAction.reset();
+                      setDeleting(item);
+                    }}
                   >
                     <Trash2 /> 删除
                   </Button>
@@ -353,37 +358,82 @@ export function LibraryListPage() {
         </div>
       )}
       {deleting && (
-        <Modal.Backdrop
+        <AlertDialog.Backdrop
           isOpen
+          isDismissable={false}
+          isKeyboardDismissDisabled={deleteAction.isPending}
           onOpenChange={(open) => {
-            if (!open) setDeleting(null);
+            if (!open && !deleteAction.isPending) setDeleting(null);
           }}
         >
-          <Modal.Container>
-            <Modal.Dialog aria-labelledby="delete-title">
-              <h2 id="delete-title">删除媒体库？</h2>
-              <p>确定删除“{deleting.name}”的配置？网盘及本地文件不会被删除。</p>
-              <ErrorMessage error={actions.error} />
-              <footer>
-                <Button variant="ghost" onPress={() => setDeleting(null)}>
+          <AlertDialog.Container size="sm" placement="center">
+            <AlertDialog.Dialog aria-describedby="delete-description">
+              <AlertDialog.Header>
+                <AlertDialog.Icon
+                  status="danger"
+                  className="rounded-full"
+                  aria-hidden="true"
+                >
+                  <Trash2 className="size-5" />
+                </AlertDialog.Icon>
+                <AlertDialog.Heading className="text-lg font-semibold">
+                  删除媒体库？
+                </AlertDialog.Heading>
+              </AlertDialog.Header>
+              <AlertDialog.Body>
+                <div
+                  id="delete-description"
+                  className="space-y-2 wrap-anywhere"
+                >
+                  <p>
+                    确定删除“
+                    <span className="font-medium text-foreground">
+                      {deleting.name}
+                    </span>
+                    ”的配置？
+                  </p>
+                  <p>仅删除媒体库配置，网盘及本地文件不会被删除。</p>
+                </div>
+                {deleteAction.isPending && (
+                  <p role="status" className="mt-3">
+                    正在删除配置，请稍候…
+                  </p>
+                )}
+                {deleteAction.error && (
+                  <div className="mt-3">
+                    <ErrorMessage error={deleteAction.error} />
+                  </div>
+                )}
+              </AlertDialog.Body>
+              <AlertDialog.Footer>
+                <Button
+                  variant="secondary"
+                  // eslint-disable-next-line jsx-a11y/no-autofocus -- Focus the safe action when this alert dialog opens.
+                  autoFocus
+                  isDisabled={deleteAction.isPending}
+                  onPress={() => {
+                    if (!deleteAction.isPending) setDeleting(null);
+                  }}
+                >
                   取消
                 </Button>
                 <Button
                   variant="danger"
-                  isDisabled={actions.isPending}
-                  onPress={() =>
-                    actions.mutate(
+                  isDisabled={deleteAction.isPending}
+                  onPress={() => {
+                    if (deleteAction.isPending) return;
+                    deleteAction.mutate(
                       { action: "delete", library: deleting },
                       { onSuccess: () => setDeleting(null) },
-                    )
-                  }
+                    );
+                  }}
                 >
-                  确认删除
+                  {deleteAction.isPending ? "正在删除…" : "确认删除"}
                 </Button>
-              </footer>
-            </Modal.Dialog>
-          </Modal.Container>
-        </Modal.Backdrop>
+              </AlertDialog.Footer>
+            </AlertDialog.Dialog>
+          </AlertDialog.Container>
+        </AlertDialog.Backdrop>
       )}
     </main>
   );
@@ -398,12 +448,12 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <Card className="min-w-0 last:md:col-span-2">
-      <h2 className="flex items-center gap-2 font-semibold">
-        <Icon className="size-5" />
-        {title}
-      </h2>
-      {children}
+    <Card className="min-w-0">
+      <Card.Header className="flex-row items-center gap-2">
+        <Icon aria-hidden="true" className="size-5 text-accent" />
+        <Card.Title>{title}</Card.Title>
+      </Card.Header>
+      <Card.Content className="flex flex-col gap-3">{children}</Card.Content>
     </Card>
   );
 }
@@ -415,9 +465,9 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <TextField className="my-2 w-full">
+    <TextField className={formRowClass}>
       <Label>{label}</Label>
-      {children}
+      <div className="min-w-0">{children}</div>
     </TextField>
   );
 }
@@ -426,16 +476,19 @@ function LibrarySelect({
   value,
   options,
   onChange,
+  disabled = false,
 }: {
   label: string;
   value: string;
   options: [string, string][];
+  disabled?: boolean;
   onChange: (value: string) => void;
 }) {
   return (
     <Select
-      className="my-2 w-full"
+      className={formRowClass}
       selectedKey={value}
+      isDisabled={disabled}
       onSelectionChange={(key) => {
         if (typeof key === "string") onChange(key);
       }}
@@ -458,6 +511,26 @@ function LibrarySelect({
     </Select>
   );
 }
+function OutputOption({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  return (
+    <Checkbox isSelected={checked} onChange={onChange}>
+      <Checkbox.Content>
+        <Checkbox.Control>
+          <Checkbox.Indicator />
+        </Checkbox.Control>
+        {label}
+      </Checkbox.Content>
+    </Checkbox>
+  );
+}
 function Toggle({
   label,
   checked,
@@ -469,7 +542,7 @@ function Toggle({
 }) {
   return (
     <Switch isSelected={checked} onChange={onChange}>
-      <Switch.Content>
+      <Switch.Content className="flex w-full items-center justify-between gap-3">
         {label}
         <Switch.Control>
           <Switch.Thumb />
@@ -517,60 +590,46 @@ function LibraryForm({
   const navigate = useNavigate();
   const auth = useAuth();
   const client = useQueryClient();
-  const [value, setDraft] = useState(initialValue);
+  // Keep response metadata out of the editable draft and strict request body.
+  const [value, setDraft] = useState<LibraryInput & { revision?: number }>(
+    () => ({
+      name: initialValue.name,
+      directory_id: initialValue.directory_id,
+      directory_path: initialValue.directory_path,
+      media_type: initialValue.media_type,
+      output_path: initialValue.output_path,
+      generate_strm: initialValue.generate_strm,
+      strm_existing_file_policy: initialValue.strm_existing_file_policy,
+      generate_nfo: initialValue.generate_nfo,
+      generate_poster_cover: initialValue.generate_poster_cover,
+      language_preference: initialValue.language_preference,
+      scrape_source: initialValue.scrape_source,
+      exclude_directory_path: initialValue.exclude_directory_path,
+      include_subdirectories: initialValue.include_subdirectories,
+      follow_directory_changes: initialValue.follow_directory_changes,
+      file_encoding: initialValue.file_encoding,
+      link_type: initialValue.link_type,
+      strm_direct_domain: initialValue.strm_direct_domain,
+      strm_link_format: initialValue.strm_link_format,
+      ...(initialValue.revision !== undefined
+        ? { revision: initialValue.revision }
+        : {}),
+    }),
+  );
   const [picker, setPicker] = useState(false);
+  const [excludePicker, setExcludePicker] = useState(false);
   const [attempted, setAttempted] = useState(false);
   const update = (patch: Partial<LibraryInput>) =>
     setDraft((current) => ({ ...current, ...patch }));
   const mutation = useMutation({
     mutationFn: async (input: LibraryInput & { revision?: number }) => {
-      const {
-        name,
-        description,
-        directory_id,
-        directory_path,
-        media_type,
-        enabled,
-        output_path,
-        generate_strm,
-        scrape_metadata,
-        generate_nfo,
-        preserve_structure,
-        structure_mode,
-        path_mappings,
-        link_type,
-        link_expiry,
-        filename_rule,
-        strm_extension,
-        nfo_name,
-        min_file_size_mb,
-      } = input;
+      const { revision, ...config } = input;
       return changeLibrary(
         id ? "PUT" : "POST",
         auth.data?.csrf_token ?? "",
         id,
-        {
-          name,
-          description,
-          directory_id,
-          directory_path,
-          media_type,
-          enabled,
-          output_path,
-          generate_strm,
-          scrape_metadata,
-          generate_nfo,
-          preserve_structure,
-          structure_mode,
-          path_mappings,
-          link_type,
-          link_expiry,
-          filename_rule,
-          strm_extension,
-          nfo_name,
-          min_file_size_mb,
-        },
-        input.revision,
+        config,
+        revision,
       );
     },
     onSuccess: async () => {
@@ -587,347 +646,303 @@ function LibraryForm({
     : value.output_path.length > 1024
       ? "输出目录不能超过 1024 个字符。"
       : "";
-  const mappingError = value.path_mappings.some(
-    (mapping) =>
-      !mapping.source.trim() ||
-      !mapping.target.trim() ||
-      mapping.source.length > 1024 ||
-      mapping.target.length > 1024,
-  )
-    ? "每条路径映射的源路径和目标路径均不能为空，且不能超过 1024 个字符。"
-    : value.path_mappings.length > 100
-      ? "路径映射最多 100 条。"
-      : "";
-  const sizeError =
-    !Number.isInteger(value.min_file_size_mb) ||
-    value.min_file_size_mb < 0 ||
-    value.min_file_size_mb > 1048576
-      ? "请输入 0 到 1048576 之间的整数。"
-      : "";
   return (
     <main className="mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12">
-      <Banner
-        title={id ? "编辑媒体库" : "新建媒体库"}
-        description="配置目录、输出、STRM 链接及文件规则。"
-        back
-      />
       <Form
         validationBehavior="aria"
         onSubmit={(event) => {
           event.preventDefault();
           setAttempted(true);
-          if (
-            nameError ||
-            outputError ||
-            mappingError ||
-            sizeError ||
-            directoryError
-          )
-            return;
+          if (nameError || outputError || directoryError) return;
           mutation.mutate(value);
         }}
       >
-        <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <header className="flex flex-col gap-4 rounded-2xl bg-surface-secondary p-4 text-foreground min-[701px]:min-h-20 min-[701px]:flex-row min-[701px]:items-center min-[701px]:justify-between min-[701px]:px-7 min-[701px]:py-4">
+          <div className="flex min-w-0 items-center gap-4">
+            <Folder
+              aria-hidden="true"
+              className="size-8 shrink-0 text-accent min-[701px]:size-9"
+            />
+            <div className="min-w-0">
+              <h1 className="m-0 text-xl font-semibold tracking-tight min-[701px]:text-2xl">
+                {id ? "编辑媒体库配置" : "新建媒体库配置"}
+              </h1>
+              <p className="mt-1 mb-0 text-sm text-muted">
+                配置媒体库基本信息、目录绑定、输出与 STRM 链接，保存后生效。
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center justify-end gap-2">
+            <Button
+              variant="secondary"
+              type="button"
+              onPress={() => void navigate("/libraries")}
+            >
+              取消
+            </Button>
+            <Button
+              variant="primary"
+              type="submit"
+              isDisabled={mutation.isPending}
+            >
+              {mutation.isPending ? "保存中…" : id ? "保存配置" : "创建媒体库"}
+            </Button>
+          </div>
+        </header>
+        <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Section title="基本信息" icon={Layers}>
             <TextField
-              className="my-2 w-full"
+              className={formRowClass}
               isInvalid={attempted && !!nameError}
             >
               <Label>媒体库名称 *</Label>
-              <Input
-                required
-                maxLength={100}
-                value={value.name}
-                onChange={(e) => update({ name: e.target.value })}
-                placeholder="例如：电影库"
-              />
-              <FieldError>{nameError}</FieldError>
+              <div className="min-w-0">
+                <Input
+                  required
+                  maxLength={100}
+                  value={value.name}
+                  onChange={(event) => update({ name: event.target.value })}
+                  placeholder="例如：电影库"
+                />
+                <FieldError>{nameError}</FieldError>
+              </div>
             </TextField>
-            <Field label="描述（可选）">
-              <TextArea
-                maxLength={200}
-                value={value.description}
-                onChange={(e) => update({ description: e.target.value })}
-                placeholder="用于说明该媒体库的用途"
-              />
-            </Field>
-            <small>{value.description.length} / 200</small>
-          </Section>
-          <Section title="绑定 115 网盘目录" icon={Folder}>
-            <TextField
-              className="my-2 w-full"
-              isInvalid={attempted && !!directoryError}
-            >
-              <Label id="library-directory-label">选择绑定目录 *</Label>
-              <Button
-                aria-labelledby="library-directory-label"
-                render={(props) => (
-                  <button
-                    {...props}
-                    aria-describedby={
-                      [
-                        value.directory_path ? "library-directory-value" : "",
-                        attempted && directoryError
-                          ? "library-directory-error"
-                          : "",
-                      ]
-                        .filter(Boolean)
-                        .join(" ") || undefined
-                    }
-                  />
-                )}
-                variant="ghost"
-                className="w-full justify-between"
-                type="button"
-                onPress={() => setPicker(true)}
-              >
-                <Folder />{" "}
-                <span id="library-directory-value">
-                  {value.directory_path || "请选择网盘目录"}
-                </span>{" "}
-                <span>›</span>
-              </Button>
-              <FieldError id="library-directory-error">
-                {directoryError}
-              </FieldError>
-            </TextField>
-            <small>目录路径仅供展示，目录是否存在以网盘实际情况为准。</small>
-          </Section>
-          <Section title="媒体类型" icon={Film}>
-            <RadioGroup
-              aria-label="媒体类型"
-              variant="primary"
-              orientation="horizontal"
+            <LibrarySelect
+              label="媒体类型"
               value={value.media_type}
-              onChange={(type) => {
-                if (type in typeLabels)
-                  update({ media_type: type as LibraryInput["media_type"] });
+              options={Object.entries(typeLabels)}
+              onChange={(key) => {
+                if (key in typeLabels)
+                  update({ media_type: key as LibraryInput["media_type"] });
               }}
-            >
-              {(Object.keys(typeLabels) as LibraryInput["media_type"][]).map(
-                (type) => (
-                  <Radio key={type} value={type}>
-                    <Radio.Content>
-                      <Radio.Control>
-                        <Radio.Indicator />
-                      </Radio.Control>
-                      <LibraryIcon type={type} />
-                      {typeLabels[type]}
-                    </Radio.Content>
-                  </Radio>
-                ),
-              )}
-            </RadioGroup>
-          </Section>
-          <Section title="输出设置" icon={Settings2}>
-            <Toggle
-              label="生成 STRM 文件"
-              checked={value.generate_strm}
-              onChange={(v) => update({ generate_strm: v })}
-            />
-            <Toggle
-              label="刮削媒体信息"
-              checked={value.scrape_metadata}
-              onChange={(v) => update({ scrape_metadata: v })}
-            />
-            <Toggle
-              label="同步生成 NFO 文件"
-              checked={value.generate_nfo}
-              onChange={(v) => update({ generate_nfo: v })}
-            />
-          </Section>
-          <Section title="本地输出目录" icon={Folder}>
-            <TextField
-              className="my-2 w-full"
-              isInvalid={attempted && !!outputError}
-            >
-              <Label>输出目录（本地） *</Label>
-              <Input
-                required
-                value={value.output_path}
-                onChange={(e) => update({ output_path: e.target.value })}
-                placeholder="/app/media/电影"
-              />
-              <FieldError>{outputError}</FieldError>
-            </TextField>
-            <small>填写容器内的绝对路径，用于未来生成的文件。</small>
-          </Section>
-          <Section title="目录结构保留" icon={Layers}>
-            <Toggle
-              label="保留源目录结构"
-              checked={value.preserve_structure}
-              onChange={(v) => update({ preserve_structure: v })}
             />
             <LibrarySelect
-              label="结构策略"
-              value={value.structure_mode}
+              label="语言偏好"
+              value={value.language_preference}
+              options={[["zh-CN", "简体中文"]]}
+              onChange={() => update({ language_preference: "zh-CN" })}
+            />
+            <LibrarySelect
+              label="刮削源"
+              value={value.scrape_source}
               options={[
-                ["full", "完整保留"],
-                ["flatten", "平铺"],
+                ["tmdb", "TMDB（推荐）"],
+                ["metatube", "MetaTube"],
+                ["none", "不刮削"],
               ]}
-              onChange={(key) =>
-                update({
-                  structure_mode: key === "flatten" ? "flatten" : "full",
-                })
+              onChange={(key) => {
+                if (["tmdb", "metatube", "none"].includes(key))
+                  update({
+                    scrape_source: key as LibraryInput["scrape_source"],
+                  });
+              }}
+            />
+          </Section>
+          <Section title="目录绑定" icon={Folder}>
+            <TextField
+              className={formRowClass}
+              isInvalid={attempted && !!directoryError}
+            >
+              <Label id="library-directory-label">媒体库目录 *</Label>
+              <div className="min-w-0">
+                <Button
+                  aria-labelledby="library-directory-label"
+                  {...(attempted && directoryError
+                    ? { "aria-describedby": "library-directory-error" }
+                    : {})}
+                  variant="outline"
+                  className="w-full justify-between"
+                  type="button"
+                  onPress={() => setPicker(true)}
+                >
+                  <span className="truncate">
+                    {value.directory_path || "请选择网盘目录"}
+                  </span>
+                  <Folder aria-hidden="true" />
+                </Button>
+                <FieldError id="library-directory-error">
+                  {directoryError}
+                </FieldError>
+              </div>
+            </TextField>
+            <TextField className={formRowClass}>
+              <Label>排除目录</Label>
+              <div className="flex min-w-0 gap-2">
+                <Input
+                  className="min-w-0 flex-1"
+                  value={value.exclude_directory_path}
+                  onChange={(event) =>
+                    update({ exclude_directory_path: event.target.value })
+                  }
+                  placeholder="可选，输入网盘目录路径"
+                  maxLength={1024}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  aria-label="选择排除目录"
+                  onPress={() => setExcludePicker(true)}
+                >
+                  <Folder aria-hidden="true" />
+                </Button>
+              </div>
+            </TextField>
+            <Toggle
+              label="包含子目录（递归扫描）"
+              checked={value.include_subdirectories}
+              onChange={(checked) =>
+                update({ include_subdirectories: checked })
+              }
+            />
+            <Toggle
+              label="跟随网盘目录变更"
+              checked={value.follow_directory_changes}
+              onChange={(checked) =>
+                update({ follow_directory_changes: checked })
               }
             />
           </Section>
-          <Section title="路径映射" icon={LinkIcon}>
-            {value.path_mappings.map((mapping, index) => (
-              <div className="my-2 flex items-start gap-2" key={index}>
-                <TextField
-                  aria-label={`映射 ${index + 1} 源路径`}
-                  className="min-w-0 flex-1"
-                  isInvalid={
-                    attempted &&
-                    (!mapping.source.trim() || mapping.source.length > 1024)
-                  }
-                >
-                  <Input
-                    required
-                    placeholder="网盘路径"
-                    value={mapping.source}
-                    onChange={(e) =>
-                      update({
-                        path_mappings: value.path_mappings.map((item, i) =>
-                          i === index
-                            ? { ...item, source: e.target.value }
-                            : item,
-                        ),
-                      })
-                    }
-                  />
-                  <FieldError>请输入不超过 1024 个字符的源路径。</FieldError>
-                </TextField>
-                <span>→</span>
-                <TextField
-                  aria-label={`映射 ${index + 1} 目标路径`}
-                  className="min-w-0 flex-1"
-                  isInvalid={
-                    attempted &&
-                    (!mapping.target.trim() || mapping.target.length > 1024)
-                  }
-                >
-                  <Input
-                    required
-                    placeholder="本地路径"
-                    value={mapping.target}
-                    onChange={(e) =>
-                      update({
-                        path_mappings: value.path_mappings.map((item, i) =>
-                          i === index
-                            ? { ...item, target: e.target.value }
-                            : item,
-                        ),
-                      })
-                    }
-                  />
-                  <FieldError>请输入不超过 1024 个字符的目标路径。</FieldError>
-                </TextField>
-                <Button
-                  variant="ghost"
-                  type="button"
-                  aria-label={`删除映射 ${index + 1}`}
-                  onPress={() =>
-                    update({
-                      path_mappings: value.path_mappings.filter(
-                        (_, i) => i !== index,
-                      ),
-                    })
-                  }
-                >
-                  <Trash2 />
-                </Button>
-              </div>
-            ))}
-            {attempted && value.path_mappings.length > 100 && (
-              <Alert status="danger" role="alert">
-                <Alert.Indicator />
-                <Alert.Content>
-                  <Alert.Description>路径映射最多 100 条。</Alert.Description>
-                </Alert.Content>
-              </Alert>
-            )}
-            <Button
-              variant="ghost"
-
-              type="button"
-              onPress={() =>
-                update({
-                  path_mappings: [
-                    ...value.path_mappings,
-                    { source: "", target: "" },
-                  ],
-                })
-              }
+          <Section title="输出设置" icon={Settings2}>
+            <TextField
+              className={formRowClass}
+              isInvalid={attempted && !!outputError}
             >
-              ＋ 添加路径映射
-            </Button>
+              <Label>输出目录 *</Label>
+              <div className="min-w-0">
+                <InputGroup>
+                  <InputGroup.Input
+                    required
+                    value={value.output_path}
+                    onChange={(event) =>
+                      update({ output_path: event.target.value })
+                    }
+                    placeholder="/app/media/电影"
+                    maxLength={1024}
+                  />
+                  <InputGroup.Suffix aria-hidden="true">
+                    <Folder className="size-4 text-muted" />
+                  </InputGroup.Suffix>
+                </InputGroup>
+                <FieldError>{outputError}</FieldError>
+              </div>
+            </TextField>
+            <div className="grid min-w-0 gap-2 lg:grid-cols-[6rem_minmax(0,1fr)] lg:items-center">
+              <Label id="library-output-options-label">生成内容</Label>
+              <div
+                role="group"
+                aria-labelledby="library-output-options-label"
+                className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-3"
+              >
+                <OutputOption
+                  label="STRM 文件"
+                  checked={value.generate_strm}
+                  onChange={(checked) => update({ generate_strm: checked })}
+                />
+                <OutputOption
+                  label="NFO 信息"
+                  checked={value.generate_nfo}
+                  onChange={(checked) => update({ generate_nfo: checked })}
+                />
+                <OutputOption
+                  label="海报与封面"
+                  checked={value.generate_poster_cover}
+                  onChange={(checked) =>
+                    update({ generate_poster_cover: checked })
+                  }
+                />
+              </div>
+            </div>
+            <LibrarySelect
+              label="STRM 已存在时"
+              value={value.strm_existing_file_policy}
+              disabled={!value.generate_strm}
+              options={[
+                ["skip", "跳过（默认）"],
+                ["overwrite", "覆盖"],
+              ]}
+              onChange={(key) => {
+                if (key === "skip" || key === "overwrite")
+                  update({ strm_existing_file_policy: key });
+              }}
+            />
+            <LibrarySelect
+              label="文件编码"
+              value={value.file_encoding}
+              options={[["UTF-8", "UTF-8（推荐）"]]}
+              onChange={() => update({ file_encoding: "UTF-8" })}
+            />
           </Section>
           <Section title="STRM 链接配置" icon={LinkIcon}>
             <LibrarySelect
               label="链接类型"
               value={value.link_type}
               options={[
-                ["direct", "115 网盘直链"],
-                ["proxy", "代理链接"],
+                ["direct", "直连"],
+                ["proxy", "302 代理"],
               ]}
               onChange={(key) =>
-                update({ link_type: key === "proxy" ? "proxy" : "direct" })
+                update({ link_type: key === "direct" ? "direct" : "proxy" })
               }
             />
-            <LibrarySelect
-              label="链接有效期"
-              value={value.link_expiry}
-              options={[
-                ["default", "默认"],
-                ["never", "永不过期"],
-              ]}
-              onChange={(key) =>
-                update({ link_expiry: key === "never" ? "never" : "default" })
-              }
-            />
-          </Section>
-          <Section title="文件规则" icon={FileText}>
-            <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-              <LibrarySelect
-                label="文件名规则"
-                value={value.filename_rule}
-                options={[["original", "保持原文件名"]]}
-                onChange={() => update({ filename_rule: "original" })}
+            <Field label="STRM 直连域名">
+              <Input
+                value={value.strm_direct_domain}
+                onChange={(event) =>
+                  update({ strm_direct_domain: event.target.value })
+                }
+                placeholder="例如：media.example.com"
+                maxLength={253}
               />
-              <Field label="STRM 扩展名">
-                <Input value={value.strm_extension} readOnly />
-              </Field>
-              <LibrarySelect
-                label="NFO 命名"
-                value={value.nfo_name}
-                options={[["same_as_video", "与视频同名"]]}
-                onChange={() => update({ nfo_name: "same_as_video" })}
-              />
-              <TextField
-                className="my-2 w-full"
-                isInvalid={attempted && !!sizeError}
+            </Field>
+            <div className="min-w-0">
+              <Tabs
+                className="grid min-w-0 gap-x-2 gap-y-3 lg:grid-cols-[7.5rem_minmax(0,1fr)] lg:items-center"
+                aria-labelledby="strm-link-format-label"
+                selectedKey={value.strm_link_format}
+                onSelectionChange={(key) => {
+                  if (key === "original_name" || key === "file_id")
+                    update({ strm_link_format: key });
+                }}
               >
-                <Label>过滤小文件（MB）</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  max={1048576}
-                  required
-                  value={value.min_file_size_mb}
-                  onChange={(e) =>
-                    update({ min_file_size_mb: Number(e.target.value) })
-                  }
-                />
-                <FieldError>{sizeError}</FieldError>
-              </TextField>
+                <Label id="strm-link-format-label">链接格式</Label>
+                <Tabs.ListContainer>
+                  <Tabs.List aria-label="STRM 链接格式">
+                    <Tabs.Tab
+                      className="data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
+                      id="original_name"
+                    >
+                      文件原名
+                    </Tabs.Tab>
+                    <Tabs.Tab
+                      className="data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
+                      id="file_id"
+                    >
+                      文件 ID
+                    </Tabs.Tab>
+                  </Tabs.List>
+                </Tabs.ListContainer>
+                <Tabs.Panel
+                  id="original_name"
+                  className="min-w-0 lg:col-start-2"
+                >
+                  <p className="wrap-anywhere text-sm text-muted">
+                    格式示例：
+                    {formatSTRMExample(
+                      value.strm_direct_domain,
+                      "original_name",
+                    )}
+                  </p>
+                </Tabs.Panel>
+                <Tabs.Panel id="file_id" className="min-w-0 lg:col-start-2">
+                  <p className="wrap-anywhere text-sm text-muted">
+                    格式示例：
+                    {formatSTRMExample(value.strm_direct_domain, "file_id")}
+                  </p>
+                </Tabs.Panel>
+              </Tabs>
             </div>
           </Section>
         </div>
-        <p className="mt-2 text-sm text-muted">
-          以上选项仅保存为配置，扫描、同步和文件生成将在后续版本开放。
-        </p>
         <ErrorMessage error={mutation.error} />
         {mutation.error instanceof ApiError && mutation.error.fields && (
           <Alert status="danger" role="alert">
@@ -947,23 +962,24 @@ function LibraryForm({
             </Alert.Content>
           </Alert>
         )}
-        <div className="mt-5 flex items-center justify-end gap-4">
-          <Link to="/libraries">取消</Link>
-          <Button
-            variant="primary"
-            type="submit"
-            isDisabled={mutation.isPending}
-          >
-            {mutation.isPending ? "保存中…" : id ? "保存配置" : "创建媒体库"}
-          </Button>
-        </div>
       </Form>
       {picker && (
         <DirectoryPicker
+          title="选择媒体库目录"
           onClose={() => setPicker(false)}
           onSelect={(directory_id, directory_path) => {
             update({ directory_id, directory_path });
             setPicker(false);
+          }}
+        />
+      )}
+      {excludePicker && (
+        <DirectoryPicker
+          title="选择排除目录"
+          onClose={() => setExcludePicker(false)}
+          onSelect={(_, directory_path) => {
+            update({ exclude_directory_path: directory_path });
+            setExcludePicker(false);
           }}
         />
       )}
@@ -995,69 +1011,12 @@ export function LibraryDetailPage() {
   const item = query.data;
   return (
     <main className="mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12">
-      <Banner title={item.name} description="查看媒体库配置与状态。" back />
-      <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <Button variant="ghost" isDisabled>
-          全量同步
-        </Button>
-        <Button variant="ghost" isDisabled>
-          增量同步
-        </Button>
-        <Button variant="ghost" isDisabled>
-          执行预览
-        </Button>
-        <Link to={`/libraries/${item.id}/edit`}>
-          <Pencil /> 编辑配置
-        </Link>
-      </div>
-      <p className="mt-2 text-sm text-muted">同步和执行功能尚未开放。</p>
       <ErrorMessage error={actions.error} />
-      <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-        <Section title="库概览" icon={Film}>
-          <div className="flex items-center gap-3">
-            <LibraryIcon type={item.media_type} />
-            <div>
-              <strong>{item.name}</strong>
-              <p>
-                <Chip size="sm" variant="soft" color="accent">
-                  {typeLabels[item.media_type]}
-                </Chip>{" "}
-                <Status enabled={item.enabled} />
-              </p>
-            </div>
-          </div>
-          <p className="wrap-anywhere">{item.description || "暂无描述"}</p>
-        </Section>
-        <Section title="当前状态" icon={WandSparkles}>
-          <Status enabled={item.enabled} />
-          <p>配置状态不代表同步运行状态。</p>
-          <Button
-            variant="ghost"
-            isDisabled={actions.isPending}
-            onPress={() => actions.mutate({ action: "toggle", library: item })}
-          >
-            {item.enabled ? "暂停媒体库" : "启用媒体库"}
-          </Button>
-        </Section>
-        <Section title="绑定目录" icon={Folder}>
-          <p className="break-all">{item.directory_path}</p>
-          <small>目录是否存在以网盘实际情况为准。</small>
-        </Section>
-        <Section title="输出设置摘要" icon={Settings2}>
-          <p className="wrap-anywhere">输出目录：{item.output_path}</p>
-          <p>目录结构：{item.preserve_structure ? "保留" : "不保留"}</p>
-          <p>生成 NFO：{item.generate_nfo ? "已启用" : "已关闭"}</p>
-        </Section>
-        <Section title="STRM 统计" icon={LinkIcon}>
-          <p>暂无数据</p>
-        </Section>
-        <Section title="最近同步时间" icon={CheckCircle2}>
-          <p>暂无数据</p>
-        </Section>
-        <Section title="执行记录摘要" icon={Clapperboard}>
-          <p>暂无执行记录</p>
-        </Section>
-      </div>
+      <LibraryDetailView
+        item={item}
+        pending={actions.isPending}
+        onToggle={() => actions.mutate({ action: "toggle", library: item })}
+      />
     </main>
   );
 }

@@ -6,9 +6,11 @@ import { useState } from "react";
 import { getDirectory } from "@/features/cloud-drive/api";
 
 export function DirectoryPicker({
+  title = "选择 115 网盘目录",
   onSelect,
   onClose,
 }: {
+  title?: string;
   onSelect: (id: string, path: string) => void;
   onClose: () => void;
 }) {
@@ -40,7 +42,7 @@ export function DirectoryPicker({
       <Modal.Container>
         <Modal.Dialog aria-labelledby="directory-title">
           <header className="flex items-center justify-between gap-3">
-            <h2 id="directory-title">选择 115 网盘目录</h2>
+            <h2 id="directory-title">{title}</h2>
             <Button
               variant="ghost"
               type="button"
