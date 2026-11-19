@@ -248,3 +248,29 @@ Implemented persistent media library configuration, management UI and shared pag
 ### Status
 
 [OK] **Completed**
+
+
+## Session 10: 媒体库详情页同步与预览开发
+<!-- trellis-session: v=2 fp=a7c81d4cc2c19cb2 -->
+
+**Date**: 2026-11-20
+**Task**: 媒体库详情页同步与预览开发
+**Branch**: `codex/media-library-sync-preview`
+
+### Summary
+
+完成媒体库配置详情、全量同步与执行预览流程、增量同步演示界面，以及新建和编辑横幅与取消导航。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `bfdb986` | feat: add media library sync and preview pages |
+
+### Testing
+
+- [OK] 格式、Lint、类型检查和构建通过，137 项前端测试与 10 项相关浏览器测试通过。
+
+### Status
+
+[OK] **Completed**
