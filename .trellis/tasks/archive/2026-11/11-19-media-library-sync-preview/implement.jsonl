@@ -1,0 +1,5 @@
+{"file":".trellis/spec/frontend/index.md","reason":"前端开发入口及依赖规范"}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"HeroUI v3 组件、主题和页面可访问性"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"子路由、查询参数与演示状态生命周期"}
+{"file":".trellis/spec/frontend/hook-guidelines.md","reason":"共享媒体库详情查询及加载和失败状态"}
+{"file":".trellis/spec/backend/media-library.md","reason":"区分已持久化配置与本次演示信息"}

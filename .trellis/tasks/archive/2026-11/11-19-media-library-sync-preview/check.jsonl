@@ -1,0 +1,4 @@
+{"file":".trellis/spec/frontend/quality-guidelines.md","reason":"前端测试和验收门槛"}
+{"file":".trellis/spec/frontend/component-guidelines.md","reason":"核对响应式布局、主题和键盘交互"}
+{"file":".trellis/spec/frontend/state-management.md","reason":"核对直达、刷新、返回和媒体库间的状态隔离"}
+{"file":".trellis/spec/backend/media-library.md","reason":"核对演示标识及真实媒体库配置边界"}
