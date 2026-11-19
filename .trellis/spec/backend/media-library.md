@@ -4,7 +4,9 @@
 
 Library management persists configuration only. It does not scan the drive, run synchronization, generate files, calculate execution statistics, or imply that an enabled library is running. See `backend/internal/service/library/service.go` and the frontend media-library feature.
 
-The detail page has a user-approved presentation exception: missing STRM statistics, recent synchronization and execution history use fixed frontend mock data, visibly labeled `演示数据`. These values are not backend results, must not be persisted or used as a fallback for failed real requests, and must not enable execution actions. Configuration and authenticated process uptime/build version remain real data; enabled means `已启用`, not actively synchronizing. The output summary uses existing configuration fields rather than restoring the removed directory-structure option.
+Missing STRM statistics, recent synchronization, execution history, and operation previews use fixed frontend examples visibly labeled `演示数据`. The detail view displays real configuration and authenticated process uptime. The library enabled flag represents `已启用`. The output summary uses existing configuration fields.
+
+The authenticated detail route has three navigable child pages at `/libraries/:id/{full-sync,full-sync/execution-preview,incremental-sync}`. The full-sync action leads to its preview, where users confirm execution. Preview cancel returns to full sync. The detail view displays every editable saved setting from the shared library query. Edit cancellation returns to the originating list or detail history entry, with the list as the fallback for direct entry. Demo actions update frontend state without mutation requests, background scheduling, or persistence. Incremental settings live in the current library's route group and reset on reload, library change, or exit. Keep example data out of real-request error handling.
 
 ## 2. Signatures
 
@@ -49,7 +51,7 @@ OpenAPI defines request field bounds and enums; the service enforces the same en
 
 ## 6. Tests required
 
-Exercise authenticated CRUD, CSRF, required fields/enums/domain validation, paging and round trips for every configuration field; include a non-absolute 115 display path for the optional excluded directory and reject a domain containing scheme/path. Cover stale form and concurrent write conflicts; enable/disable and deletion; audit failure rollback and media-file preservation. Verify business outcomes, safe attributes and errors in logs. Frontend checks should cover directory selection/failure, create defaults, editable configuration, field errors, removed controls, STRM format tabs and dynamic domain/format examples, default/overwrite round trips and disabled-but-retained existing-file policy, unavailable operations and two-column/narrow layouts.
+Exercise authenticated CRUD, CSRF, required fields/enums/domain validation, paging and round trips for every configuration field; include a non-absolute 115 display path for the optional excluded directory and reject a domain containing scheme/path. Cover stale form and concurrent write conflicts; enable/disable and deletion; audit failure rollback and media-file preservation. Verify business outcomes, safe attributes and errors in logs. Frontend checks should cover directory selection/failure, create defaults, editable configuration, field errors, removed controls, STRM format tabs and dynamic domain/format examples, default/overwrite round trips, disabled-but-retained existing-file policy, and responsive layouts. Verify child routes with direct entry, refresh, browser history and return links. Assert that demo interactions send no write requests.
 
 When adding a required key inside persisted JSON, test a raw record saved before the key existed, not only upgraded fixtures. `backend/internal/repository/sqlite/library_policy_test.go` covers missing-policy list/detail reads, valid overwrite, explicit invalid values, and unchanged persisted metadata.
 

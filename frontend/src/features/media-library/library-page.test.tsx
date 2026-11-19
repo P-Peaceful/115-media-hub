@@ -9,6 +9,7 @@ import { server } from "@/test/server";
 
 import { decodeLibrary } from "./api";
 import {
+  LibraryDetailLayout,
   LibraryDetailPage,
   LibraryFormPage,
   LibraryListPage,
@@ -223,7 +224,7 @@ it("选择 115 目录并保存配置", async () => {
     </QueryClientProvider>,
   );
   expect(screen.getByRole("heading", { name: "新建媒体库配置" })).toBeVisible();
-  expect(screen.getByText(/目录绑定、输出与 STRM 链接/)).toBeVisible();
+  expect(screen.getByText(/目录绑定、输出与 STRM 等配置/)).toBeVisible();
   expect(screen.getByRole("button", { name: "取消" })).toBeVisible();
   expect(screen.getByRole("button", { name: "创建媒体库" })).toBeVisible();
   const outputOptions = screen.getByRole("group", { name: "生成内容" });
@@ -513,9 +514,24 @@ it("目录读取失败时提示重试", async () => {
   expect(screen.getByRole("button", { name: "重试" })).toBeVisible();
 });
 
-it("详情展示真实配置和系统信息，演示数据显式标记且执行不可用", async () => {
+it("详情展示真实配置和系统信息，标记演示数据并展示统一的操作按钮", async () => {
   server.use(
-    http.get("/api/v1/libraries/1", () => HttpResponse.json(library)),
+    http.get("/api/v1/libraries/1", () =>
+      HttpResponse.json({
+        ...library,
+        scrape_source: "metatube",
+        exclude_directory_path: "115 网盘/电影/样片",
+        include_subdirectories: false,
+        follow_directory_changes: true,
+        generate_strm: false,
+        generate_nfo: true,
+        generate_poster_cover: false,
+        strm_existing_file_policy: "overwrite",
+        link_type: "direct",
+        strm_direct_domain: "media.example.com",
+        strm_link_format: "file_id",
+      }),
+    ),
     http.get("/api/v1/system/status", () =>
       HttpResponse.json({ uptime_seconds: 10860, version: "test-build" }),
     ),
@@ -524,28 +540,46 @@ it("详情展示真实配置和系统信息，演示数据显式标记且执行�
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter initialEntries={["/libraries/1"]}>
         <Routes>
-          <Route path="/libraries/:id" element={<LibraryDetailPage />} />
+          <Route path="/libraries/:id" element={<LibraryDetailLayout />}>
+            <Route index element={<LibraryDetailPage />} />
+          </Route>
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
   );
-  expect(
-    await screen.findByRole("button", { name: "全量同步" }),
-  ).toBeDisabled();
-  expect(screen.getByRole("button", { name: "增量同步" })).toBeDisabled();
-  expect(screen.getByRole("button", { name: "执行预览" })).toBeDisabled();
+  for (const name of ["全量同步", "增量同步", "编辑配置"]) {
+    expect(await screen.findByRole("button", { name })).toBeEnabled();
+  }
   expect(screen.getAllByText("演示数据")).toHaveLength(3);
   expect(screen.getByText("12,860")).toBeVisible();
-  expect(await screen.findByText("test-build")).toBeVisible();
-  expect(screen.getByText("3 小时 1 分钟")).toBeVisible();
+  expect(await screen.findByText("3 小时 1 分钟")).toBeVisible();
+  expect(screen.queryByText("版本信息")).not.toBeInTheDocument();
+  expect(screen.queryByText("test-build")).not.toBeInTheDocument();
   expect(screen.getByText(library.output_path)).toBeVisible();
+  for (const [label, value] of [
+    ["语言偏好", "简体中文"],
+    ["刮削源", "MetaTube"],
+    ["排除目录", "115 网盘/电影/样片"],
+    ["包含子目录（递归扫描）", "已关闭"],
+    ["跟随网盘目录变更", "已启用"],
+    ["输出目录", library.output_path],
+    ["STRM 文件", "已关闭"],
+    ["NFO 信息", "已启用"],
+    ["海报与封面", "已关闭"],
+    ["STRM 已存在时", "覆盖"],
+    ["文件编码", "UTF-8"],
+    ["链接类型", "直连"],
+    ["STRM 直连域名", "media.example.com"],
+    ["链接格式", "文件 ID"],
+  ] as const) {
+    expect(
+      screen.getByText(label, { selector: "dt", exact: true })
+        .nextElementSibling,
+    ).toHaveTextContent(value);
+  }
   expect(
     screen.getByRole("link", { name: library.directory_path }),
   ).toHaveAttribute("href", "/cloud-drive?directory_id=123");
-  expect(screen.getByRole("link", { name: "编辑配置" })).toHaveAttribute(
-    "href",
-    "/libraries/1/edit",
-  );
   expect(screen.queryByText("运行中")).not.toBeInTheDocument();
 });
 
@@ -570,7 +604,9 @@ it("系统信息失败保留配置与演示数据，启停失败提供反馈", a
     <QueryClientProvider client={new QueryClient()}>
       <MemoryRouter initialEntries={["/libraries/1"]}>
         <Routes>
-          <Route path="/libraries/:id" element={<LibraryDetailPage />} />
+          <Route path="/libraries/:id" element={<LibraryDetailLayout />}>
+            <Route index element={<LibraryDetailPage />} />
+          </Route>
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,

@@ -10,7 +10,11 @@ import { SetupPage } from "@/features/auth/setup-page";
 import { ThemeToggle } from "@/features/auth/theme-toggle";
 import { CloudDrivePage } from "@/features/cloud-drive/cloud-drive-page";
 import { DashboardPage } from "@/features/dashboard/dashboard-page";
+import { LibraryExecutionPreviewPage } from "@/features/media-library/library-execution-preview-page";
+import { LibraryFullSyncPage } from "@/features/media-library/library-full-sync-page";
+import { LibraryIncrementalSyncPage } from "@/features/media-library/library-incremental-sync-page";
 import {
+  LibraryDetailLayout,
   LibraryDetailPage,
   LibraryFormPage,
   LibraryListPage,
@@ -112,10 +116,21 @@ export function App() {
                   path="/libraries/:id"
                   element={
                     <AppShell currentPage="媒体库">
-                      <LibraryDetailPage />
+                      <LibraryDetailLayout />
                     </AppShell>
                   }
-                />
+                >
+                  <Route index element={<LibraryDetailPage />} />
+                  <Route path="full-sync" element={<LibraryFullSyncPage />} />
+                  <Route
+                    path="full-sync/execution-preview"
+                    element={<LibraryExecutionPreviewPage />}
+                  />
+                  <Route
+                    path="incremental-sync"
+                    element={<LibraryIncrementalSyncPage />}
+                  />
+                </Route>
                 <Route
                   path="/libraries/:id/edit"
                   element={

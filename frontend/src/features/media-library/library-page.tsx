@@ -35,7 +35,14 @@ import {
   Trash2,
 } from "lucide-react";
 import { useState } from "react";
-import { Link as RouterLink, useNavigate, useParams } from "react-router";
+import {
+  Link as RouterLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from "react-router";
 
 import { PageBanner } from "@/components/page-banner";
 import { useAuth } from "@/features/auth/auth-provider";
@@ -44,16 +51,21 @@ import { ApiError } from "@/lib/api/errors";
 import type { Library, LibraryInput } from "./api";
 import { changeLibrary, getLibrary, listLibraries, setEnabled } from "./api";
 import { DirectoryPicker } from "./directory-picker";
+import {
+  existingFilePolicyLabels,
+  languageLabels,
+  linkFormatLabels,
+  linkTypeLabels,
+  mediaTypeLabels as typeLabels,
+  scrapeSourceLabels,
+} from "./library-configuration-labels";
+import {
+  type IncrementalSettings,
+  useLibraryDetailContext,
+} from "./library-detail-context";
 import { LibraryDetailView } from "./library-detail-view";
 import { formatSTRMExample } from "./strm-format-example";
 
-const typeLabels: Record<LibraryInput["media_type"], string> = {
-  movie: "电影",
-  tv: "电视剧",
-  anime: "动漫",
-  documentary: "纪录片",
-  mixed: "混合",
-};
 const initial: LibraryInput = {
   name: "",
   directory_id: "",
@@ -198,7 +210,10 @@ function useActions() {
 }
 export function LibraryListPage() {
   const navigate = useNavigate();
-  const [filter, setFilter] = useState<"all" | "enabled" | "paused">("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const savedFilter = searchParams.get("filter");
+  const filter =
+    savedFilter === "enabled" || savedFilter === "paused" ? savedFilter : "all";
   const [deleting, setDeleting] = useState<Library | null>(null);
   const query = useQuery({
     queryKey: ["libraries", "list"],
@@ -226,8 +241,16 @@ export function LibraryListPage() {
           selectedKeys={new Set([filter])}
           onSelectionChange={(keys) => {
             const key = [...keys][0];
-            if (key === "all" || key === "enabled" || key === "paused")
-              setFilter(key);
+            setSearchParams(
+              (current) => {
+                const next = new URLSearchParams(current);
+                if (key === "enabled" || key === "paused")
+                  next.set("filter", key);
+                else next.delete("filter");
+                return next;
+              },
+              { replace: true },
+            );
           }}
         >
           {(
@@ -320,7 +343,11 @@ export function LibraryListPage() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    onPress={() => void navigate(`/libraries/${item.id}/edit`)}
+                    onPress={() =>
+                      void navigate(`/libraries/${item.id}/edit`, {
+                        state: { fromLibraryPage: true },
+                      })
+                    }
                   >
                     <Pencil /> 编辑
                   </Button>
@@ -588,6 +615,13 @@ function LibraryForm({
   initialValue: LibraryInput & { revision?: number };
 }) {
   const navigate = useNavigate();
+  const navigationState: unknown = useLocation().state;
+  const canGoBack =
+    id &&
+    typeof navigationState === "object" &&
+    navigationState !== null &&
+    "fromLibraryPage" in navigationState &&
+    navigationState.fromLibraryPage === true;
   const auth = useAuth();
   const client = useQueryClient();
   // Keep response metadata out of the editable draft and strict request body.
@@ -657,31 +691,43 @@ function LibraryForm({
           mutation.mutate(value);
         }}
       >
-        <header className="flex flex-col gap-4 rounded-2xl bg-surface-secondary p-4 text-foreground min-[701px]:min-h-20 min-[701px]:flex-row min-[701px]:items-center min-[701px]:justify-between min-[701px]:px-7 min-[701px]:py-4">
-          <div className="flex min-w-0 items-center gap-4">
+        <header
+          data-slot="page-banner"
+          className="page-banner flex min-h-20 flex-col gap-3 rounded-2xl p-4 text-foreground min-[701px]:flex-row min-[701px]:items-center min-[701px]:justify-between min-[701px]:gap-6 min-[701px]:px-6 min-[701px]:py-3"
+        >
+          <div className="flex min-w-0 items-center gap-3 min-[701px]:gap-5">
             <Folder
               aria-hidden="true"
-              className="size-8 shrink-0 text-accent min-[701px]:size-9"
+              className="size-8 shrink-0 text-accent min-[701px]:size-10"
             />
             <div className="min-w-0">
-              <h1 className="m-0 text-xl font-semibold tracking-tight min-[701px]:text-2xl">
+              <h1
+                data-page-banner-title
+                className="text-xl leading-tight font-bold tracking-tight min-[701px]:text-2xl"
+              >
                 {id ? "编辑媒体库配置" : "新建媒体库配置"}
               </h1>
               <p className="mt-1 mb-0 text-sm text-muted">
-                配置媒体库基本信息、目录绑定、输出与 STRM 链接，保存后生效。
+                {id ? "修改" : "设置"}媒体库的基础信息、目录绑定、输出与 STRM
+                等配置，保存后立即生效。
               </p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center justify-end gap-2">
+          <div className="flex shrink-0 items-center justify-end gap-3">
             <Button
-              variant="secondary"
+              variant="tertiary"
+              className="min-w-20 shadow-sm"
               type="button"
-              onPress={() => void navigate("/libraries")}
+              onPress={() => {
+                if (canGoBack) void navigate(-1);
+                else void navigate("/libraries");
+              }}
             >
               取消
             </Button>
             <Button
               variant="primary"
+              className="min-w-28 shadow-sm"
               type="submit"
               isDisabled={mutation.isPending}
             >
@@ -719,16 +765,16 @@ function LibraryForm({
             <LibrarySelect
               label="语言偏好"
               value={value.language_preference}
-              options={[["zh-CN", "简体中文"]]}
+              options={Object.entries(languageLabels)}
               onChange={() => update({ language_preference: "zh-CN" })}
             />
             <LibrarySelect
               label="刮削源"
               value={value.scrape_source}
               options={[
-                ["tmdb", "TMDB（推荐）"],
-                ["metatube", "MetaTube"],
-                ["none", "不刮削"],
+                ["tmdb", `${scrapeSourceLabels.tmdb}（推荐）`],
+                ["metatube", scrapeSourceLabels.metatube],
+                ["none", scrapeSourceLabels.none],
               ]}
               onChange={(key) => {
                 if (["tmdb", "metatube", "none"].includes(key))
@@ -857,8 +903,8 @@ function LibraryForm({
               value={value.strm_existing_file_policy}
               disabled={!value.generate_strm}
               options={[
-                ["skip", "跳过（默认）"],
-                ["overwrite", "覆盖"],
+                ["skip", `${existingFilePolicyLabels.skip}（默认）`],
+                ["overwrite", existingFilePolicyLabels.overwrite],
               ]}
               onChange={(key) => {
                 if (key === "skip" || key === "overwrite")
@@ -876,10 +922,7 @@ function LibraryForm({
             <LibrarySelect
               label="链接类型"
               value={value.link_type}
-              options={[
-                ["direct", "直连"],
-                ["proxy", "302 代理"],
-              ]}
+              options={Object.entries(linkTypeLabels)}
               onChange={(key) =>
                 update({ link_type: key === "direct" ? "direct" : "proxy" })
               }
@@ -911,13 +954,13 @@ function LibraryForm({
                       className="data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
                       id="original_name"
                     >
-                      文件原名
+                      {linkFormatLabels.original_name}
                     </Tabs.Tab>
                     <Tabs.Tab
                       className="data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground"
                       id="file_id"
                     >
-                      文件 ID
+                      {linkFormatLabels.file_id}
                     </Tabs.Tab>
                   </Tabs.List>
                 </Tabs.ListContainer>
@@ -986,7 +1029,7 @@ function LibraryForm({
     </main>
   );
 }
-export function LibraryDetailPage() {
+export function LibraryDetailLayout() {
   const { id } = useParams();
   const query = useQuery({
     queryKey: ["libraries", "detail", id],
@@ -994,29 +1037,43 @@ export function LibraryDetailPage() {
     enabled: !!id,
     retry: false,
   });
-  const actions = useActions();
-  if (query.isPending)
-    return (
-      <main className="mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12">
-        正在加载媒体库…
-      </main>
-    );
-  if (!query.data)
-    return (
-      <main className="mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12">
-        <ErrorMessage error={query.error} />
-        <Link to="/libraries">返回媒体库</Link>
-      </main>
-    );
-  const item = query.data;
   return (
-    <main className="mx-auto w-full max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12">
+    <main className="mx-auto w-full min-w-0 max-w-[1600px] px-[14px] py-[14px] min-[701px]:px-6 min-[701px]:py-6 min-[701px]:pb-12">
+      {query.data ? (
+        <LibraryDetailOutlet key={query.data.id} item={query.data} />
+      ) : query.isPending ? (
+        <p role="status">正在加载媒体库…</p>
+      ) : (
+        <>
+          <ErrorMessage error={query.error} />
+          <Link to="/libraries">返回媒体库</Link>
+        </>
+      )}
+    </main>
+  );
+}
+
+function LibraryDetailOutlet({ item }: { item: Library }) {
+  const [settings, setSettings] = useState<IncrementalSettings>({
+    interval: "30",
+    batchLimit: "500",
+    listening: true,
+    includeDirectories: true,
+  });
+  return <Outlet context={{ item, settings, setSettings }} />;
+}
+
+export function LibraryDetailPage() {
+  const { item } = useLibraryDetailContext();
+  const actions = useActions();
+  return (
+    <>
       <ErrorMessage error={actions.error} />
       <LibraryDetailView
         item={item}
         pending={actions.isPending}
         onToggle={() => actions.mutate({ action: "toggle", library: item })}
       />
-    </main>
+    </>
   );
 }

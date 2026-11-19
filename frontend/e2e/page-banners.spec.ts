@@ -119,6 +119,30 @@ for (const theme of ["light", "dark"] as const) {
         title,
       );
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      if (name === "new" || name === "edit") {
+        await expect(banner.getByRole("heading", { level: 1 })).toHaveText(
+          name === "new" ? "新建媒体库配置" : "编辑媒体库配置",
+        );
+        await expect(banner).toHaveCSS("background-image", /^linear-gradient/);
+        await expect(banner.locator("svg.lucide-folder")).toBeVisible();
+        const cancel = banner.getByRole("button", { name: "取消" });
+        const submit = banner.getByRole("button", {
+          name: name === "new" ? "创建媒体库" : "保存配置",
+        });
+        await expect(cancel).toHaveAttribute("type", "button");
+        await expect(submit).toHaveAttribute("type", "submit");
+        const headingBox = await banner.getByRole("heading").boundingBox();
+        const submitBox = await submit.boundingBox();
+        if (!headingBox || !submitBox) throw new Error("横幅布局缺失");
+        if (testInfo.project.name === "desktop")
+          expect(submitBox.x).toBeGreaterThan(headingBox.x + headingBox.width);
+        else
+          expect(submitBox.y).toBeGreaterThan(headingBox.y + headingBox.height);
+        await banner.screenshot({
+          path: testInfo.outputPath(`${name}-${theme}.png`),
+        });
+        continue;
+      }
       const colors = await banner.evaluate((element) => {
         const color = (token: string) => {
           const probe = document.createElement("span");
@@ -284,7 +308,7 @@ for (const theme of ["light", "dark"] as const) {
         path: testInfo.outputPath(`${name}-${theme}.png`),
       });
     }
-    await page.getByRole("link", { name: "返回媒体库" }).click();
+    await page.getByRole("button", { name: "取消", exact: true }).click();
     await expect(page).toHaveURL(/\/libraries$/);
   });
 }

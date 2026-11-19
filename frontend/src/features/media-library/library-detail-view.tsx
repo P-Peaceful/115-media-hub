@@ -3,7 +3,6 @@ import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   ArrowLeft,
-  BadgeInfo,
   CheckCircle2,
   ChevronRight,
   CircleAlert,
@@ -23,7 +22,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { ReactNode } from "react";
-import { Link as RouterLink } from "react-router";
+import { Link as RouterLink, useNavigate } from "react-router";
 
 import { PageBanner } from "@/components/page-banner";
 import {
@@ -32,15 +31,23 @@ import {
 } from "@/features/dashboard/system-status";
 
 import type { Library } from "./api";
+import {
+  existingFilePolicyLabels,
+  languageLabels,
+  linkFormatLabels,
+  linkTypeLabels,
+  mediaTypeLabels,
+  scrapeSourceLabels,
+} from "./library-configuration-labels";
+import { libraryDetailPath } from "./library-detail-context";
 import { libraryDetailDemo as demo } from "./library-detail-demo";
+import { LibraryLocalTime } from "./library-sync-components";
 
-const typeLabels = {
-  movie: "电影",
-  tv: "电视剧",
-  anime: "动漫",
-  documentary: "纪录片",
-  mixed: "混合",
-};
+const detailActions = [
+  { path: "full-sync", label: "全量同步", icon: RefreshCw },
+  { path: "incremental-sync", label: "增量同步", icon: Zap },
+  { path: "edit", label: "编辑配置", icon: Pencil },
+];
 
 function DetailCard({
   title,
@@ -54,7 +61,7 @@ function DetailCard({
   demonstration?: boolean;
 }) {
   return (
-    <Card className="h-full">
+    <Card className="h-full min-w-0">
       <Card.Header>
         <div className="flex w-full flex-wrap items-center justify-between gap-2">
           <h2 className="flex items-center gap-3 text-lg font-semibold">
@@ -97,22 +104,29 @@ function DetailLink({
     </HeroLink>
   );
 }
-function LocalTime({ at, compact = false }: { at: string; compact?: boolean }) {
-  const date = new Date(at);
+
+function ConfigurationFields({
+  fields,
+}: {
+  fields: readonly (readonly [label: string, value: ReactNode])[];
+}) {
   return (
-    <time dateTime={at}>
-      {date
-        .toLocaleString("zh-CN", {
-          ...(compact ? {} : { year: "numeric" }),
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        })
-        .replaceAll("/", "-")}
-    </time>
+    <dl className="divide-y divide-divider text-sm">
+      {fields.map(([label, value]) => (
+        <div
+          key={label}
+          className="grid min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] items-center gap-x-3 py-2 first:pt-0 last:pb-0"
+        >
+          <dt className="wrap-anywhere text-muted">{label}</dt>
+          <dd className="min-w-0 wrap-anywhere font-medium">{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
+}
+
+function settingStatus(enabled: boolean) {
+  return enabled ? "已启用" : "已关闭";
 }
 
 export function LibraryDetailView({
@@ -125,6 +139,8 @@ export function LibraryDetailView({
   pending: boolean;
 }) {
   const system = useSystemStatus();
+  const navigate = useNavigate();
+  const detailPath = libraryDetailPath(item.id);
   const statistics = [
     {
       label: "总数量",
@@ -166,74 +182,67 @@ export function LibraryDetailView({
             {item.name}
           </>
         }
-        description={`${typeLabels[item.media_type]}类型媒体库，绑定 115 网盘目录，管理 STRM 输出配置。`}
+        description={`${mediaTypeLabels[item.media_type]}类型媒体库，绑定 115 网盘目录，管理 STRM 输出配置。`}
       />
       <div className="mt-4 rounded-2xl bg-surface p-2 shadow-sm">
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          <Button
-            variant="primary"
-            className="w-full"
-            isDisabled
-            aria-describedby="library-actions-help"
-          >
-            <RefreshCw aria-hidden="true" />
-            全量同步
-          </Button>
-          <Button
-            variant="secondary"
-            className="w-full"
-            isDisabled
-            aria-describedby="library-actions-help"
-          >
-            <Zap aria-hidden="true" />
-            增量同步
-          </Button>
-          <Button
-            variant="secondary"
-            className="w-full"
-            isDisabled
-            aria-describedby="library-actions-help"
-          >
-            <Play aria-hidden="true" />
-            执行预览
-          </Button>
-          <DetailLink
-            to={`/libraries/${item.id}/edit`}
-            className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl bg-surface-secondary px-3 font-semibold text-foreground no-underline"
-          >
-            <Pencil aria-hidden="true" className="size-5 text-accent" />
-            编辑配置
-          </DetailLink>
+        <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-3">
+          {detailActions.map(({ path, label, icon: Icon }) => (
+            <Button
+              key={path}
+              fullWidth
+              variant="secondary"
+              onPress={() =>
+                void navigate(
+                  `${detailPath}/${path}`,
+                  path === "edit"
+                    ? { state: { fromLibraryPage: true } }
+                    : undefined,
+                )
+              }
+            >
+              <Icon aria-hidden="true" className="size-5 shrink-0" />
+              {label}
+            </Button>
+          ))}
         </div>
       </div>
-      <p id="library-actions-help" className="mt-2 text-xs text-muted">
-        同步和执行预览尚未开放；以下演示数据仅供界面预览。
-      </p>
       <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
         <DetailCard title="库概览" icon={Film}>
-          <div className="flex items-center gap-4 py-2">
-            <span className="flex size-20 shrink-0 items-center justify-center rounded-3xl bg-accent-soft text-accent">
-              <Film aria-hidden="true" className="size-11" />
-            </span>
-            <div className="min-w-0">
-              <h3 className="mb-3 wrap-anywhere text-2xl font-semibold">
-                {item.name}
-              </h3>
-              <div className="flex flex-wrap gap-2">
-                <Chip color="accent" variant="soft" size="sm">
-                  {typeLabels[item.media_type]}
-                </Chip>
-                <Chip
-                  color={item.enabled ? "success" : "warning"}
-                  variant="soft"
-                  size="sm"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="size-2 rounded-full bg-current"
-                  />
-                  {item.enabled ? "已启用" : "已暂停"}
-                </Chip>
+          <div className="@container">
+            <div className="grid items-center gap-4 py-2 @min-[26rem]:grid-cols-2 @min-[26rem]:gap-6">
+              <div className="flex min-w-0 items-center gap-4">
+                <span className="flex size-20 shrink-0 items-center justify-center rounded-3xl bg-accent-soft text-accent">
+                  <Film aria-hidden="true" className="size-11" />
+                </span>
+                <div className="min-w-0">
+                  <h3 className="mb-3 wrap-anywhere text-2xl font-semibold">
+                    {item.name}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    <Chip color="accent" variant="soft" size="sm">
+                      {mediaTypeLabels[item.media_type]}
+                    </Chip>
+                    <Chip
+                      color={item.enabled ? "success" : "warning"}
+                      variant="soft"
+                      size="sm"
+                    >
+                      <span
+                        aria-hidden="true"
+                        className="size-2 rounded-full bg-current"
+                      />
+                      {item.enabled ? "已启用" : "已暂停"}
+                    </Chip>
+                  </div>
+                </div>
+              </div>
+              <div className="min-w-0">
+                <ConfigurationFields
+                  fields={[
+                    ["语言偏好", languageLabels[item.language_preference]],
+                    ["刮削源", scrapeSourceLabels[item.scrape_source]],
+                  ]}
+                />
               </div>
             </div>
           </div>
@@ -277,13 +286,6 @@ export function LibraryDetailView({
             <dd className="text-right font-medium">
               {system.data ? formatUptime(system.data.uptime_seconds) : "—"}
             </dd>
-            <dt className="flex items-center gap-2 text-muted">
-              <BadgeInfo aria-hidden="true" className="size-4" />
-              版本信息
-            </dt>
-            <dd className="wrap-anywhere text-right font-medium">
-              {system.data?.version ?? "—"}
-            </dd>
           </dl>
           {system.isError && (
             <Alert status="warning" className="mt-3">
@@ -302,29 +304,66 @@ export function LibraryDetailView({
             </Alert>
           )}
         </DetailCard>
+      </div>
+      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-3">
         <DetailCard title="绑定目录" icon={Folder}>
-          <DetailLink
-            to={`/cloud-drive?${new URLSearchParams({ directory_id: item.directory_id })}`}
-            className="flex w-full items-center gap-3 rounded-xl bg-surface-secondary p-4 text-foreground no-underline"
-          >
-            <Folder aria-hidden="true" className="size-6 shrink-0 text-muted" />
-            <span className="min-w-0 flex-1 wrap-anywhere font-medium">
-              {item.directory_path}
-            </span>
-            <ChevronRight aria-hidden="true" className="size-5 shrink-0" />
-          </DetailLink>
-        </DetailCard>
-        <DetailCard title="输出设置摘要" icon={Settings2}>
-          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-5 gap-y-3 text-sm">
-            <dt className="text-muted">输出目录</dt>
-            <dd className="wrap-anywhere font-medium">{item.output_path}</dd>
-            <dt className="text-muted">文件编码</dt>
-            <dd className="font-medium">{item.file_encoding}</dd>
-            <dt className="text-muted">生成 NFO</dt>
-            <dd className="font-medium">
-              {item.generate_nfo ? "已启用" : "已关闭"}
+          <dl className="space-y-2 text-sm">
+            <dt className="text-muted">媒体库目录</dt>
+            <dd>
+              <DetailLink
+                to={`/cloud-drive?${new URLSearchParams({ directory_id: item.directory_id })}`}
+                className="flex w-full items-center gap-3 rounded-xl bg-surface-secondary p-4 text-foreground no-underline"
+              >
+                <Folder
+                  aria-hidden="true"
+                  className="size-6 shrink-0 text-muted"
+                />
+                <span className="min-w-0 flex-1 wrap-anywhere font-medium">
+                  {item.directory_path}
+                </span>
+                <ChevronRight aria-hidden="true" className="size-5 shrink-0" />
+              </DetailLink>
             </dd>
           </dl>
+          <div className="mt-4">
+            <ConfigurationFields
+              fields={[
+                ["排除目录", item.exclude_directory_path || "未设置"],
+                [
+                  "包含子目录（递归扫描）",
+                  settingStatus(item.include_subdirectories),
+                ],
+                [
+                  "跟随网盘目录变更",
+                  settingStatus(item.follow_directory_changes),
+                ],
+              ]}
+            />
+          </div>
+        </DetailCard>
+        <DetailCard title="输出设置" icon={Settings2}>
+          <ConfigurationFields
+            fields={[
+              ["输出目录", item.output_path],
+              ["STRM 文件", settingStatus(item.generate_strm)],
+              ["NFO 信息", settingStatus(item.generate_nfo)],
+              ["海报与封面", settingStatus(item.generate_poster_cover)],
+              [
+                "STRM 已存在时",
+                existingFilePolicyLabels[item.strm_existing_file_policy],
+              ],
+              ["文件编码", item.file_encoding],
+            ]}
+          />
+        </DetailCard>
+        <DetailCard title="STRM 链接配置" icon={Link2}>
+          <ConfigurationFields
+            fields={[
+              ["链接类型", linkTypeLabels[item.link_type]],
+              ["STRM 直连域名", item.strm_direct_domain || "未设置"],
+              ["链接格式", linkFormatLabels[item.strm_link_format]],
+            ]}
+          />
         </DetailCard>
       </div>
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[5fr_3fr]">
@@ -349,7 +388,7 @@ export function LibraryDetailView({
         </DetailCard>
         <DetailCard title="最近同步时间" icon={Clock3} demonstration>
           <div className="mb-4 flex flex-wrap items-center gap-2 text-lg font-semibold tabular-nums">
-            <LocalTime at={demo.latestSync.at} />
+            <LibraryLocalTime at={demo.latestSync.at} />
             <CheckCircle2
               aria-label="同步成功"
               className="size-5 text-success"
@@ -386,7 +425,7 @@ export function LibraryDetailView({
                     )}
                   </span>
                   <span className="min-w-28 text-muted tabular-nums">
-                    <LocalTime at={record.at} compact />
+                    <LibraryLocalTime at={record.at} compact />
                   </span>
                   <Chip size="sm" variant="soft" color="accent">
                     {record.type}
