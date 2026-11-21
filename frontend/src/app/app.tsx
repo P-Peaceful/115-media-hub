@@ -1,3 +1,5 @@
+import "@/features/strm-management/strm-management.css";
+
 import { Button, RouterProvider } from "@heroui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
@@ -20,6 +22,13 @@ import {
   LibraryListPage,
 } from "@/features/media-library/library-page";
 import { SettingsPage } from "@/features/settings/settings-page";
+import { StrmCleanupPage } from "@/features/strm-management/strm-cleanup-page";
+import { StrmDetailPage } from "@/features/strm-management/strm-detail-page";
+import {
+  StrmCheckResultsPage,
+  StrmListPage,
+} from "@/features/strm-management/strm-list-page";
+import { StrmSessionLayout } from "@/features/strm-management/strm-session";
 import { ScheduleEditorPage } from "@/features/task-center/schedule-editor-page";
 import { ScheduleListPage } from "@/features/task-center/schedule-list-page";
 import { TaskDetailPage } from "@/features/task-center/task-detail-page";
@@ -150,6 +159,24 @@ export function App() {
                     </AppShell>
                   }
                 />
+                <Route
+                  path="/strm"
+                  element={
+                    <AppShell currentPage="STRM 管理">
+                      <main className="strm-page">
+                        <StrmSessionLayout />
+                      </main>
+                    </AppShell>
+                  }
+                >
+                  <Route index element={<StrmListPage />} />
+                  <Route path="files/:id" element={<StrmDetailPage />} />
+                  <Route
+                    path="check-results"
+                    element={<StrmCheckResultsPage />}
+                  />
+                  <Route path="cleanup-preview" element={<StrmCleanupPage />} />
+                </Route>
                 <Route
                   path="/tasks"
                   element={

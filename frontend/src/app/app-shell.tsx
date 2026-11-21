@@ -46,7 +46,7 @@ const navigation = [
     items: [
       { label: "网盘浏览", icon: Folder, href: "/cloud-drive" },
       { label: "媒体库", icon: Film, href: "/libraries" },
-      { label: "STRM 管理", icon: Link },
+      { label: "STRM 管理", icon: Link, href: "/strm" },
       { label: "海报墙", icon: Image },
     ],
   },
@@ -309,7 +309,9 @@ export function AppShell({
                 <Home aria-hidden="true" className="size-5" />
               </Breadcrumbs.Item>
               <Breadcrumbs.Item>
-                {currentPage === "网盘浏览" || currentPage === "媒体库"
+                {currentPage === "网盘浏览" ||
+                currentPage === "媒体库" ||
+                currentPage === "STRM 管理"
                   ? "资源管理"
                   : isTaskCenter
                     ? "任务与维护"

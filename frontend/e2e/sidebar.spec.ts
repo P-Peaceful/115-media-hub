@@ -203,9 +203,8 @@ test("全局导航在桌面保持视口定位，短屏完整显示，移动端�
   await page.screenshot({ path: "/tmp/sidebar-reference-desktop.png" });
   const cloud = sidebar.getByRole("link", { name: "网盘浏览" });
   const library = sidebar.getByRole("link", { name: "媒体库" });
-  await expect(
-    sidebar.getByRole("button", { name: "STRM 管理" }),
-  ).toBeDisabled();
+  const strm = sidebar.getByRole("link", { name: "STRM 管理" });
+  await expect(strm).toHaveAttribute("href", "/strm");
   await cloud.focus();
   await page.keyboard.press("Tab");
   await expect(library).toBeFocused();
@@ -215,16 +214,14 @@ test("全局导航在桌面保持视口定位，短屏完整显示，移动端�
   await sidebar.getByRole("link", { name: "总览" }).click();
   await expect(page).toHaveURL(/\/$/);
   const textStart = async (label: string) =>
-    sidebar
-      .getByRole(label === "STRM 管理" ? "button" : "link", { name: label })
-      .evaluate((element) => {
-        const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
-        const text = walker.nextNode();
-        if (!text) throw new Error("菜单文字缺失");
-        const range = document.createRange();
-        range.selectNodeContents(text);
-        return range.getBoundingClientRect().left;
-      });
+    sidebar.getByRole("link", { name: label }).evaluate((element) => {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      const text = walker.nextNode();
+      if (!text) throw new Error("菜单文字缺失");
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      return range.getBoundingClientRect().left;
+    });
   await expect
     .poll(async () =>
       Math.abs((await textStart("总览")) - (await textStart("STRM 管理"))),
