@@ -1,0 +1,4 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "前端约定和所需细则入口"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "HeroUI v3、样式与可访问性约定"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "URL 和特性局部状态的职责"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "格式、静态检查、测试和视觉验收"}

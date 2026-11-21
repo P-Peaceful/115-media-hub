@@ -1,0 +1,7 @@
+{"file": ".trellis/spec/frontend/index.md", "reason": "前端约定和所需细则入口"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "HeroUI v3、样式与可访问性约定"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "URL 和特性局部状态的职责"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "格式、静态检查、测试和视觉验收"}
+{"file": ".trellis/spec/guides/project-baseline.md", "reason": "项目技术约定与后续真实 STRM 管理边界"}
+{"file": ".trellis/spec/frontend/directory-structure.md", "reason": "特性目录、共享组件和应用路由职责"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "演示记录、筛选和状态的类型约束"}
