@@ -274,3 +274,25 @@ Implemented persistent media library configuration, management UI and shared pag
 ### Status
 
 [OK] **Completed**
+
+
+## Session 11: 任务中心开发
+<!-- trellis-session: v=2 fp=84e22e98e7b05b68 -->
+
+**Date**: 2026-11-21
+**Task**: 任务中心开发
+**Branch**: `codex/task-center`
+
+### Summary
+
+交付持久化任务调度、管理接口与 HeroUI v3 任务中心四页。生产执行能力随业务模块注册。前后端检查与任务中心 10 项浏览器用例通过。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e83e7b3` | feat: add task center scheduling |
+
+### Status
+
+[OK] **Completed**
