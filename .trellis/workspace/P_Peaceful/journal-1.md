@@ -296,3 +296,25 @@ Implemented persistent media library configuration, management UI and shared pag
 ### Status
 
 [OK] **Completed**
+
+
+## Session 12: STRM 管理前端演示
+<!-- trellis-session: v=2 fp=41ff0c65f43b874f -->
+
+**Date**: 2026-11-21
+**Task**: STRM 管理前端演示
+**Branch**: `main`
+
+### Summary
+
+用 HeroUI 实现 STRM 列表、文件详情、有效性检查结果和清理预览，适配浅色及深色主题。140 项 Vitest、4 项 STRM Playwright、5 项侧栏回归和前端构建通过；全量浏览器测试中的既有失败已在改动前版本复现。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `e735f4c` | feat: add STRM management demo |
+
+### Status
+
+[OK] **Completed**
