@@ -22,8 +22,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd --gid 10001 mediahub \
     && useradd --uid 10001 --gid mediahub --no-create-home mediahub \
-    && mkdir --parents /app/data /app/logs /app/media /app/cache /app/backups /app/storage/quarantine \
-    && chown --recursive mediahub:mediahub /app/data /app/logs /app/media /app/cache /app/backups /app/storage
+    && mkdir --parents /app/data /app/logs /app/media /app/cache /app/backups \
+    && chown --recursive mediahub:mediahub /app/data /app/logs /app/media /app/cache /app/backups
 WORKDIR /app
 COPY --from=backend /out/mediahub /app/mediahub
 USER 10001:10001
@@ -31,5 +31,5 @@ ENV MEDIAHUB_HTTP_ADDR=:8080 \
     MEDIAHUB_DATABASE_PATH=/app/data/mediahub.db \
     MEDIAHUB_LOG_FILE=/app/logs/mediahub.log
 EXPOSE 8080
-VOLUME ["/app/data", "/app/logs", "/app/media", "/app/cache", "/app/storage/quarantine", "/app/backups"]
+VOLUME ["/app/data", "/app/logs", "/app/media", "/app/cache", "/app/backups"]
 ENTRYPOINT ["/app/mediahub"]

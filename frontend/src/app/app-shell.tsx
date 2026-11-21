@@ -40,12 +40,12 @@ import {
 } from "@/features/settings/account-details";
 
 const navigation = [
-  { heading: "工作台", items: [{ label: "总览", icon: Home, current: true }] },
+  { heading: "工作台", items: [{ label: "总览", icon: Home, href: "/" }] },
   {
     heading: "资源管理",
     items: [
-      { label: "网盘浏览", icon: Folder },
-      { label: "媒体库", icon: Film },
+      { label: "网盘浏览", icon: Folder, href: "/cloud-drive" },
+      { label: "媒体库", icon: Film, href: "/libraries" },
       { label: "STRM 管理", icon: Link },
       { label: "海报墙", icon: Image },
     ],
@@ -53,7 +53,7 @@ const navigation = [
   {
     heading: "任务与维护",
     items: [
-      { label: "任务中心", icon: ListVideo },
+      { label: "任务中心", icon: ListVideo, href: "/tasks" },
       { label: "文件回传", icon: UploadCloud },
       { label: "运行日志", icon: FileText },
     ],
@@ -70,6 +70,7 @@ export function AppShell({
   const navigate = useNavigate();
   const auth = useAuth();
   const account = useAccountDetails();
+  const isTaskCenter = currentPage === "任务中心" || currentPage === "定时计划";
   const capacityMetrics =
     !account.isError &&
     account.data?.status === "valid" &&
@@ -129,23 +130,22 @@ export function AppShell({
             <div className="nav-group" key={group.heading}>
               <p>{group.heading}</p>
               <ul className="nav-list">
-                {group.items.map(({ label, icon: Icon }) => {
-                  const href =
-                    label === "总览"
-                      ? "/"
-                      : label === "网盘浏览"
-                        ? "/cloud-drive"
-                        : label === "媒体库"
-                          ? "/libraries"
-                          : undefined;
-                  const current = label === currentPage;
+                {group.items.map(({ label, icon: Icon, href }) => {
+                  const current =
+                    label === currentPage ||
+                    (label === "任务中心" && isTaskCenter);
                   const link = href ? (
                     <div className="flex min-h-11 items-center px-4">
                       <HeroLink
                         className="flex items-center gap-[18px] whitespace-nowrap"
                         href={href}
                         {...(current
-                          ? { "aria-current": "page" as const }
+                          ? {
+                              "aria-current":
+                                label === currentPage
+                                  ? ("page" as const)
+                                  : ("location" as const),
+                            }
                           : {})}
                       >
                         <Icon className="size-5 shrink-0" aria-hidden="true" />
@@ -311,19 +311,23 @@ export function AppShell({
               <Breadcrumbs.Item>
                 {currentPage === "网盘浏览" || currentPage === "媒体库"
                   ? "资源管理"
-                  : "工作台"}
+                  : isTaskCenter
+                    ? "任务与维护"
+                    : "工作台"}
               </Breadcrumbs.Item>
               <Breadcrumbs.Item>{currentPage}</Breadcrumbs.Item>
             </Breadcrumbs>
           </nav>
           <div className="top-actions">
-            <span>
-              <Button variant="ghost" isDisabled>
-                <Play aria-hidden="true" />
-                运行任务 <b>3</b>
-                <small>示例</small>
-              </Button>
-            </span>
+            {!isTaskCenter && (
+              <span>
+                <Button variant="ghost" isDisabled>
+                  <Play aria-hidden="true" />
+                  运行任务 <b>3</b>
+                  <small>示例</small>
+                </Button>
+              </span>
+            )}
             <ThemeToggle />
             <span>
               <Button

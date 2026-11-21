@@ -162,12 +162,11 @@ docker run --detach --name mediahub \
   --mount source=mediahub-logs,target=/app/logs \
   --mount source=mediahub-media,target=/app/media \
   --mount source=mediahub-cache,target=/app/cache \
-  --mount source=mediahub-quarantine,target=/app/storage/quarantine \
   --mount source=mediahub-backups,target=/app/backups \
   115-media-hub:local
 ```
 
-打开 <http://127.0.0.1:8080>。镜像以 UID/GID `10001:10001` 运行，数据库在 `/app/data/mediahub.db`，轮转日志在 `/app/logs/mediahub.log`，默认媒体输出目录为 `/app/media`。应用数据目录统一位于 `/app` 下：可重建缓存使用 `/app/cache`，备份使用 `/app/backups`，隔离区使用 `/app/storage/quarantine`。绑定宿主目录时需给该 UID/GID 写权限；命名卷可直接使用。持久保留数据卷，升级前使用一致性 SQLite 备份。镜像采用 Node/Go 构建阶段和兼容的 Debian Bookworm 运行阶段，支持 SQLite CGO。
+打开 <http://127.0.0.1:8080>。镜像以 UID/GID `10001:10001` 运行，数据库在 `/app/data/mediahub.db`，轮转日志在 `/app/logs/mediahub.log`，默认媒体输出目录为 `/app/media`。可重建缓存使用 `/app/cache`，备份使用 `/app/backups`。绑定宿主目录时需给该 UID/GID 写权限；命名卷可直接使用。持久保留数据卷，升级前使用一致性 SQLite 备份。镜像采用 Node/Go 构建阶段和兼容的 Debian Bookworm 运行阶段，支持 SQLite CGO。
 
 ### 设置与 115 账号
 

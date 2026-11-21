@@ -81,6 +81,21 @@ class AuthenticationSmoke:
         assert state["administrator"]["id"] == self.administrator
         assert state["expires_at"] and state["csrf_token"]
 
+    def verify_task_center(self, base):
+        with self.opener.open(base + "/api/v1/task-types", timeout=5) as result:
+            capabilities = json.load(result)["items"]
+        assert {item["type"] for item in capabilities} == {
+            "scan", "strm", "sync", "check", "cleanup", "scrape", "upload",
+        }
+        assert all(not item["available"] and item["reason"] for item in capabilities)
+        for path in ("/api/v1/tasks", "/api/v1/schedules"):
+            with self.opener.open(base + path, timeout=5) as result:
+                page = json.load(result)
+                assert page["items"] == [] and page["next_cursor"] is None, path
+        with self.opener.open(base + "/api/v1/events", timeout=5) as result:
+            assert result.headers.get_content_type() == "text/event-stream"
+            assert result.readline() == b": connected\n"
+
     def login(self, base, csrf_token, password):
         request = urllib.request.Request(
             base + "/api/v1/auth/login", method="POST",
@@ -116,7 +131,7 @@ def verify(base, authentication):
         status, headers, body = response(base, path)
         assert status == 200 and json.loads(body) == {"status": "ok"}, path
         assert headers.get("X-Request-ID"), path
-    for path in ("/", "/library/example"):
+    for path in ("/", "/library/example", "/tasks", "/tasks/schedules/new"):
         status, headers, body = response(base, path)
         assert status == 200 and "text/html" in headers.get("Content-Type", ""), path
         assert b'<div id="root">' in body, path
@@ -134,7 +149,8 @@ def verify(base, authentication):
         status, _, body = response(base, path)
         assert status == 404 and b"<!doctype html" not in body.lower(), path
     authentication.verify(base)
-    print("健康检查、SPA/保留路径及真实初始化/登录会话验证通过")
+    authentication.verify_task_center(base)
+    print("健康检查、SPA/保留路径、初始化/登录及任务中心验证通过")
 
 
 def native():

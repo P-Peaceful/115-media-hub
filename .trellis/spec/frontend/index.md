@@ -9,6 +9,7 @@ Read the [project baseline](../guides/project-baseline.md) first for Notion sour
 | Guide | Responsibility |
 | --- | --- |
 | [Authentication](./authentication.md) | Login/setup routes, session state, recovery guidance and visual acceptance |
+| [Task center](./task-center.md) | Task and schedule routes, capability gating and live updates |
 | [Directory structure](./directory-structure.md) | Feature ownership, naming, dependency boundaries |
 | [Components](./component-guidelines.md) | Props, composition, HeroUI v3, styling, accessibility |
 | [Hooks](./hook-guidelines.md) | Query keys, cancellation, effects, mutations |

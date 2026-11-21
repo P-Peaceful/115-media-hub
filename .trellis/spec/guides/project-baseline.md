@@ -9,7 +9,7 @@ The user's Notion checklists define architecture:
 - [Backend V1.0](https://app.notion.com/p/401138389edc811fabfcefbf05f26845), last edited 2026-11-06 04:40 Asia/Shanghai.
 - [Frontend V1.0](https://app.notion.com/p/401138389edc814fb54be80c599600ef), last edited 2026-11-06 04:42 Asia/Shanghai.
 
-Architecture requirements below come from those pages. Directory names, API field conventions, formatter settings, and quality gates are project decisions established during this task. They are not claims about requirements stated in Notion. A later architecture change must update the relevant spec and API contract together; do not silently substitute stacks.
+Architecture requirements below come from those pages. The repository baseline records later decisions, including automatic cleanup for the task center. Directory names, API field conventions, formatter settings, and quality gates are project decisions. A later architecture change must update the relevant spec and API contract together.
 
 ## Selected architecture
 
@@ -28,10 +28,10 @@ V1.0 includes authentication/settings, connections, cloud directory browsing, li
 - SQLite: local disk, WAL, foreign keys, busy timeout, bounded write concurrency, short transactions. Network/filesystem work stays outside database transactions. Use a consistent SQLite backup, then reconcile file state after restore before re-enabling cleanup/overwrites.
 - Jobs: persist runs, items, effects, schedules, and resource locks. Claim using conditional writes and verify affected rows. Define cancellation, bounded retries, idempotency, and restart verification; do not assume exactly-once external effects.
 - Synchronization: record completeness per directory. Failed/incomplete scans never prove deletion. Lock by library output path and remote destination file; rate-limit 115 requests per connection.
-- Files: track STRM ownership and content hashes; user-modified content becomes a conflict. Cleanup is disabled by default and requires preview plus quarantine outside media scan directories. Never overwrite or delete an unowned file merely because its name matches.
+- Files. Track STRM ownership and content hashes. User-modified content becomes a conflict. Cleanup is disabled by default. Once enabled, a cleanup run automatically evaluates candidates and deletes eligible application-owned output files with matching content hashes. Keep unowned and modified files and report the reason they were skipped.
 - Playback: STRM stores a stable application URL; resolve temporary 115 links at playback time. Cache only within link validity. Keep temporary links and playback credentials out of logs.
 - Metadata: explicit local/remote mappings and sync baselines detect conflicts. Verify uncertain uploads before retrying.
-- Container storage mounts: `/app/data` persistent database/state; `/app/media` default output/media sidecars (latest user-selected default in `admin-auth`); `/app/storage/quarantine` isolation; `/app/cache` rebuildable images; `/app/logs` rotation; `/app/backups` consistent backups. These are paths inside the Docker container; local development keeps its database under the project at `backend/data/mediahub.db`. Define shared media path mappings for Emby/Jellyfin.
+- Container storage mounts include `/app/data` for persistent database and state, `/app/media` for default output and media sidecars, `/app/cache` for rebuildable images, `/app/logs` for logs, and `/app/backups` for consistent backups. Local development keeps its database under the project at `backend/data/mediahub.db`. Define shared media path mappings for Emby/Jellyfin.
 
 ## Shared HTTP contract decisions
 

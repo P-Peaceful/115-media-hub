@@ -52,6 +52,9 @@ func NewRouter(database Readiness, logger *slog.Logger, assets fs.FS, options ..
 		if authOptions.Provider != nil {
 			(&providerHandler{service: authOptions.Provider}).register(router)
 		}
+		if authOptions.Jobs != nil {
+			(&taskHandler{service: authOptions.Jobs, auth: authOptions.Service, logger: logger}).register(router)
+		}
 	}
 	router.GET("/api/v1/system/status", func(c *gin.Context) {
 		c.JSON(http.StatusOK, generated.SystemStatus{UptimeSeconds: int64(time.Since(processStarted).Seconds()), Version: Version})

@@ -30,7 +30,7 @@ This is an explicit user requirement established on 2026-11-06. For every implem
 | Cloud browsing | Directory listing failures/timeouts, provider throttling, and pagination diagnostics with connection/directory identifiers; routine successful listings may use DEBUG plus HTTP access logs |
 | Library management | Library/rule/binding changes, validation conflicts, and affected library identifiers |
 | Scanning and synchronization | Scan start/result, directory completeness failures, discovered/changed/skipped counts, and deletion decisions blocked by incomplete scans |
-| STRM management | Generation/repair/preview/cleanup start/result and counts, ownership/hash conflicts, and quarantine/restore outcomes |
+| STRM management | Generation, repair, preview, and cleanup start and result, with counts and ownership or hash conflicts |
 | Playback resolution | Resolution failures/timeouts, upstream throttling, and aggregate cache/redirect diagnostics; routine successes may be DEBUG or aggregated, never log temporary links |
 | Job center | Submission, claim/skip, significant status transitions, retries with attempt/reason, cancellation, final outcome, and restart reconciliation |
 | Media wall | Refresh/synchronization results, cache/upstream failures, and media-file mapping conflicts; aggregate routine image/cache traffic |
@@ -64,7 +64,7 @@ Never log passwords, hashes, cookies, session/CSRF tokens, authorization headers
 
 ## Audit
 
-Persist audit records separately from operational log files for authentication/security changes, credentials/settings changes, destructive actions, cleanup/restore, and other defined critical operations. Record actor identity, action, target identifiers, timestamp, outcome, and correlation ID without secret values. Services own auditing policy; do not infer a durable audit trail from an INFO message. Define handling of an audit persistence failure with the affected use case, especially before destructive operations.
+Persist audit records separately from operational log files for authentication/security changes, credentials/settings changes, destructive actions including automatic cleanup, and other defined critical operations. Record actor identity, action, target identifiers, timestamp, outcome, and correlation ID without secret values. Services own auditing policy; do not infer a durable audit trail from an INFO message. Define handling of an audit persistence failure with the affected use case, especially before destructive operations.
 
 ## Verification
 

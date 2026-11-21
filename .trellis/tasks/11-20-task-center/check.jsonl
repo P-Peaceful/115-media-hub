@@ -1,0 +1,8 @@
+{"file": ".trellis/spec/guides/project-baseline.md", "reason": "任务、调度、SSE 和媒体处理边界"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "业务模块、任务执行器和应用生命周期职责"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "SQLite 事务、任务领取和恢复"}
+{"file": ".trellis/spec/backend/media-library.md", "reason": "媒体库配置唯一来源与现有同步演示边界"}
+{"file": ".trellis/spec/backend/cloud-drive.md", "reason": "区分 115 分页目录浏览与媒体库扫描"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "生命周期记录、审计和脱敏验证"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "任务并发、重试、恢复和后端验证"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "前端交互、可访问性与验证命令"}

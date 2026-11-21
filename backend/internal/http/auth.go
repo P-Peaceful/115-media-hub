@@ -20,6 +20,7 @@ import (
 	domain "github.com/wenzhengcheng/115-media-hub/backend/internal/domain/auth"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/http/generated"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
+	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/jobs"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/provider115"
 )
@@ -33,6 +34,7 @@ type AuthOptions struct {
 	CookieSecure bool
 	Provider     *provider115.Service
 	Library      *library.Service
+	Jobs         *jobs.Service
 }
 
 type authenticationHandler struct {
@@ -217,7 +219,7 @@ func trustedPeer(request *http.Request) string {
 	return host
 }
 
-func decodeAuthBody(c *gin.Context, target any, required []string) bool {
+func decodeAuthBody(c *gin.Context, target any, required []string, requiredNullable ...string) bool {
 	mediaType, _, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
 	if err != nil || mediaType != "application/json" {
 		writeError(c, http.StatusBadRequest, generated.ValidationFailed, "请求必须使用 JSON 格式")
@@ -245,6 +247,12 @@ func decodeAuthBody(c *gin.Context, target any, required []string) bool {
 	}
 	for _, key := range required {
 		if raw, exists := fields[key]; !exists || string(raw) == "null" {
+			writeError(c, http.StatusBadRequest, generated.ValidationFailed, "请填写所有必填字段")
+			return false
+		}
+	}
+	for _, key := range requiredNullable {
+		if _, exists := fields[key]; !exists {
 			writeError(c, http.StatusBadRequest, generated.ValidationFailed, "请填写所有必填字段")
 			return false
 		}

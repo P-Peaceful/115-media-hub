@@ -4,6 +4,181 @@
  */
 
 export interface paths {
+  "/api/v1/task-types": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["listTaskTypes"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/tasks": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Newest first. The type counts ignore the type filter and the status counts ignore the status filter. */
+    get: operations["listTasks"];
+    put?: never;
+    post: operations["submitTask"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/tasks/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get: operations["getTask"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/tasks/{id}/failures": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get: operations["listTaskFailures"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/tasks/{id}/logs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get: operations["listTaskLogs"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/tasks/{id}/actions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Retry returns the newly queued task. Other actions return the updated original task. */
+    post: operations["applyTaskAction"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/schedules": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get: operations["listSchedules"];
+    put?: never;
+    post: operations["createSchedule"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/schedules/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get: operations["getSchedule"];
+    put: operations["updateSchedule"];
+    post?: never;
+    delete: operations["deleteSchedule"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/schedules/{id}/enabled": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch: operations["setScheduleEnabled"];
+    trace?: never;
+  };
+  "/api/v1/events": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Named task.changed and schedule.changed events carry TaskEvent JSON. IDs are scoped to the connection. Reconnect by refetching current data. */
+    get: operations["streamTaskEvents"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/libraries": {
     parameters: {
       query?: never;
@@ -353,6 +528,153 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /** @enum {string} */
+    TaskType:
+      "scan" | "strm" | "sync" | "check" | "cleanup" | "scrape" | "upload";
+    /** @enum {string} */
+    TaskStatus:
+      "queued" | "running" | "paused" | "completed" | "failed" | "canceled";
+    /** @enum {string} */
+    TaskOutcome: "success" | "partial_failure" | "failure";
+    /** @enum {string} */
+    TaskSource: "manual" | "schedule" | "retry";
+    /** @enum {string} */
+    TaskAction: "pause" | "resume" | "cancel" | "retry" | "retry_failed";
+    /** @enum {string} */
+    SchedulePeriod: "daily" | "weekly" | "monthly" | "custom";
+    TaskTypeCapability: {
+      type: components["schemas"]["TaskType"];
+      available: boolean;
+      reason: string | null;
+      can_pause: boolean;
+      can_retry_failed: boolean;
+    };
+    TaskTypeCapabilities: {
+      items: components["schemas"]["TaskTypeCapability"][];
+    };
+    SubmitTaskInput: {
+      type: components["schemas"]["TaskType"];
+      library_id: string;
+    };
+    TaskActionInput: {
+      action: components["schemas"]["TaskAction"];
+    };
+    Task: {
+      id: string;
+      type: components["schemas"]["TaskType"];
+      library_id: string;
+      library_name: string;
+      source: components["schemas"]["TaskSource"];
+      schedule_id: string | null;
+      parent_id: string | null;
+      status: components["schemas"]["TaskStatus"];
+      outcome: components["schemas"]["TaskOutcome"] | null;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      started_at: string | null;
+      /** Format: date-time */
+      finished_at: string | null;
+      /** Format: int64 */
+      duration_ms: number | null;
+      /** Format: double */
+      progress_percent: number | null;
+      /** Format: int64 */
+      speed_bytes_per_second: number | null;
+      current_file: string | null;
+      /** Format: int64 */
+      total_items: number | null;
+      /** Format: int64 */
+      succeeded_items: number;
+      /** Format: int64 */
+      failed_items: number;
+      /** Format: int64 */
+      skipped_items: number;
+      actions: components["schemas"]["TaskAction"][];
+    };
+    TaskPage: {
+      items: components["schemas"]["Task"][];
+      next_cursor: string | null;
+      /** Format: int64 */
+      total: number;
+      by_type: {
+        [key: string]: number;
+      };
+      by_status: {
+        [key: string]: number;
+      };
+    };
+    TaskFailure: {
+      id: string;
+      path: string;
+      reason: string;
+    };
+    TaskFailurePage: {
+      items: components["schemas"]["TaskFailure"][];
+      next_cursor: string | null;
+    };
+    TaskLog: {
+      id: string;
+      level: string;
+      message: string;
+      /** Format: date-time */
+      created_at: string;
+    };
+    TaskLogPage: {
+      items: components["schemas"]["TaskLog"][];
+      next_cursor: string | null;
+    };
+    TaskEvent: {
+      id: string;
+      notification?: components["schemas"]["TaskOutcome"];
+    };
+    /** @description Daily uses time. Weekly uses time and weekdays (0 is Sunday). Monthly uses time and month_day. Custom uses a five-field Cron expression and the plan timezone. */
+    ScheduleInput: {
+      name: string;
+      type: components["schemas"]["TaskType"];
+      /** @description Null targets all eligible libraries. */
+      library_id: string | null;
+      enabled: boolean;
+      period: components["schemas"]["SchedulePeriod"];
+      /** @default Asia/Shanghai */
+      timezone: string;
+      time?: string;
+      weekdays?: number[];
+      month_day?: number;
+      cron?: string;
+      notify_on: components["schemas"]["TaskOutcome"][];
+    };
+    Schedule: {
+      id: string;
+      name: string;
+      type: components["schemas"]["TaskType"];
+      /** @description Null targets all eligible libraries. */
+      library_id: string | null;
+      enabled: boolean;
+      period: components["schemas"]["SchedulePeriod"];
+      /** @default Asia/Shanghai */
+      timezone: string;
+      time?: string;
+      weekdays?: number[];
+      month_day?: number;
+      cron?: string;
+      notify_on: components["schemas"]["TaskOutcome"][];
+      /** Format: date-time */
+      next_run_at: string | null;
+      /** Format: date-time */
+      created_at: string;
+      /** Format: date-time */
+      updated_at: string;
+      /** Format: int64 */
+      revision: number;
+    };
+    ScheduleEnabledInput: {
+      enabled: boolean;
+    };
+    SchedulePage: {
+      items: components["schemas"]["Schedule"][];
+      next_cursor: string | null;
+    };
     LibraryConfig: {
       name: string;
       directory_id: string;
@@ -608,6 +930,8 @@ export interface components {
         | "csrf_invalid"
         | "setup_required"
         | "already_initialized"
+        | "task_type_unavailable"
+        | "task_state_conflict"
         | "rate_limited";
       message: string;
       request_id: string;
@@ -618,6 +942,60 @@ export interface components {
     };
   };
   responses: {
+    /** @description Invalid request (validation_failed) */
+    TaskCenterValidationError: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description Administrator session required (authentication_required) */
+    TaskCenterAuthenticationRequired: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description Invalid CSRF token (csrf_invalid) */
+    TaskCenterCSRFError: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description Task, schedule or library not found */
+    TaskCenterNotFound: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description Task type unavailable or operation conflicts with current state (task_type_unavailable, task_state_conflict, conflict) */
+    TaskCenterConflict: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
+    /** @description Task center unavailable (service_unavailable) */
+    TaskCenterUnavailable: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
     /** @description Saved library configuration */
     LibraryResult: {
       headers: {
@@ -690,6 +1068,414 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+  listTaskTypes: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful task center response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskTypeCapabilities"];
+        };
+      };
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  listTasks: {
+    parameters: {
+      query?: {
+        type?: components["schemas"]["TaskType"];
+        status?: components["schemas"]["TaskStatus"];
+        library_id?: string;
+        limit?: number;
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful task center response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskPage"];
+        };
+      };
+      400: components["responses"]["TaskCenterValidationError"];
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  submitTask: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SubmitTaskInput"];
+      };
+    };
+    responses: {
+      /** @description Successful task center response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Task"];
+        };
+      };
+      400: components["responses"]["TaskCenterValidationError"];
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      403: components["responses"]["TaskCenterCSRFError"];
+      404: components["responses"]["TaskCenterNotFound"];
+      409: components["responses"]["TaskCenterConflict"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  getTask: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful task center response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Task"];
+        };
+      };
+      400: components["responses"]["TaskCenterValidationError"];
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      404: components["responses"]["TaskCenterNotFound"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  listTaskFailures: {
+    parameters: {
+      query?: {
+        limit?: number;
+        cursor?: string;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful task center response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskFailurePage"];
+        };
+      };
+      400: components["responses"]["TaskCenterValidationError"];
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      404: components["responses"]["TaskCenterNotFound"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  listTaskLogs: {
+    parameters: {
+      query?: {
+        limit?: number;
+        cursor?: string;
+      };
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful task center response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TaskLogPage"];
+        };
+      };
+      400: components["responses"]["TaskCenterValidationError"];
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      404: components["responses"]["TaskCenterNotFound"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  applyTaskAction: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["TaskActionInput"];
+      };
+    };
+    responses: {
+      /** @description Successful task center response */
+      202: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Task"];
+        };
+      };
+      400: components["responses"]["TaskCenterValidationError"];
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      403: components["responses"]["TaskCenterCSRFError"];
+      404: components["responses"]["TaskCenterNotFound"];
+      409: components["responses"]["TaskCenterConflict"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  listSchedules: {
+    parameters: {
+      query?: {
+        type?: components["schemas"]["TaskType"];
+        library_id?: string;
+        enabled?: boolean;
+        limit?: number;
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful task center response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SchedulePage"];
+        };
+      };
+      400: components["responses"]["TaskCenterValidationError"];
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  createSchedule: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ScheduleInput"];
+      };
+    };
+    responses: {
+      /** @description Successful task center response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Schedule"];
+        };
+      };
+      400: components["responses"]["TaskCenterValidationError"];
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      403: components["responses"]["TaskCenterCSRFError"];
+      404: components["responses"]["TaskCenterNotFound"];
+      409: components["responses"]["TaskCenterConflict"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  getSchedule: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful task center response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Schedule"];
+        };
+      };
+      400: components["responses"]["TaskCenterValidationError"];
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      404: components["responses"]["TaskCenterNotFound"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  updateSchedule: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+        /** @description Decimal revision from the schedule being edited. */
+        "X-Schedule-Revision": string;
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ScheduleInput"];
+      };
+    };
+    responses: {
+      /** @description Successful task center response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Schedule"];
+        };
+      };
+      400: components["responses"]["TaskCenterValidationError"];
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      403: components["responses"]["TaskCenterCSRFError"];
+      404: components["responses"]["TaskCenterNotFound"];
+      409: components["responses"]["TaskCenterConflict"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  deleteSchedule: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Schedule deleted */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      400: components["responses"]["TaskCenterValidationError"];
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      403: components["responses"]["TaskCenterCSRFError"];
+      404: components["responses"]["TaskCenterNotFound"];
+      409: components["responses"]["TaskCenterConflict"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  setScheduleEnabled: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ScheduleEnabledInput"];
+      };
+    };
+    responses: {
+      /** @description Successful task center response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["Schedule"];
+        };
+      };
+      400: components["responses"]["TaskCenterValidationError"];
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      403: components["responses"]["TaskCenterCSRFError"];
+      404: components["responses"]["TaskCenterNotFound"];
+      409: components["responses"]["TaskCenterConflict"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  streamTaskEvents: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Authenticated live event stream */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/event-stream": string;
+        };
+      };
+      401: components["responses"]["TaskCenterAuthenticationRequired"];
+      503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
   listLibraries: {
     parameters: {
       query?: {

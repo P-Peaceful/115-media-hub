@@ -3,6 +3,276 @@ info:
   title: 115 Media Hub API
   version: 0.1.0
 paths:
+  /api/v1/task-types:
+    get:
+      operationId: listTaskTypes
+      security: [{adminSession: []}]
+      responses:
+        "200":
+          description: Successful task center response
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TaskTypeCapabilities"}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+  /api/v1/tasks:
+    get:
+      operationId: listTasks
+      security: [{adminSession: []}]
+      description: Newest first. The type counts ignore the type filter and the status counts ignore the status filter.
+      parameters:
+        - {name: type, in: query, schema: {$ref: "#/components/schemas/TaskType"}}
+        - {name: status, in: query, schema: {$ref: "#/components/schemas/TaskStatus"}}
+        - {name: library_id, in: query, schema: {type: string, minLength: 1, maxLength: 128}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+        - {name: cursor, in: query, schema: {type: string, maxLength: 256}}
+      responses:
+        "200":
+          description: Successful task center response
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TaskPage"}
+        "400": {$ref: "#/components/responses/TaskCenterValidationError"}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+    post:
+      operationId: submitTask
+      security: [{adminSession: []}]
+      parameters:
+        - {$ref: "#/components/parameters/CSRFToken"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/SubmitTaskInput"}
+      responses:
+        "202":
+          description: Successful task center response
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Task"}
+        "400": {$ref: "#/components/responses/TaskCenterValidationError"}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "403": {$ref: "#/components/responses/TaskCenterCSRFError"}
+        "404": {$ref: "#/components/responses/TaskCenterNotFound"}
+        "409": {$ref: "#/components/responses/TaskCenterConflict"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+  /api/v1/tasks/{id}:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
+    get:
+      operationId: getTask
+      security: [{adminSession: []}]
+      responses:
+        "200":
+          description: Successful task center response
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Task"}
+        "400": {$ref: "#/components/responses/TaskCenterValidationError"}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "404": {$ref: "#/components/responses/TaskCenterNotFound"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+  /api/v1/tasks/{id}/failures:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
+    get:
+      operationId: listTaskFailures
+      security: [{adminSession: []}]
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+        - {name: cursor, in: query, schema: {type: string, maxLength: 256}}
+      responses:
+        "200":
+          description: Successful task center response
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TaskFailurePage"}
+        "400": {$ref: "#/components/responses/TaskCenterValidationError"}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "404": {$ref: "#/components/responses/TaskCenterNotFound"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+  /api/v1/tasks/{id}/logs:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
+    get:
+      operationId: listTaskLogs
+      security: [{adminSession: []}]
+      parameters:
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+        - {name: cursor, in: query, schema: {type: string, maxLength: 256}}
+      responses:
+        "200":
+          description: Successful task center response
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/TaskLogPage"}
+        "400": {$ref: "#/components/responses/TaskCenterValidationError"}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "404": {$ref: "#/components/responses/TaskCenterNotFound"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+  /api/v1/tasks/{id}/actions:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
+    post:
+      operationId: applyTaskAction
+      security: [{adminSession: []}]
+      description: Retry returns the newly queued task. Other actions return the updated original task.
+      parameters:
+        - {$ref: "#/components/parameters/CSRFToken"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/TaskActionInput"}
+      responses:
+        "202":
+          description: Successful task center response
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Task"}
+        "400": {$ref: "#/components/responses/TaskCenterValidationError"}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "403": {$ref: "#/components/responses/TaskCenterCSRFError"}
+        "404": {$ref: "#/components/responses/TaskCenterNotFound"}
+        "409": {$ref: "#/components/responses/TaskCenterConflict"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+  /api/v1/schedules:
+    get:
+      operationId: listSchedules
+      security: [{adminSession: []}]
+      parameters:
+        - {name: type, in: query, schema: {$ref: "#/components/schemas/TaskType"}}
+        - {name: library_id, in: query, schema: {type: string, minLength: 1, maxLength: 128}}
+        - {name: enabled, in: query, schema: {type: boolean}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+        - {name: cursor, in: query, schema: {type: string, maxLength: 256}}
+      responses:
+        "200":
+          description: Successful task center response
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/SchedulePage"}
+        "400": {$ref: "#/components/responses/TaskCenterValidationError"}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+    post:
+      operationId: createSchedule
+      security: [{adminSession: []}]
+      parameters:
+        - {$ref: "#/components/parameters/CSRFToken"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ScheduleInput"}
+      responses:
+        "201":
+          description: Successful task center response
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Schedule"}
+        "400": {$ref: "#/components/responses/TaskCenterValidationError"}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "403": {$ref: "#/components/responses/TaskCenterCSRFError"}
+        "404": {$ref: "#/components/responses/TaskCenterNotFound"}
+        "409": {$ref: "#/components/responses/TaskCenterConflict"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+  /api/v1/schedules/{id}:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
+    get:
+      operationId: getSchedule
+      security: [{adminSession: []}]
+      responses:
+        "200":
+          description: Successful task center response
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Schedule"}
+        "400": {$ref: "#/components/responses/TaskCenterValidationError"}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "404": {$ref: "#/components/responses/TaskCenterNotFound"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+    put:
+      operationId: updateSchedule
+      security: [{adminSession: []}]
+      parameters:
+        - {$ref: "#/components/parameters/CSRFToken"}
+        - name: X-Schedule-Revision
+          in: header
+          required: true
+          description: Decimal revision from the schedule being edited.
+          schema: {type: string, pattern: '^[1-9][0-9]*$'}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ScheduleInput"}
+      responses:
+        "200":
+          description: Successful task center response
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Schedule"}
+        "400": {$ref: "#/components/responses/TaskCenterValidationError"}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "403": {$ref: "#/components/responses/TaskCenterCSRFError"}
+        "404": {$ref: "#/components/responses/TaskCenterNotFound"}
+        "409": {$ref: "#/components/responses/TaskCenterConflict"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+    delete:
+      operationId: deleteSchedule
+      security: [{adminSession: []}]
+      parameters:
+        - {$ref: "#/components/parameters/CSRFToken"}
+      responses:
+        "204":
+          description: Schedule deleted
+        "400": {$ref: "#/components/responses/TaskCenterValidationError"}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "403": {$ref: "#/components/responses/TaskCenterCSRFError"}
+        "404": {$ref: "#/components/responses/TaskCenterNotFound"}
+        "409": {$ref: "#/components/responses/TaskCenterConflict"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+  /api/v1/schedules/{id}/enabled:
+    parameters:
+      - {name: id, in: path, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
+    patch:
+      operationId: setScheduleEnabled
+      security: [{adminSession: []}]
+      parameters:
+        - {$ref: "#/components/parameters/CSRFToken"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ScheduleEnabledInput"}
+      responses:
+        "200":
+          description: Successful task center response
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/Schedule"}
+        "400": {$ref: "#/components/responses/TaskCenterValidationError"}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "403": {$ref: "#/components/responses/TaskCenterCSRFError"}
+        "404": {$ref: "#/components/responses/TaskCenterNotFound"}
+        "409": {$ref: "#/components/responses/TaskCenterConflict"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+  /api/v1/events:
+    get:
+      operationId: streamTaskEvents
+      security: [{adminSession: []}]
+      description: Named task.changed and schedule.changed events carry TaskEvent JSON. IDs are scoped to the connection. Reconnect by refetching current data.
+      responses:
+        "200":
+          description: Authenticated live event stream
+          content:
+            text/event-stream:
+              schema: {type: string}
+        "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
+        "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
   /api/v1/libraries:
     get:
       operationId: listLibraries
@@ -519,6 +789,36 @@ components:
         maxLength: 64
         pattern: "^[A-Za-z0-9._-]+$"
   responses:
+    TaskCenterValidationError:
+      description: Invalid request (validation_failed)
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
+    TaskCenterAuthenticationRequired:
+      description: Administrator session required (authentication_required)
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
+    TaskCenterCSRFError:
+      description: Invalid CSRF token (csrf_invalid)
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
+    TaskCenterNotFound:
+      description: Task, schedule or library not found
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
+    TaskCenterConflict:
+      description: Task type unavailable or operation conflicts with current state (task_type_unavailable, task_state_conflict, conflict)
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
+    TaskCenterUnavailable:
+      description: Task center unavailable (service_unavailable)
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
     LibraryResult:
       description: Saved library configuration
       content:
@@ -570,6 +870,178 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    TaskType:
+      type: string
+      enum: [scan, strm, sync, check, cleanup, scrape, upload]
+    TaskStatus:
+      type: string
+      enum: [queued, running, paused, completed, failed, canceled]
+    TaskOutcome:
+      type: string
+      enum: [success, partial_failure, failure]
+    TaskSource:
+      type: string
+      enum: [manual, schedule, retry]
+    TaskAction:
+      type: string
+      enum: [pause, resume, cancel, retry, retry_failed]
+    SchedulePeriod:
+      type: string
+      enum: [daily, weekly, monthly, custom]
+    TaskTypeCapability:
+      type: object
+      additionalProperties: false
+      required: [type, available, reason, can_pause, can_retry_failed]
+      properties:
+        type: {$ref: "#/components/schemas/TaskType"}
+        available: {type: boolean}
+        reason: {type: string, nullable: true}
+        can_pause: {type: boolean}
+        can_retry_failed: {type: boolean}
+    TaskTypeCapabilities:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/TaskTypeCapability"}}
+    SubmitTaskInput:
+      type: object
+      additionalProperties: false
+      required: [type, library_id]
+      properties:
+        type: {$ref: "#/components/schemas/TaskType"}
+        library_id: {type: string, minLength: 1, maxLength: 128}
+    TaskActionInput:
+      type: object
+      additionalProperties: false
+      required: [action]
+      properties:
+        action: {$ref: "#/components/schemas/TaskAction"}
+    Task:
+      type: object
+      additionalProperties: false
+      required: [id, type, library_id, library_name, source, schedule_id, parent_id, status, outcome, created_at, started_at, finished_at, duration_ms, progress_percent, speed_bytes_per_second, current_file, total_items, succeeded_items, failed_items, skipped_items, actions]
+      properties:
+        id: {type: string, minLength: 1, maxLength: 128}
+        type: {$ref: "#/components/schemas/TaskType"}
+        library_id: {type: string, minLength: 1, maxLength: 128}
+        library_name: {type: string}
+        source: {$ref: "#/components/schemas/TaskSource"}
+        schedule_id: {type: string, nullable: true}
+        parent_id: {type: string, nullable: true}
+        status: {$ref: "#/components/schemas/TaskStatus"}
+        outcome: {nullable: true, allOf: [{$ref: "#/components/schemas/TaskOutcome"}]}
+        created_at: {type: string, format: date-time}
+        started_at: {type: string, format: date-time, nullable: true}
+        finished_at: {type: string, format: date-time, nullable: true}
+        duration_ms: {type: integer, format: int64, minimum: 0, nullable: true}
+        progress_percent: {type: number, format: double, minimum: 0, maximum: 100, nullable: true}
+        speed_bytes_per_second: {type: integer, format: int64, minimum: 0, nullable: true}
+        current_file: {type: string, nullable: true}
+        total_items: {type: integer, format: int64, minimum: 0, nullable: true}
+        succeeded_items: {type: integer, format: int64, minimum: 0}
+        failed_items: {type: integer, format: int64, minimum: 0}
+        skipped_items: {type: integer, format: int64, minimum: 0}
+        actions: {type: array, items: {$ref: "#/components/schemas/TaskAction"}}
+    TaskPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor, total, by_type, by_status]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/Task"}}
+        next_cursor: {type: string, nullable: true}
+        total: {type: integer, format: int64, minimum: 0}
+        by_type: {type: object, additionalProperties: {type: integer, format: int64, minimum: 0}}
+        by_status: {type: object, additionalProperties: {type: integer, format: int64, minimum: 0}}
+    TaskFailure:
+      type: object
+      additionalProperties: false
+      required: [id, path, reason]
+      properties:
+        id: {type: string, minLength: 1, maxLength: 128}
+        path: {type: string}
+        reason: {type: string}
+    TaskFailurePage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/TaskFailure"}}
+        next_cursor: {type: string, nullable: true}
+    TaskLog:
+      type: object
+      additionalProperties: false
+      required: [id, level, message, created_at]
+      properties:
+        id: {type: string, minLength: 1, maxLength: 128}
+        level: {type: string}
+        message: {type: string}
+        created_at: {type: string, format: date-time}
+    TaskLogPage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/TaskLog"}}
+        next_cursor: {type: string, nullable: true}
+    TaskEvent:
+      type: object
+      additionalProperties: false
+      required: [id]
+      properties:
+        id: {type: string, minLength: 1, maxLength: 128}
+        notification: {$ref: "#/components/schemas/TaskOutcome"}
+    ScheduleInput:
+      type: object
+      description: Daily uses time. Weekly uses time and weekdays (0 is Sunday). Monthly uses time and month_day. Custom uses a five-field Cron expression and the plan timezone.
+      additionalProperties: false
+      required: [name, type, library_id, enabled, period, timezone, notify_on]
+      properties:
+        name: {type: string, minLength: 1, maxLength: 100}
+        type: {$ref: "#/components/schemas/TaskType"}
+        library_id: {type: string, nullable: true, minLength: 1, maxLength: 128, description: Null targets all eligible libraries.}
+        enabled: {type: boolean}
+        period: {$ref: "#/components/schemas/SchedulePeriod"}
+        timezone: {type: string, minLength: 1, maxLength: 128, default: Asia/Shanghai}
+        time: {type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'}
+        weekdays: {type: array, minItems: 1, maxItems: 7, uniqueItems: true, items: {type: integer, minimum: 0, maximum: 6}}
+        month_day: {type: integer, minimum: 1, maximum: 31}
+        cron: {type: string, minLength: 1, maxLength: 160}
+        notify_on: {type: array, maxItems: 3, uniqueItems: true, items: {$ref: "#/components/schemas/TaskOutcome"}}
+    Schedule:
+      type: object
+      additionalProperties: false
+      required: [id, name, type, library_id, enabled, period, timezone, notify_on, next_run_at, created_at, updated_at, revision]
+      properties:
+        id: {type: string, minLength: 1, maxLength: 128}
+        name: {type: string, minLength: 1, maxLength: 100}
+        type: {$ref: "#/components/schemas/TaskType"}
+        library_id: {type: string, nullable: true, minLength: 1, maxLength: 128, description: Null targets all eligible libraries.}
+        enabled: {type: boolean}
+        period: {$ref: "#/components/schemas/SchedulePeriod"}
+        timezone: {type: string, minLength: 1, maxLength: 128, default: Asia/Shanghai}
+        time: {type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$'}
+        weekdays: {type: array, minItems: 1, maxItems: 7, uniqueItems: true, items: {type: integer, minimum: 0, maximum: 6}}
+        month_day: {type: integer, minimum: 1, maximum: 31}
+        cron: {type: string, minLength: 1, maxLength: 160}
+        notify_on: {type: array, maxItems: 3, uniqueItems: true, items: {$ref: "#/components/schemas/TaskOutcome"}}
+        next_run_at: {type: string, format: date-time, nullable: true}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+        revision: {type: integer, format: int64, minimum: 1}
+    ScheduleEnabledInput:
+      type: object
+      additionalProperties: false
+      required: [enabled]
+      properties:
+        enabled: {type: boolean}
+    SchedulePage:
+      type: object
+      additionalProperties: false
+      required: [items, next_cursor]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/Schedule"}}
+        next_cursor: {type: string, nullable: true}
     LibraryConfig:
       type: object
       additionalProperties: false
@@ -930,6 +1402,8 @@ components:
               csrf_invalid,
               setup_required,
               already_initialized,
+              task_type_unavailable,
+              task_state_conflict,
               rate_limited,
             ]
         message:

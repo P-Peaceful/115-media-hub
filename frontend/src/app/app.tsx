@@ -4,7 +4,7 @@ import { useState } from "react";
 import { BrowserRouter, Route, Routes, useNavigate } from "react-router";
 
 import { AuthBoundary } from "@/features/auth/auth-boundary";
-import { AuthProvider } from "@/features/auth/auth-provider";
+import { AuthProvider, useAuth } from "@/features/auth/auth-provider";
 import { LoginPage } from "@/features/auth/login-page";
 import { SetupPage } from "@/features/auth/setup-page";
 import { ThemeToggle } from "@/features/auth/theme-toggle";
@@ -20,6 +20,11 @@ import {
   LibraryListPage,
 } from "@/features/media-library/library-page";
 import { SettingsPage } from "@/features/settings/settings-page";
+import { ScheduleEditorPage } from "@/features/task-center/schedule-editor-page";
+import { ScheduleListPage } from "@/features/task-center/schedule-list-page";
+import { TaskDetailPage } from "@/features/task-center/task-detail-page";
+import { TaskEventListener } from "@/features/task-center/task-event-listener";
+import { TaskOverviewPage } from "@/features/task-center/task-overview-page";
 
 import { AppShell } from "./app-shell";
 
@@ -53,6 +58,11 @@ function NotFound() {
   );
 }
 
+function AuthenticatedTaskEvents() {
+  const { data } = useAuth();
+  return data?.authenticated ? <TaskEventListener /> : null;
+}
+
 export function App() {
   const [queryClient] = useState(() => new QueryClient());
   return (
@@ -60,6 +70,7 @@ export function App() {
       <BrowserRouter>
         <AppRouter>
           <AuthProvider>
+            <AuthenticatedTaskEvents />
             <Routes>
               <Route element={<AuthBoundary />}>
                 <Route
@@ -136,6 +147,46 @@ export function App() {
                   element={
                     <AppShell currentPage="媒体库">
                       <LibraryFormPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/tasks"
+                  element={
+                    <AppShell currentPage="任务中心">
+                      <TaskOverviewPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/tasks/:id"
+                  element={
+                    <AppShell currentPage="任务中心">
+                      <TaskDetailPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/tasks/schedules"
+                  element={
+                    <AppShell currentPage="定时计划">
+                      <ScheduleListPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/tasks/schedules/new"
+                  element={
+                    <AppShell currentPage="定时计划">
+                      <ScheduleEditorPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/tasks/schedules/:id/edit"
+                  element={
+                    <AppShell currentPage="定时计划">
+                      <ScheduleEditorPage />
                     </AppShell>
                   }
                 />

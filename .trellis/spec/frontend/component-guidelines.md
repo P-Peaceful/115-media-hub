@@ -28,9 +28,9 @@ Declare children only when supported; use semantic callback names such as `onRet
 
 ## HeroUI and styling
 
-Prioritize the pinned HeroUI v3 component library for every applicable frontend component need, including forms, inputs, cards, buttons, status feedback, dialogs, menus and tables. Use semantic HTML/CSS for layout/content or when no suitable library component exists; explain necessary interaction-component alternatives during review. Verify exact v3 compound component APIs and event props against the pinned release; do not copy v2 props or reimplement accessible behavior. Use native semantic elements where a library component is unnecessary. Keep wrappers thin and tied to a product need.
+Use the pinned HeroUI v3 library wherever it provides a suitable UI component, including forms, inputs, cards, buttons, status feedback, dialogs, menus and tables. Use semantic HTML for page structure and content. Verify compound components and event props with the official v3 documentation for the installed version. Keep wrappers thin and tied to a product need.
 
-Use HeroUI components’ built-in styles and documented variants. Do not override HeroUI component or internal slot styles with custom CSS selectors; use Tailwind CSS utilities when styling or layout adjustments are needed.
+Use HeroUI's built-in styles and documented variants with the shared application theme. Apply page layout and responsive sizing to layout wrappers. Component colors, borders, focus indicators, and interaction states come from HeroUI and the shared theme.
 
 Use Tailwind CSS v4 utilities and centralized CSS design tokens for color, spacing, radius, typography, and light/dark themes. Prefer semantic tokens over scattered literal colors and arbitrary values. Dynamic class choices must use complete statically discoverable class strings. Keep shared class-composition helpers in one owner only when needed. Use CSS transitions first and respect `prefers-reduced-motion`.
 
@@ -43,7 +43,7 @@ For plain React/Vite theme switching, follow HeroUI's official v3 `useTheme` hoo
 - Model loading, empty, error, success, and background refresh separately. Keep useful existing data visible during refresh; distinguish failure from an empty library.
 - Use semantic headings/landmarks, visible labels, associated validation messages, keyboard navigation, visible focus, and meaningful image alternatives. Icon-only controls need accessible names; decorative icons should be hidden from assistive technology.
 - Preserve HeroUI focus management and dialog return focus. Announce meaningful progress without sending every SSE tick to a live region. Do not use color as the only status signal.
-- Disable duplicate pending submissions and show an action-specific result. Destructive cleanup needs preview, ownership/conflict information, and quarantine behavior consistent with the backend.
+- Disable duplicate pending submissions and show an action-specific result. Show cleanup outcomes, including deletions and skips due to ownership or content conflicts.
 - When implementing a supplied visual reference, align typography, proportions, spacing, illustration, gradients and shadows after applying explicit user changes. Save and inspect desktop/mobile screenshots, and correct material deviations; passing interaction tests is not evidence of visual fidelity.
 
 Test light/dark, narrow layouts, long names, keyboard operation, and reduced motion. Avoid clickable `div` controls and raw HTML injection from media metadata.

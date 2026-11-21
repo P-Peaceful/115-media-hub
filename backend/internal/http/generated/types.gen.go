@@ -22,6 +22,8 @@ const (
 	RateLimited            APIErrorCode = "rate_limited"
 	ServiceUnavailable     APIErrorCode = "service_unavailable"
 	SetupRequired          APIErrorCode = "setup_required"
+	TaskStateConflict      APIErrorCode = "task_state_conflict"
+	TaskTypeUnavailable    APIErrorCode = "task_type_unavailable"
 	ValidationFailed       APIErrorCode = "validation_failed"
 )
 
@@ -53,6 +55,10 @@ func (e APIErrorCode) Valid() bool {
 	case ServiceUnavailable:
 		return true
 	case SetupRequired:
+		return true
+	case TaskStateConflict:
+		return true
+	case TaskTypeUnavailable:
 		return true
 	case ValidationFailed:
 		return true
@@ -420,25 +426,49 @@ func (e Provider115DetailsStatus) Valid() bool {
 
 // Defines values for Provider115QRStatus.
 const (
-	Canceled  Provider115QRStatus = "canceled"
-	Expired   Provider115QRStatus = "expired"
-	Scanned   Provider115QRStatus = "scanned"
-	Succeeded Provider115QRStatus = "succeeded"
-	Waiting   Provider115QRStatus = "waiting"
+	Provider115QRStatusCanceled  Provider115QRStatus = "canceled"
+	Provider115QRStatusExpired   Provider115QRStatus = "expired"
+	Provider115QRStatusScanned   Provider115QRStatus = "scanned"
+	Provider115QRStatusSucceeded Provider115QRStatus = "succeeded"
+	Provider115QRStatusWaiting   Provider115QRStatus = "waiting"
 )
 
 // Valid indicates whether the value is a known member of the Provider115QRStatus enum.
 func (e Provider115QRStatus) Valid() bool {
 	switch e {
-	case Canceled:
+	case Provider115QRStatusCanceled:
 		return true
-	case Expired:
+	case Provider115QRStatusExpired:
 		return true
-	case Scanned:
+	case Provider115QRStatusScanned:
 		return true
-	case Succeeded:
+	case Provider115QRStatusSucceeded:
 		return true
-	case Waiting:
+	case Provider115QRStatusWaiting:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SchedulePeriod.
+const (
+	Custom  SchedulePeriod = "custom"
+	Daily   SchedulePeriod = "daily"
+	Monthly SchedulePeriod = "monthly"
+	Weekly  SchedulePeriod = "weekly"
+)
+
+// Valid indicates whether the value is a known member of the SchedulePeriod enum.
+func (e SchedulePeriod) Valid() bool {
+	switch e {
+	case Custom:
+		return true
+	case Daily:
+		return true
+	case Monthly:
+		return true
+	case Weekly:
 		return true
 	default:
 		return false
@@ -481,6 +511,138 @@ func (e SecuritySettingsSessionLifetimeDays) Valid() bool {
 	case SecuritySettingsSessionLifetimeDaysN30:
 		return true
 	case SecuritySettingsSessionLifetimeDaysN7:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskAction.
+const (
+	TaskActionCancel      TaskAction = "cancel"
+	TaskActionPause       TaskAction = "pause"
+	TaskActionResume      TaskAction = "resume"
+	TaskActionRetry       TaskAction = "retry"
+	TaskActionRetryFailed TaskAction = "retry_failed"
+)
+
+// Valid indicates whether the value is a known member of the TaskAction enum.
+func (e TaskAction) Valid() bool {
+	switch e {
+	case TaskActionCancel:
+		return true
+	case TaskActionPause:
+		return true
+	case TaskActionResume:
+		return true
+	case TaskActionRetry:
+		return true
+	case TaskActionRetryFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskOutcome.
+const (
+	Failure        TaskOutcome = "failure"
+	PartialFailure TaskOutcome = "partial_failure"
+	Success        TaskOutcome = "success"
+)
+
+// Valid indicates whether the value is a known member of the TaskOutcome enum.
+func (e TaskOutcome) Valid() bool {
+	switch e {
+	case Failure:
+		return true
+	case PartialFailure:
+		return true
+	case Success:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskSource.
+const (
+	TaskSourceManual   TaskSource = "manual"
+	TaskSourceRetry    TaskSource = "retry"
+	TaskSourceSchedule TaskSource = "schedule"
+)
+
+// Valid indicates whether the value is a known member of the TaskSource enum.
+func (e TaskSource) Valid() bool {
+	switch e {
+	case TaskSourceManual:
+		return true
+	case TaskSourceRetry:
+		return true
+	case TaskSourceSchedule:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskStatus.
+const (
+	TaskStatusCanceled  TaskStatus = "canceled"
+	TaskStatusCompleted TaskStatus = "completed"
+	TaskStatusFailed    TaskStatus = "failed"
+	TaskStatusPaused    TaskStatus = "paused"
+	TaskStatusQueued    TaskStatus = "queued"
+	TaskStatusRunning   TaskStatus = "running"
+)
+
+// Valid indicates whether the value is a known member of the TaskStatus enum.
+func (e TaskStatus) Valid() bool {
+	switch e {
+	case TaskStatusCanceled:
+		return true
+	case TaskStatusCompleted:
+		return true
+	case TaskStatusFailed:
+		return true
+	case TaskStatusPaused:
+		return true
+	case TaskStatusQueued:
+		return true
+	case TaskStatusRunning:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for TaskType.
+const (
+	Check   TaskType = "check"
+	Cleanup TaskType = "cleanup"
+	Scan    TaskType = "scan"
+	Scrape  TaskType = "scrape"
+	Strm    TaskType = "strm"
+	Sync    TaskType = "sync"
+	Upload  TaskType = "upload"
+)
+
+// Valid indicates whether the value is a known member of the TaskType enum.
+func (e TaskType) Valid() bool {
+	switch e {
+	case Check:
+		return true
+	case Cleanup:
+		return true
+	case Scan:
+		return true
+	case Scrape:
+		return true
+	case Strm:
+		return true
+	case Sync:
+		return true
+	case Upload:
 		return true
 	default:
 		return false
@@ -841,6 +1003,59 @@ type Provider115Space struct {
 	UsedBytes string `json:"used_bytes"`
 }
 
+// Schedule defines model for Schedule.
+type Schedule struct {
+	CreatedAt time.Time `json:"created_at"`
+	Cron      *string   `json:"cron,omitempty"`
+	Enabled   bool      `json:"enabled"`
+	Id        string    `json:"id"`
+
+	// LibraryId Null targets all eligible libraries.
+	LibraryId *string        `json:"library_id"`
+	MonthDay  *int           `json:"month_day,omitempty"`
+	Name      string         `json:"name"`
+	NextRunAt *time.Time     `json:"next_run_at"`
+	NotifyOn  []TaskOutcome  `json:"notify_on"`
+	Period    SchedulePeriod `json:"period"`
+	Revision  int64          `json:"revision"`
+	Time      *string        `json:"time,omitempty"`
+	Timezone  string         `json:"timezone"`
+	Type      TaskType       `json:"type"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	Weekdays  *[]int         `json:"weekdays,omitempty"`
+}
+
+// ScheduleEnabledInput defines model for ScheduleEnabledInput.
+type ScheduleEnabledInput struct {
+	Enabled bool `json:"enabled"`
+}
+
+// ScheduleInput Daily uses time. Weekly uses time and weekdays (0 is Sunday). Monthly uses time and month_day. Custom uses a five-field Cron expression and the plan timezone.
+type ScheduleInput struct {
+	Cron    *string `json:"cron,omitempty"`
+	Enabled bool    `json:"enabled"`
+
+	// LibraryId Null targets all eligible libraries.
+	LibraryId *string        `json:"library_id"`
+	MonthDay  *int           `json:"month_day,omitempty"`
+	Name      string         `json:"name"`
+	NotifyOn  []TaskOutcome  `json:"notify_on"`
+	Period    SchedulePeriod `json:"period"`
+	Time      *string        `json:"time,omitempty"`
+	Timezone  string         `json:"timezone"`
+	Type      TaskType       `json:"type"`
+	Weekdays  *[]int         `json:"weekdays,omitempty"`
+}
+
+// SchedulePage defines model for SchedulePage.
+type SchedulePage struct {
+	Items      []Schedule `json:"items"`
+	NextCursor *string    `json:"next_cursor"`
+}
+
+// SchedulePeriod defines model for SchedulePeriod.
+type SchedulePeriod string
+
 // SecurityCredentialsRequest defines model for SecurityCredentialsRequest.
 type SecurityCredentialsRequest struct {
 	CurrentPassword string `json:"current_password"`
@@ -867,10 +1082,111 @@ type SecuritySettings struct {
 // SecuritySettingsSessionLifetimeDays defines model for SecuritySettings.SessionLifetimeDays.
 type SecuritySettingsSessionLifetimeDays int
 
+// SubmitTaskInput defines model for SubmitTaskInput.
+type SubmitTaskInput struct {
+	LibraryId string   `json:"library_id"`
+	Type      TaskType `json:"type"`
+}
+
 // SystemStatus defines model for SystemStatus.
 type SystemStatus struct {
 	UptimeSeconds int64  `json:"uptime_seconds"`
 	Version       string `json:"version"`
+}
+
+// Task defines model for Task.
+type Task struct {
+	Actions             []TaskAction `json:"actions"`
+	CreatedAt           time.Time    `json:"created_at"`
+	CurrentFile         *string      `json:"current_file"`
+	DurationMs          *int64       `json:"duration_ms"`
+	FailedItems         int64        `json:"failed_items"`
+	FinishedAt          *time.Time   `json:"finished_at"`
+	Id                  string       `json:"id"`
+	LibraryId           string       `json:"library_id"`
+	LibraryName         string       `json:"library_name"`
+	Outcome             *TaskOutcome `json:"outcome"`
+	ParentId            *string      `json:"parent_id"`
+	ProgressPercent     *float64     `json:"progress_percent"`
+	ScheduleId          *string      `json:"schedule_id"`
+	SkippedItems        int64        `json:"skipped_items"`
+	Source              TaskSource   `json:"source"`
+	SpeedBytesPerSecond *int64       `json:"speed_bytes_per_second"`
+	StartedAt           *time.Time   `json:"started_at"`
+	Status              TaskStatus   `json:"status"`
+	SucceededItems      int64        `json:"succeeded_items"`
+	TotalItems          *int64       `json:"total_items"`
+	Type                TaskType     `json:"type"`
+}
+
+// TaskAction defines model for TaskAction.
+type TaskAction string
+
+// TaskActionInput defines model for TaskActionInput.
+type TaskActionInput struct {
+	Action TaskAction `json:"action"`
+}
+
+// TaskFailure defines model for TaskFailure.
+type TaskFailure struct {
+	Id     string `json:"id"`
+	Path   string `json:"path"`
+	Reason string `json:"reason"`
+}
+
+// TaskFailurePage defines model for TaskFailurePage.
+type TaskFailurePage struct {
+	Items      []TaskFailure `json:"items"`
+	NextCursor *string       `json:"next_cursor"`
+}
+
+// TaskLog defines model for TaskLog.
+type TaskLog struct {
+	CreatedAt time.Time `json:"created_at"`
+	Id        string    `json:"id"`
+	Level     string    `json:"level"`
+	Message   string    `json:"message"`
+}
+
+// TaskLogPage defines model for TaskLogPage.
+type TaskLogPage struct {
+	Items      []TaskLog `json:"items"`
+	NextCursor *string   `json:"next_cursor"`
+}
+
+// TaskOutcome defines model for TaskOutcome.
+type TaskOutcome string
+
+// TaskPage defines model for TaskPage.
+type TaskPage struct {
+	ByStatus   map[string]int64 `json:"by_status"`
+	ByType     map[string]int64 `json:"by_type"`
+	Items      []Task           `json:"items"`
+	NextCursor *string          `json:"next_cursor"`
+	Total      int64            `json:"total"`
+}
+
+// TaskSource defines model for TaskSource.
+type TaskSource string
+
+// TaskStatus defines model for TaskStatus.
+type TaskStatus string
+
+// TaskType defines model for TaskType.
+type TaskType string
+
+// TaskTypeCapabilities defines model for TaskTypeCapabilities.
+type TaskTypeCapabilities struct {
+	Items []TaskTypeCapability `json:"items"`
+}
+
+// TaskTypeCapability defines model for TaskTypeCapability.
+type TaskTypeCapability struct {
+	Available      bool     `json:"available"`
+	CanPause       bool     `json:"can_pause"`
+	CanRetryFailed bool     `json:"can_retry_failed"`
+	Reason         *string  `json:"reason"`
+	Type           TaskType `json:"type"`
 }
 
 // CSRFToken defines model for CSRFToken.
@@ -887,6 +1203,24 @@ type LibraryResult = Library
 
 // SessionStarted defines model for SessionStarted.
 type SessionStarted = AuthSession
+
+// TaskCenterAuthenticationRequired defines model for TaskCenterAuthenticationRequired.
+type TaskCenterAuthenticationRequired = ErrorResponse
+
+// TaskCenterCSRFError defines model for TaskCenterCSRFError.
+type TaskCenterCSRFError = ErrorResponse
+
+// TaskCenterConflict defines model for TaskCenterConflict.
+type TaskCenterConflict = ErrorResponse
+
+// TaskCenterNotFound defines model for TaskCenterNotFound.
+type TaskCenterNotFound = ErrorResponse
+
+// TaskCenterUnavailable defines model for TaskCenterUnavailable.
+type TaskCenterUnavailable = ErrorResponse
+
+// TaskCenterValidationError defines model for TaskCenterValidationError.
+type TaskCenterValidationError = ErrorResponse
 
 // Throttled defines model for Throttled.
 type Throttled = ErrorResponse
@@ -967,6 +1301,38 @@ type SetLibraryEnabledParams struct {
 	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
 }
 
+// ListSchedulesParams defines parameters for ListSchedules.
+type ListSchedulesParams struct {
+	Type      *TaskType `form:"type,omitempty" json:"type,omitempty"`
+	LibraryId *string   `form:"library_id,omitempty" json:"library_id,omitempty"`
+	Enabled   *bool     `form:"enabled,omitempty" json:"enabled,omitempty"`
+	Limit     *int      `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor    *string   `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// CreateScheduleParams defines parameters for CreateSchedule.
+type CreateScheduleParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
+// DeleteScheduleParams defines parameters for DeleteSchedule.
+type DeleteScheduleParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
+// UpdateScheduleParams defines parameters for UpdateSchedule.
+type UpdateScheduleParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+
+	// XScheduleRevision Decimal revision from the schedule being edited.
+	XScheduleRevision string `json:"X-Schedule-Revision"`
+}
+
+// SetScheduleEnabledParams defines parameters for SetScheduleEnabled.
+type SetScheduleEnabledParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
 // Delete115AccountParams defines parameters for Delete115Account.
 type Delete115AccountParams struct {
 	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
@@ -997,6 +1363,37 @@ type UpdateSecuritySessionParams struct {
 	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
 }
 
+// ListTasksParams defines parameters for ListTasks.
+type ListTasksParams struct {
+	Type      *TaskType   `form:"type,omitempty" json:"type,omitempty"`
+	Status    *TaskStatus `form:"status,omitempty" json:"status,omitempty"`
+	LibraryId *string     `form:"library_id,omitempty" json:"library_id,omitempty"`
+	Limit     *int        `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor    *string     `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// SubmitTaskParams defines parameters for SubmitTask.
+type SubmitTaskParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
+// ApplyTaskActionParams defines parameters for ApplyTaskAction.
+type ApplyTaskActionParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
+// ListTaskFailuresParams defines parameters for ListTaskFailures.
+type ListTaskFailuresParams struct {
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ListTaskLogsParams defines parameters for ListTaskLogs.
+type ListTaskLogsParams struct {
+	Limit  *int    `form:"limit,omitempty" json:"limit,omitempty"`
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
 // InitializeAdministratorJSONRequestBody defines body for InitializeAdministrator for application/json ContentType.
 type InitializeAdministratorJSONRequestBody = InitializeRequest
 
@@ -1012,8 +1409,23 @@ type UpdateLibraryJSONRequestBody = LibraryConfig
 // SetLibraryEnabledJSONRequestBody defines body for SetLibraryEnabled for application/json ContentType.
 type SetLibraryEnabledJSONRequestBody SetLibraryEnabledJSONBody
 
+// CreateScheduleJSONRequestBody defines body for CreateSchedule for application/json ContentType.
+type CreateScheduleJSONRequestBody = ScheduleInput
+
+// UpdateScheduleJSONRequestBody defines body for UpdateSchedule for application/json ContentType.
+type UpdateScheduleJSONRequestBody = ScheduleInput
+
+// SetScheduleEnabledJSONRequestBody defines body for SetScheduleEnabled for application/json ContentType.
+type SetScheduleEnabledJSONRequestBody = ScheduleEnabledInput
+
 // UpdateSecurityCredentialsJSONRequestBody defines body for UpdateSecurityCredentials for application/json ContentType.
 type UpdateSecurityCredentialsJSONRequestBody = SecurityCredentialsRequest
 
 // UpdateSecuritySessionJSONRequestBody defines body for UpdateSecuritySession for application/json ContentType.
 type UpdateSecuritySessionJSONRequestBody = SecuritySessionRequest
+
+// SubmitTaskJSONRequestBody defines body for SubmitTask for application/json ContentType.
+type SubmitTaskJSONRequestBody = SubmitTaskInput
+
+// ApplyTaskActionJSONRequestBody defines body for ApplyTaskAction for application/json ContentType.
+type ApplyTaskActionJSONRequestBody = TaskActionInput
