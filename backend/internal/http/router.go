@@ -37,6 +37,8 @@ func NewRouter(database Readiness, logger *slog.Logger, assets fs.FS, options ..
 		return nil, err
 	}
 	router.HandleMethodNotAllowed = true
+	// 播放凭据位于路径中，遇到多余斜线时由路由返回错误，避免自动重定向回显原始路径。
+	router.RedirectTrailingSlash = false
 	router.Use(requestMiddleware(logger))
 	var authOptions AuthOptions
 	if len(options) > 0 {
@@ -51,6 +53,9 @@ func NewRouter(database Readiness, logger *slog.Logger, assets fs.FS, options ..
 		}
 		if authOptions.Provider != nil {
 			(&providerHandler{service: authOptions.Provider}).register(router)
+		}
+		if authOptions.STRM != nil {
+			(&strmHandler{service: authOptions.STRM, libraries: authOptions.Library}).register(router)
 		}
 		if authOptions.Jobs != nil {
 			(&taskHandler{service: authOptions.Jobs, auth: authOptions.Service, logger: logger}).register(router)

@@ -89,6 +89,7 @@ type Capability struct {
 	Reason         *string
 	CanPause       bool
 	CanRetryFailed bool
+	CanSchedule    bool
 }
 
 type Job struct {

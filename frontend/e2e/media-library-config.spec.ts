@@ -69,21 +69,30 @@ test("配置表单策略保留、格式示例和标签对齐", async ({ page }, 
   await expect(policy).toBeEnabled();
   await expect(policy).toContainText("覆盖");
   await expect(
-    page.getByText("格式示例：https://media.example.com/电影名称.mkv", {
-      exact: true,
-    }),
+    page.getByText(
+      "格式示例 https://media.example.com/p/artifact-id/playback-token/Movie%20Name.mkv",
+      {
+        exact: true,
+      },
+    ),
   ).toBeVisible();
   const idTab = page.getByRole("tab", { name: "文件 ID", exact: true });
   await idTab.click();
   await expect(
-    page.getByText("格式示例：https://media.example.com/123456789", {
-      exact: true,
-    }),
+    page.getByText(
+      "格式示例 https://media.example.com/p/artifact-id/playback-token/123456789",
+      {
+        exact: true,
+      },
+    ),
   ).toBeVisible();
   const host = `${"media".repeat(12)}.${"example".repeat(8)}.com:8443`;
-  await page.getByLabel("STRM 直连域名", { exact: true }).fill(host);
+  await page.getByLabel("STRM 播放地址", { exact: true }).fill(host);
   await expect(
-    page.getByText(`格式示例：https://${host}/123456789`, { exact: true }),
+    page.getByText(
+      `格式示例 https://${host}/p/artifact-id/playback-token/123456789`,
+      { exact: true },
+    ),
   ).toBeVisible();
   await idTab.focus();
   await page.keyboard.press("ArrowLeft");

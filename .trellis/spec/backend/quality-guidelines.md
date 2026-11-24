@@ -32,7 +32,7 @@ Do not ignore errors with `_`, blanket-disable lint, or add sleeps to hide races
 - Service/domain tests cover invariants, permissions, and errors. Use small fakes at external boundaries; repository tests use real SQLite for SQL semantics.
 - HTTP tests use `httptest` and cover validation, status/envelope mapping, session/CSRF behavior, and SSE lifecycle when implemented.
 - Job tests cover concurrent claims, duplicate submissions/effects, cancellation, retry bounds, restart verification, and resource locking. Prefer controlled clocks/signals over timing sleeps.
-- File/sync tests cover ownership hashes, incomplete scans, cleanup of eligible outputs, preservation of modified and unowned files, and uncertain uploads before shipping those capabilities.
+- File/sync tests cover ownership and content checks, incomplete scans, cleanup of eligible outputs, preservation of modified and unowned files, and uncertain uploads before shipping those capabilities.
 - For each business module, test necessary logging at the owning operation boundary: success/failure and applicable cancellation/conflict/recovery, required structured attributes, correlation, redaction, and no duplicate terminal errors. Verify documented aggregation for high-volume reads and complete critical audit records.
 - Add a regression for a fixed behavioral bug. Documentation-only changes do not require application unit tests.
 

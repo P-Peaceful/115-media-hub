@@ -10,12 +10,14 @@ import (
 	"net/http"
 	"time"
 
+	domain "github.com/wenzhengcheng/115-media-hub/backend/internal/domain/jobs"
 	transport "github.com/wenzhengcheng/115-media-hub/backend/internal/http"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/repository/sqlite"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/jobs"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/provider115"
+	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/strm"
 )
 
 // App owns constructed dependencies and the HTTP server.
@@ -39,10 +41,12 @@ func New(ctx context.Context, config Config, logger *slog.Logger, assets fs.FS) 
 		return nil, errors.Join(fmt.Errorf("initialize authentication: %w", err), database.Close())
 	}
 	libraries := library.New(database, logger)
-	tasks := jobs.New(database, libraries, nil, logger)
+	provider := provider115.New(database, logger)
+	strmFiles := strm.New(database, provider, logger)
+	tasks := jobs.New(database, libraries, map[domain.Type]jobs.Module{domain.STRM: strmFiles.Module()}, logger)
 	handler, err := transport.NewRouter(database, logger, assets, transport.AuthOptions{
 		Service: authentication, CookieSecure: config.CookieSecure,
-		Provider: provider115.New(database, logger), Library: libraries, Jobs: tasks,
+		Provider: provider, Library: libraries, Jobs: tasks, STRM: strmFiles,
 	})
 	if err != nil {
 		return nil, errors.Join(fmt.Errorf("initialize HTTP routes: %w", err), database.Close())

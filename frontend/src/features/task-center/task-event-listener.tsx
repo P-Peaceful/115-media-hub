@@ -2,6 +2,7 @@ import { Link, Toast } from "@heroui/react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
+import { strmKeys } from "@/features/strm-management/queries";
 import { decodeTaskEvent } from "@/lib/events/task-events";
 
 import { scheduleKeys, taskKeys } from "./queries";
@@ -20,8 +21,10 @@ export function TaskEventListener() {
 
     function refresh() {
       timer = undefined;
-      if (tasksChanged)
+      if (tasksChanged) {
         void client.invalidateQueries({ queryKey: taskKeys.lists });
+        void client.invalidateQueries({ queryKey: strmKeys.all });
+      }
       if (schedulesChanged)
         void client.invalidateQueries({ queryKey: scheduleKeys.all });
       for (const id of changedTasks) {
@@ -37,6 +40,7 @@ export function TaskEventListener() {
     function onOpen() {
       void client.invalidateQueries({ queryKey: taskKeys.all });
       void client.invalidateQueries({ queryKey: scheduleKeys.all });
+      void client.invalidateQueries({ queryKey: strmKeys.all });
     }
     function onTaskChange(event: Event) {
       const info = decodeTaskEvent(event);

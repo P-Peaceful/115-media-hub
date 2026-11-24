@@ -7,6 +7,11 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 const messages: Record<string, string> = {
+  provider_not_configured: "请先绑定 115 账号。",
+  provider_auth_invalid: "115 授权已失效，请重新登录。",
+  provider_directory_not_found: "115 源目录不存在，请检查媒体库配置。",
+  full_sync_preview_timeout: "扫描预览超时，请重试。",
+  full_sync_unavailable: "当前媒体库的配置无法执行全量同步，请检查保存的配置。",
   invalid_credentials: "用户名或密码错误，请重新输入。",
   authentication_required: "登录已过期，请重新登录。",
   csrf_invalid: "安全凭据已更新，请重试。",

@@ -91,6 +91,20 @@ for (const theme of ["light", "dark"] as const) {
     await page.route("**/api/v1/libraries?**", (route) =>
       route.fulfill({ json: { items: [library], next_cursor: null } }),
     );
+    await page.route("**/api/v1/strm?**", (route) =>
+      route.fulfill({ json: { items: [], total: 0, page: 1, limit: 1 } }),
+    );
+    await page.route("**/api/v1/tasks?**", (route) =>
+      route.fulfill({
+        json: {
+          items: [],
+          next_cursor: null,
+          total: 0,
+          by_type: {},
+          by_status: {},
+        },
+      }),
+    );
     const pages = [
       ["overview", "/", "欢迎使用 115 Media Hub"],
       ["cloud", "/cloud-drive", "网盘浏览"],

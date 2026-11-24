@@ -141,7 +141,7 @@ export function TaskError({
 }) {
   if (!error) return null;
   return (
-    <Alert status="danger">
+    <Alert role="alert" status="danger">
       <Alert.Indicator />
       <Alert.Content>
         <Alert.Description className="wrap-anywhere">

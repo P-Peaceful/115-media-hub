@@ -59,6 +59,7 @@ type Module struct {
 	Eligible       func(library.Library) bool
 	CanPause       bool
 	CanRetryFailed bool
+	ManualOnly     bool
 }
 
 // Execution contains a single snapshot of saved media-library configuration.
@@ -107,7 +108,7 @@ func (s *Service) Capabilities() []domain.Capability {
 	result := make([]domain.Capability, 0, len(domain.Types()))
 	for _, kind := range domain.Types() {
 		module, available := s.module(kind)
-		capability := domain.Capability{Type: kind, Available: available, CanPause: available && module.CanPause, CanRetryFailed: available && module.CanRetryFailed}
+		capability := domain.Capability{Type: kind, Available: available, CanPause: available && module.CanPause, CanRetryFailed: available && module.CanRetryFailed, CanSchedule: available && !module.ManualOnly}
 		if !available {
 			reason := "业务模块尚未接入任务中心"
 			capability.Reason = &reason

@@ -127,7 +127,7 @@ func (s *Service) configureSchedule(ctx context.Context, schedule *domain.Schedu
 		return domain.ErrInvalid
 	}
 	module, available := s.module(schedule.Type)
-	if !available {
+	if !available || module.ManualOnly {
 		return domain.ErrUnavailable
 	}
 	if schedule.LibraryID != nil {
@@ -288,7 +288,7 @@ func (s *Service) planOccurrence(ctx context.Context, plan domain.Schedule, now 
 		return &next, "missed_while_stopped", nil, nil
 	}
 	module, available := s.module(plan.Type)
-	if !available {
+	if !available || module.ManualOnly {
 		return &next, "task_type_unavailable", nil, nil
 	}
 	targets, err := s.scheduleTargets(ctx, plan, module)

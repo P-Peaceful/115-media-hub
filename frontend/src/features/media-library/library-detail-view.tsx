@@ -1,13 +1,13 @@
 import { Alert, Button, Card, Chip, Link as HeroLink } from "@heroui/react";
+import { fromDate, toCalendarDate, today } from "@internationalized/date";
 import type { LucideIcon } from "lucide-react";
 import {
   Activity,
   ArrowLeft,
-  CheckCircle2,
   ChevronRight,
-  CircleAlert,
+  CircleCheck,
+  CircleX,
   Clock3,
-  FileClock,
   Film,
   Folder,
   Link2,
@@ -16,12 +16,11 @@ import {
   Pencil,
   Play,
   RefreshCw,
-  ScanLine,
   Settings2,
   Timer,
   Zap,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { type ReactNode, useId } from "react";
 import { Link as RouterLink, useNavigate } from "react-router";
 
 import { PageBanner } from "@/components/page-banner";
@@ -29,6 +28,20 @@ import {
   formatUptime,
   useSystemStatus,
 } from "@/features/dashboard/system-status";
+import {
+  strmLibraryPath,
+  useStrmFiles,
+} from "@/features/strm-management/queries";
+import { StrmError } from "@/features/strm-management/strm-ui";
+import type { Task } from "@/features/task-center/api";
+import { taskTypes } from "@/features/task-center/task-kinds";
+import {
+  defaultTimezone,
+  formatCount,
+  formatDate,
+  formatDuration,
+  StatusChip,
+} from "@/features/task-center/task-ui";
 
 import type { Library } from "./api";
 import {
@@ -40,8 +53,12 @@ import {
   scrapeSourceLabels,
 } from "./library-configuration-labels";
 import { libraryDetailPath } from "./library-detail-context";
-import { libraryDetailDemo as demo } from "./library-detail-demo";
-import { LibraryLocalTime } from "./library-sync-components";
+import {
+  librarySyncHistoryPath,
+  SyncHistoryState,
+  SyncTaskTime,
+  useLibrarySyncHistory,
+} from "./library-sync-history";
 
 const detailActions = [
   { path: "full-sync", label: "全量同步", icon: RefreshCw },
@@ -52,27 +69,39 @@ const detailActions = [
 function DetailCard({
   title,
   icon: Icon,
+  action,
   children,
-  demonstration = false,
 }: {
   title: string;
   icon: LucideIcon;
+  action?: ReactNode;
   children: ReactNode;
-  demonstration?: boolean;
 }) {
+  const titleId = useId();
   return (
-    <Card className="h-full min-w-0">
+    <Card
+      render={(props) => <section {...props} />}
+      aria-labelledby={titleId}
+      className="h-full min-w-0"
+    >
       <Card.Header>
         <div className="flex w-full flex-wrap items-center justify-between gap-2">
-          <h2 className="flex items-center gap-3 text-lg font-semibold">
-            <Icon aria-hidden="true" className="size-6 text-accent" />
-            {title}
-          </h2>
-          {demonstration && (
-            <Chip size="sm" variant="soft">
-              演示数据
-            </Chip>
-          )}
+          <Card.Title
+            render={(props) => <h2 {...props}>{props.children}</h2>}
+            id={titleId}
+          >
+            <span className="flex items-center gap-3 text-lg font-semibold">
+              {action ? (
+                <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent">
+                  <Icon aria-hidden="true" className="size-5" />
+                </span>
+              ) : (
+                <Icon aria-hidden="true" className="size-6 text-accent" />
+              )}
+              {title}
+            </span>
+          </Card.Title>
+          {action && <div className="text-sm">{action}</div>}
         </div>
       </Card.Header>
       <Card.Content>{children}</Card.Content>
@@ -129,6 +158,157 @@ function settingStatus(enabled: boolean) {
   return enabled ? "已启用" : "已关闭";
 }
 
+function StrmStatistics({ libraryId }: { libraryId: string }) {
+  const strm = useStrmFiles({ library_id: libraryId, limit: 1 });
+  const registeredCount = strm.data?.total;
+  const metrics = [
+    { label: "总数量", count: registeredCount },
+    {
+      label: "已生成",
+      count: registeredCount,
+      icon: CircleCheck,
+      color: "text-success",
+    },
+    { label: "待处理", icon: Clock3, color: "text-warning-soft-foreground" },
+    { label: "失败", icon: CircleX, color: "text-danger" },
+  ];
+
+  return (
+    <DetailCard
+      title="STRM 统计"
+      icon={Link2}
+      action={
+        <DetailLink to={strmLibraryPath(libraryId)}>
+          查看 STRM <ChevronRight aria-hidden="true" className="size-4" />
+        </DetailLink>
+      }
+    >
+      <div className="@container">
+        <dl className="grid grid-cols-2 gap-y-3 py-2 @min-[25rem]:grid-cols-4">
+          {metrics.map(({ label, count, icon: Icon, color }) => (
+            <div
+              key={label}
+              className="flex min-w-0 flex-col-reverse items-center gap-1 border-divider px-1 odd:border-e @min-[25rem]:border-e @min-[25rem]:first:items-start @min-[25rem]:last:border-e-0"
+            >
+              <dt className="text-sm text-muted">{label}</dt>
+              <dd className="flex flex-wrap items-center justify-center gap-x-1.5 text-xl leading-tight font-semibold break-all tabular-nums">
+                {Icon && (
+                  <Icon
+                    aria-hidden="true"
+                    className={`size-4 shrink-0 ${color}`}
+                  />
+                )}
+                <span>{formatCount(count)}</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+      {strm.isPending && (
+        <p className="text-sm text-muted" role="status">
+          正在加载 STRM 统计…
+        </p>
+      )}
+      {strm.isError && (
+        <StrmError error={strm.error} onRetry={() => void strm.refetch()} />
+      )}
+    </DetailCard>
+  );
+}
+
+const syncHistoryTime = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: defaultTimezone,
+  hour: "2-digit",
+  minute: "2-digit",
+  hourCycle: "h23",
+});
+const syncHistoryDate = new Intl.DateTimeFormat("zh-CN", {
+  timeZone: defaultTimezone,
+  month: "2-digit",
+  day: "2-digit",
+});
+
+function formatSyncHistoryTime(value: string) {
+  const instant = new Date(value);
+  const localDate = toCalendarDate(fromDate(instant, defaultTimezone));
+  const currentDate = today(defaultTimezone);
+  const time = syncHistoryTime.format(instant);
+  if (localDate.compare(currentDate) === 0) return `今天 ${time}`;
+  if (localDate.compare(currentDate.subtract({ days: 1 })) === 0)
+    return `昨天 ${time}`;
+  return `${syncHistoryDate.format(instant).replace("/", "-")} ${time}`;
+}
+
+function formatSyncHistoryDuration(milliseconds: number) {
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor(totalSeconds / 60) % 60;
+  const seconds = totalSeconds % 60;
+  const parts = [];
+  if (hours > 0) parts.push(`${hours} 小时`);
+  if (minutes > 0) parts.push(`${minutes} 分`);
+  parts.push(`${seconds} 秒`);
+  return parts.join(" ");
+}
+
+function SyncHistoryRow({ task }: { task: Task }) {
+  const type = taskTypes[task.type];
+  const Icon = task.type === "strm" ? RefreshCw : type.icon;
+  const time = task.started_at ?? task.created_at;
+  const counts = `生成 ${formatCount(task.succeeded_items)} 个 STRM，跳过 ${formatCount(task.skipped_items)} 个，失败 ${formatCount(task.failed_items)} 个`;
+  const duration =
+    task.duration_ms === null
+      ? ""
+      : `，耗时 ${formatSyncHistoryDuration(task.duration_ms)}`;
+
+  return (
+    <li className="group relative pl-5">
+      <span
+        aria-hidden="true"
+        className="absolute top-7 -bottom-7 left-1.5 border-s border-accent/35 group-last:hidden"
+      />
+      <span
+        aria-hidden="true"
+        className="absolute top-6 left-0.5 size-2.5 rounded-full border-2 border-accent bg-surface"
+      />
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-2 py-2.5 text-sm @min-[40rem]:grid-cols-[auto_6.5rem_auto_minmax(0,1fr)_auto]">
+        <span className="col-start-1 row-start-1 grid size-9 place-items-center rounded-full bg-accent-soft text-accent">
+          <Icon aria-hidden="true" className="size-4" />
+        </span>
+        <time
+          className="col-start-2 row-start-1 text-muted tabular-nums"
+          dateTime={time}
+          title={formatDate(time)}
+        >
+          {formatSyncHistoryTime(time)}
+        </time>
+        <div className="col-start-3 row-start-1">
+          <Chip color={type.color} variant="soft" size="sm">
+            <Chip.Label>
+              {task.type === "strm" ? "全量同步" : type.label}
+            </Chip.Label>
+          </Chip>
+        </div>
+        <div className="col-span-2 col-start-2 row-start-2 min-w-0 wrap-anywhere @min-[40rem]:col-span-1 @min-[40rem]:col-start-4 @min-[40rem]:row-start-1">
+          <DetailLink to={`/tasks/${encodeURIComponent(task.id)}`}>
+            {counts}
+            {duration}
+          </DetailLink>
+        </div>
+        <div className="col-start-2 row-start-3 @min-[40rem]:col-start-5 @min-[40rem]:row-start-1 @min-[40rem]:justify-self-end">
+          {task.outcome === "success" && task.status === "completed" ? (
+            <Chip color="success" variant="soft" size="sm">
+              <Chip.Label>成功</Chip.Label>
+            </Chip>
+          ) : (
+            <StatusChip task={task} />
+          )}
+        </div>
+      </div>
+    </li>
+  );
+}
+
 export function LibraryDetailView({
   item,
   onToggle,
@@ -141,32 +321,9 @@ export function LibraryDetailView({
   const system = useSystemStatus();
   const navigate = useNavigate();
   const detailPath = libraryDetailPath(item.id);
-  const statistics = [
-    {
-      label: "总数量",
-      value: demo.statistics.total,
-      icon: Link2,
-      color: "text-foreground",
-    },
-    {
-      label: "已生成",
-      value: demo.statistics.generated,
-      icon: CheckCircle2,
-      color: "text-success",
-    },
-    {
-      label: "待处理",
-      value: demo.statistics.pending,
-      icon: Clock3,
-      color: "text-warning",
-    },
-    {
-      label: "失败",
-      value: demo.statistics.failed,
-      icon: CircleAlert,
-      color: "text-danger",
-    },
-  ];
+  const history = useLibrarySyncHistory(item.id);
+  const records = history.data?.items.slice(0, 4) ?? [];
+  const latest = records[0];
   return (
     <>
       <PageBanner
@@ -185,7 +342,7 @@ export function LibraryDetailView({
         description={`${mediaTypeLabels[item.media_type]}类型媒体库，绑定 115 网盘目录，管理 STRM 输出配置。`}
       />
       <div className="mt-4 rounded-2xl bg-surface p-2 shadow-sm">
-        <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-3">
+        <div className="grid grid-cols-1 gap-3 min-[380px]:grid-cols-2 lg:grid-cols-3">
           {detailActions.map(({ path, label, icon: Icon }) => (
             <Button
               key={path}
@@ -264,19 +421,6 @@ export function LibraryDetailView({
                   ? "正在获取系统信息"
                   : "系统信息不可用"}
             </Chip>
-            <Button
-              size="sm"
-              variant="ghost"
-              isDisabled={pending}
-              onPress={onToggle}
-            >
-              {item.enabled ? (
-                <Pause aria-hidden="true" className="size-4" />
-              ) : (
-                <Play aria-hidden="true" className="size-4" />
-              )}
-              {item.enabled ? "暂停媒体库" : "启用媒体库"}
-            </Button>
           </div>
           <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
             <dt className="flex items-center gap-2 text-muted">
@@ -360,86 +504,54 @@ export function LibraryDetailView({
           <ConfigurationFields
             fields={[
               ["链接类型", linkTypeLabels[item.link_type]],
-              ["STRM 直连域名", item.strm_direct_domain || "未设置"],
+              ["STRM 播放地址", item.strm_direct_domain || "未设置"],
               ["链接格式", linkFormatLabels[item.strm_link_format]],
             ]}
           />
         </DetailCard>
       </div>
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-[5fr_3fr]">
-        <DetailCard title="STRM 统计" icon={Link2} demonstration>
-          <dl className="grid grid-cols-2 gap-y-5 py-3 sm:grid-cols-4">
-            {statistics.map(({ label, value, icon: Icon, color }) => (
-              <div
-                key={label}
-                className="min-w-0 border-divider px-3 even:border-l sm:border-l sm:first:border-l-0"
-              >
-                <dd className="flex items-center gap-2 text-lg font-bold tabular-nums xl:text-2xl">
-                  <Icon
-                    aria-hidden="true"
-                    className={`size-4 shrink-0 ${color}`}
-                  />
-                  {value.toLocaleString("en-US")}
-                </dd>
-                <dt className="mt-1 text-sm text-muted">{label}</dt>
+        <StrmStatistics libraryId={item.id} />
+        <DetailCard title="最近同步时间" icon={Clock3}>
+          <SyncHistoryState history={history} />
+          {latest && (
+            <>
+              <div className="mb-4 flex flex-wrap items-center gap-2 text-lg font-semibold">
+                <SyncTaskTime task={latest} />
+                <StatusChip task={latest} />
               </div>
-            ))}
-          </dl>
-        </DetailCard>
-        <DetailCard title="最近同步时间" icon={Clock3} demonstration>
-          <div className="mb-4 flex flex-wrap items-center gap-2 text-lg font-semibold tabular-nums">
-            <LibraryLocalTime at={demo.latestSync.at} />
-            <CheckCircle2
-              aria-label="同步成功"
-              className="size-5 text-success"
-            />
-          </div>
-          <dl className="grid grid-cols-2 gap-2 text-sm">
-            <dt className="text-muted">同步类型</dt>
-            <dd className="text-right font-medium">{demo.latestSync.type}</dd>
-            <dt className="text-muted">耗时</dt>
-            <dd className="text-right font-medium">
-              {demo.latestSync.duration}
-            </dd>
-          </dl>
+              <dl className="grid grid-cols-2 gap-2 text-sm">
+                <dt className="text-muted">同步类型</dt>
+                <dd className="text-right font-medium">全量同步（STRM）</dd>
+                <dt className="text-muted">耗时</dt>
+                <dd className="text-right font-medium">
+                  {formatDuration(latest.duration_ms)}
+                </dd>
+              </dl>
+            </>
+          )}
         </DetailCard>
       </div>
       <div className="mt-4">
-        <DetailCard title="执行记录摘要" icon={ListChecks} demonstration>
-          <ol className="py-1">
-            {demo.records.map((record) => (
-              <li
-                key={record.id}
-                className="relative ml-2 border-l border-accent-soft py-3 pl-6 last:border-transparent"
-              >
-                <span
-                  aria-hidden="true"
-                  className="absolute top-5 -left-1 size-2 rounded-full border-2 border-accent bg-surface"
-                />
-                <div className="flex flex-wrap items-center gap-3 text-sm">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-accent">
-                    {record.type === "执行预览" ? (
-                      <ScanLine aria-hidden="true" className="size-4" />
-                    ) : (
-                      <FileClock aria-hidden="true" className="size-4" />
-                    )}
-                  </span>
-                  <span className="min-w-28 text-muted tabular-nums">
-                    <LibraryLocalTime at={record.at} compact />
-                  </span>
-                  <Chip size="sm" variant="soft" color="accent">
-                    {record.type}
-                  </Chip>
-                  <p className="min-w-0 basis-full wrap-anywhere pl-11 text-foreground xl:basis-auto xl:flex-1 xl:pl-0">
-                    {record.summary}
-                  </p>
-                  <Chip size="sm" variant="soft" color="success">
-                    {record.result}
-                  </Chip>
-                </div>
-              </li>
-            ))}
-          </ol>
+        <DetailCard
+          title="执行记录摘要"
+          icon={ListChecks}
+          action={
+            <DetailLink to={librarySyncHistoryPath(item.id)}>
+              查看全部 <ChevronRight aria-hidden="true" className="size-4" />
+            </DetailLink>
+          }
+        >
+          <SyncHistoryState history={history} />
+          {records.length > 0 && (
+            <div className="@container">
+              <ol className="py-1">
+                {records.map((record) => (
+                  <SyncHistoryRow key={record.id} task={record} />
+                ))}
+              </ol>
+            </div>
+          )}
         </DetailCard>
       </div>
     </>

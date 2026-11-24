@@ -318,3 +318,30 @@ Implemented persistent media library configuration, management UI and shared pag
 ### Status
 
 [OK] **Completed**
+
+
+## Session 13: 媒体库 STRM 生成与产物登记
+<!-- trellis-session: v=2 fp=ecfcc25329710902 -->
+
+**Date**: 2026-11-25
+**Task**: 媒体库 STRM 生成与产物登记
+**Branch**: `codex/strm-generation`
+
+### Summary
+
+通过媒体库全量同步扫描 115 并生成 STRM，接入 302 播放、任务日志和真实产物登记。按设计调整 STRM 管理和媒体库详情卡片。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `0bcfbc1` | feat: generate and manage STRM files from media libraries |
+
+### Testing
+
+- [OK] 后端静态检查、单测、竞态检查及 OpenAPI 生成一致性检查通过。
+- [OK] 前端 140 项单测、18 项详情与 STRM 管理浏览器用例及生产构建通过。
+
+### Status
+
+[OK] **Completed**

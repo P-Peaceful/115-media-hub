@@ -13,6 +13,7 @@ Read the [project baseline](../guides/project-baseline.md) first for Notion sour
 | [Cloud drive](./cloud-drive.md) | Read-only 115 directory listing and upstream pagination contract |
 | [Media libraries](./media-library.md) | Persistent library configuration, API, concurrency, and deletion contract |
 | [Task center](./task-center.md) | Persistent task execution, module registration, scheduling and live events |
+| [STRM](./strm.md) | Full-sync generation, file ownership, registry reads and 302 playback |
 | [System status](./system-status.md) | Authenticated process uptime and build version contract |
 | [Initialization](./initialization.md) | Implemented startup, health, generated contracts and build boundaries |
 | [Directory structure](./directory-structure.md) | Package boundaries, dependency direction, naming |

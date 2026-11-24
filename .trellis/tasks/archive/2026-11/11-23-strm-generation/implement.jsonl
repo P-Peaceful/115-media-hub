@@ -1,0 +1,13 @@
+{"file": ".trellis/spec/guides/project-baseline.md", "reason": "播放、产物归属和部署约定"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "核对 OpenAPI、生成类型和 UI 数据流"}
+{"file": ".trellis/spec/backend/index.md", "reason": "后端开发与验证入口"}
+{"file": ".trellis/spec/backend/media-library.md", "reason": "配置快照、路径和已有文件策略"}
+{"file": ".trellis/spec/backend/task-center.md", "reason": "持久化任务能力与执行契约"}
+{"file": ".trellis/spec/backend/settings.md", "reason": "现有 115 授权方式与凭据边界"}
+{"file": ".trellis/spec/backend/cloud-drive.md", "reason": "115 分页与错误分类"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "迁移、事务和持久化验证"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "业务日志、脱敏和关联 ID"}
+{"file": ".trellis/spec/frontend/index.md", "reason": "前端开发与验证入口"}
+{"file": ".trellis/spec/frontend/strm-management.md", "reason": "现有页面与交互边界"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "组件库、主题和布局"}
+{"file": ".trellis/spec/frontend/task-center.md", "reason": "任务状态与缓存刷新"}

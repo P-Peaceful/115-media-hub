@@ -2,7 +2,7 @@
 
 ## 1. Scope
 
-The task center owns admission, scheduling, a bounded worker pool, job state, attempts, and history. Business modules own their processing and side effects. The application injects a type-to-module map into the job service. The current production registry is empty. See [application wiring](../../../backend/internal/app/app.go) and the [module interface](../../../backend/internal/service/jobs/service.go).
+The task center owns admission, scheduling, a bounded worker pool, job state, attempts, and history. Business modules own their processing and side effects. The application injects a type-to-module map into the job service. Production registers STRM generation as an on-demand module for media-library full sync. Eligibility requires an enabled media library with STRM output, 302 mode, and a saved playback address. See [application wiring](../../../backend/internal/app/app.go) and the [module interface](../../../backend/internal/service/jobs/service.go).
 
 ## 2. Signatures
 
@@ -23,7 +23,7 @@ SQLite owns schedules, runs, items, and logs in [migration 00005](../../../backe
 
 ## 3. Contracts
 
-- The response type `TaskType` has `scan`, `strm`, `sync`, `check`, `cleanup`, `scrape`, `upload`. A registration requires a business `Run` callback. Declare pause and item retry only when the module can honor them. Each attempt gets the current saved library revision as a configuration snapshot. Internal item keys are stable across resumed attempts. Module callbacks return administrator-safe summaries and honor context cancellation.
+- The response type `TaskType` has `scan`, `strm`, `sync`, `check`, `cleanup`, `scrape`, `upload`. A registration requires a business `Run` callback. Declare pause and item retry only when the module can honor them. For manual-only modules, `can_schedule` is false and schedule admission rejects that type. Each attempt gets the current saved library revision as a configuration snapshot. Internal item keys are stable across resumed attempts. Module callbacks return administrator-safe summaries and honor context cancellation.
 - The worker conditionally claims pending tasks and serializes active runs in a media library. Control signals and progress, item, and log writes are scoped to the active attempt. Modules coordinate external effects and checkpoints. A completed run with failed items and successful or skipped items has outcome `partial_failure`. To resume a running task after interruption, the module verifies its checkpoint or external effects before the service requeues it. Retry creates a linked run. Failed-item retry pages the original persisted failures.
 - The scheduler evaluates each plan in its IANA timezone. The editor defaults to `Asia/Shanghai`. Custom rules use minute, hour, day-of-month, month and day-of-week fields. A null library selects all eligible enabled libraries. Occurrence submission and advancing the next time share a transaction. The plan ID, occurrence timestamp, and library ID form the deduplication key. Startup advances overdue plans past the missed time.
 - Disabled plans have an empty next run time. Disabling or deleting a plan stops future submissions. Existing run histories remain available.

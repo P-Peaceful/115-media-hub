@@ -37,7 +37,7 @@ This fragment only demonstrates a conditional transition. The complete job desig
 
 ## Required checks
 
-Use real temporary-file SQLite databases to test WAL, foreign keys on pooled connections, rollback, duplicate claims, zero-value updates, upgrades, and relevant query behavior. Do not substitute mocks for SQLite semantics. Test incomplete directory scans never causing deletion, ownership/hash conflicts, and uncertain upload recovery when those features are implemented.
+Use real temporary-file SQLite databases to test WAL, foreign keys on pooled connections, rollback, duplicate claims, zero-value updates, upgrades, and relevant query behavior. Do not substitute mocks for SQLite semantics. Test incomplete directory scans never causing deletion, ownership and content conflicts, and uncertain upload recovery when those features are implemented.
 
 Backups must use a SQLite-consistent mechanism; copying only the main database file while WAL writes continue is unsafe. Keep database files on local disk and reconcile file state after restore before cleanup/overwrites resume.
 

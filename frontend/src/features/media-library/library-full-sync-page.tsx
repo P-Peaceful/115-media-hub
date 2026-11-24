@@ -8,184 +8,118 @@ import {
   Play,
   RefreshCw,
 } from "lucide-react";
-import { useRef, useState } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
+
+import { formatDuration, StatusChip } from "@/features/task-center/task-ui";
 
 import { useLibraryDetailContext } from "./library-detail-context";
 import {
-  LibraryLocalTime,
-  ResultChip,
-  SyncCounts,
   SyncPageHeader,
-  SyncRecordDetails,
+  SyncScope,
   SyncSection,
 } from "./library-sync-components";
 import {
-  estimatedTotal,
-  formatSyncCount,
-  fullSyncHistory,
-} from "./library-sync-demo";
+  librarySyncHistoryPath,
+  SyncHistoryState,
+  SyncTaskCounts,
+  SyncTaskLink,
+  SyncTaskTime,
+  useLibrarySyncHistory,
+} from "./library-sync-history";
 
 export function LibraryFullSyncPage() {
   const { item } = useLibraryDetailContext();
   const navigate = useNavigate();
-  const [allRecords, setAllRecords] = useState(false);
-  const [selected, setSelected] = useState<(typeof fullSyncHistory)[number]>();
-  const detailsOrigin = useRef<HTMLElement | null>(null);
-  const historyToggle = useRef<HTMLButtonElement>(null);
-  const latest = fullSyncHistory[0];
-  const records = allRecords ? fullSyncHistory : fullSyncHistory.slice(0, 3);
+  const history = useLibrarySyncHistory(item.id);
+  const records = history.data?.items ?? [];
+  const latest = records[0];
 
   return (
     <div className="space-y-4">
       <SyncPageHeader
         title="全量同步"
-        description="完整扫描绑定目录，重新识别媒体文件和元数据。"
+        description="扫描媒体库绑定的 115 目录，按已保存的配置生成 STRM 文件。"
         icon={RefreshCw}
       />
       <div className="grid gap-4 xl:grid-cols-[1.1fr_1fr]">
         <SyncSection title="执行说明" icon={Info}>
           <ul className="list-inside list-disc space-y-2 text-sm marker:text-accent">
-            <li>完整扫描媒体库绑定的目录。</li>
-            <li>识别媒体文件，按输出配置更新 STRM、NFO 和海报。</li>
-            <li>适合首次配置完成或目录结构大幅变更后使用。</li>
+            <li>扫描绑定目录，并按配置处理子目录和排除目录。</li>
+            <li>为识别到的视频生成 302 播放链接，并按配置处理已有 STRM。</li>
+            <li>同步完成后，可在任务详情查看处理数量和失败原因。</li>
           </ul>
         </SyncSection>
         <SyncSection title="同步范围" icon={Layers}>
-          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 rounded-xl bg-surface-secondary p-3 text-sm">
-            <dt className="text-muted">媒体源目录</dt>
-            <dd className="wrap-anywhere font-medium">{item.directory_path}</dd>
-            <dt className="text-muted">输出目录</dt>
-            <dd className="wrap-anywhere font-medium">{item.output_path}</dd>
-            <dt className="text-muted">预计处理</dt>
-            <dd className="font-medium">
-              约 {formatSyncCount(estimatedTotal)} 个文件（演示）
-            </dd>
-          </dl>
+          <SyncScope library={item} />
         </SyncSection>
       </div>
       <SyncSection title="最近执行记录" icon={Clock3}>
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-secondary p-3 text-sm">
-          <div className="flex flex-wrap items-center gap-3">
-            <ResultChip result={latest.result} />
-            <span>
-              上次执行 <LibraryLocalTime at={latest.at} />
-            </span>
-            <span>全量同步</span>
-            <span className="whitespace-nowrap">耗时 {latest.duration}</span>
-            <SyncCounts counts={latest.counts} />
+        <SyncHistoryState history={history} />
+        {latest && (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-surface-secondary p-3 text-sm">
+            <div className="flex flex-wrap items-center gap-3">
+              <StatusChip task={latest} />
+              <SyncTaskTime task={latest} />
+              <span>耗时 {formatDuration(latest.duration_ms)}</span>
+              <SyncTaskCounts task={latest} />
+            </div>
+            <SyncTaskLink id={latest.id} label="查看最近任务" />
           </div>
-          <Button
-            size="sm"
-            variant="secondary"
-            onPress={({ target }) => {
-              detailsOrigin.current =
-                target instanceof HTMLElement ? target : null;
-              setSelected(latest);
-            }}
-          >
-            查看详情
-            <ChevronRight aria-hidden="true" className="size-4" />
-          </Button>
-        </div>
-      </SyncSection>
-      <SyncSection
-        title="历史记录"
-        icon={History}
-        action={
-          <Button
-            ref={historyToggle}
-            size="sm"
-            variant="ghost"
-            aria-expanded={allRecords}
-            onPress={() => setAllRecords(!allRecords)}
-          >
-            {allRecords ? "收起" : "查看全部"}
-            <ChevronRight aria-hidden="true" className="size-4" />
-          </Button>
-        }
-      >
-        {selected && (
-          <SyncRecordDetails
-            key={selected.at}
-            title="执行详情"
-            closeLabel="返回记录"
-            onClose={() => {
-              setSelected(undefined);
-              const origin = detailsOrigin.current;
-              (origin?.isConnected ? origin : historyToggle.current)?.focus();
-            }}
-          >
-            <dl className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 gap-y-2 text-sm">
-              <dt className="text-muted">执行时间</dt>
-              <dd>
-                <LibraryLocalTime at={selected.at} />
-              </dd>
-              <dt className="text-muted">执行类型</dt>
-              <dd>全量同步</dd>
-              <dt className="text-muted">执行结果</dt>
-              <dd>
-                <ResultChip result={selected.result} />
-              </dd>
-              <dt className="text-muted">耗时</dt>
-              <dd>{selected.duration}</dd>
-              <dt className="text-muted">处理统计</dt>
-              <dd>
-                <SyncCounts counts={selected.counts} />
-              </dd>
-            </dl>
-          </SyncRecordDetails>
         )}
-        <Table>
-          <Table.ScrollContainer>
-            <Table.Content
-              aria-label="全量同步历史记录"
-              className="min-w-[745px]"
-            >
-              <Table.Header>
-                <Table.Column isRowHeader>执行时间</Table.Column>
-                <Table.Column>执行类型</Table.Column>
-                <Table.Column>执行结果</Table.Column>
-                <Table.Column>耗时</Table.Column>
-                <Table.Column>处理统计</Table.Column>
-                <Table.Column>操作</Table.Column>
-              </Table.Header>
-              <Table.Body>
-                {records.map((record) => (
-                  <Table.Row key={record.at} id={record.at}>
-                    <Table.Cell>
-                      <LibraryLocalTime at={record.at} />
-                    </Table.Cell>
-                    <Table.Cell>全量同步</Table.Cell>
-                    <Table.Cell>
-                      <ResultChip result={record.result} />
-                    </Table.Cell>
-                    <Table.Cell className="whitespace-nowrap">
-                      {record.duration}
-                    </Table.Cell>
-                    <Table.Cell>
-                      <SyncCounts counts={record.counts} />
-                    </Table.Cell>
-                    <Table.Cell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onPress={({ target }) => {
-                          detailsOrigin.current =
-                            target instanceof HTMLElement ? target : null;
-                          setSelected(record);
-                        }}
-                      >
-                        详情
-                      </Button>
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table.Content>
-          </Table.ScrollContainer>
-        </Table>
       </SyncSection>
+      {latest && (
+        <SyncSection
+          title="历史记录"
+          icon={History}
+          action={
+            <Link
+              className="inline-flex items-center gap-1 text-sm font-medium text-accent hover:underline"
+              to={librarySyncHistoryPath(item.id)}
+            >
+              查看全部历史
+              <ChevronRight aria-hidden="true" className="size-4" />
+            </Link>
+          }
+        >
+          <Table>
+            <Table.ScrollContainer>
+              <Table.Content
+                aria-label="全量同步历史记录"
+                className="min-w-[580px]"
+              >
+                <Table.Header>
+                  <Table.Column isRowHeader>执行时间</Table.Column>
+                  <Table.Column>执行结果</Table.Column>
+                  <Table.Column>耗时</Table.Column>
+                  <Table.Column>处理统计</Table.Column>
+                  <Table.Column>操作</Table.Column>
+                </Table.Header>
+                <Table.Body>
+                  {records.map((record) => (
+                    <Table.Row key={record.id} id={record.id}>
+                      <Table.Cell>
+                        <SyncTaskTime task={record} />
+                      </Table.Cell>
+                      <Table.Cell>
+                        <StatusChip task={record} />
+                      </Table.Cell>
+                      <Table.Cell className="whitespace-nowrap">
+                        {formatDuration(record.duration_ms)}
+                      </Table.Cell>
+                      <Table.Cell>
+                        <SyncTaskCounts task={record} />
+                      </Table.Cell>
+                      <Table.Cell>
+                        <SyncTaskLink id={record.id} />
+                      </Table.Cell>
+                    </Table.Row>
+                  ))}
+                </Table.Body>
+              </Table.Content>
+            </Table.ScrollContainer>
+          </Table>
+        </SyncSection>
+      )}
       <Card>
         <Card.Content className="flex items-end">
           <Button onPress={() => void navigate("execution-preview")}>

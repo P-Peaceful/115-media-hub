@@ -6,7 +6,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
 } from "@heroui/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
   CalendarClock,
   ChartNoAxesColumn,
@@ -23,12 +23,12 @@ import { PageBanner } from "@/components/page-banner";
 import type { Library } from "@/features/media-library/api";
 
 import type { Task, TaskTypeCapability } from "./api";
-import { listTasks, submitTask } from "./api";
+import { listTasks } from "./api";
 import {
   taskKeys,
+  useSubmitTask,
   useTaskAction,
   useTaskCapabilities,
-  useTaskCsrf,
   useTaskLibraries,
   useTaskSearch,
 } from "./queries";
@@ -65,6 +65,7 @@ const typeOptions = keys(taskTypes).map((id) => ({
   id,
   label: taskTypes[id].label,
 }));
+const manualTypeOptions = typeOptions.filter(({ id }) => id !== "strm");
 const statusOptions = keys(taskStatuses).map((id) => ({
   id,
   label: taskStatuses[id].label,
@@ -78,22 +79,12 @@ function ManualTaskDialog({
   libraries: Library[];
 }) {
   const [open, setOpen] = useState(false);
-  const [type, setType] = useState<TaskType | "">("");
+  const [type, setType] = useState<Exclude<TaskType, "strm"> | "">("");
   const [libraryId, setLibraryId] = useState("");
-  const csrf = useTaskCsrf();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const capability = capabilities.find((entry) => entry.type === type);
-  const mutation = useMutation({
-    mutationFn: (input: { type: TaskType; libraryId: string }) =>
-      submitTask(csrf(), input.type, input.libraryId),
-    onSuccess: async (task) => {
-      await queryClient.invalidateQueries({ queryKey: taskKeys.all });
-      setOpen(false);
-      void navigate(`/tasks/${encodeURIComponent(task.id)}`);
-    },
-  });
-  const options = typeOptions.map((option) => ({
+  const mutation = useSubmitTask();
+  const options = manualTypeOptions.map((option) => ({
     ...option,
     label: capabilities.some((cap) => cap.type === option.id && cap.available)
       ? option.label
@@ -134,7 +125,9 @@ function ManualTaskDialog({
                 value={type}
                 options={options}
                 onChange={(value) => {
-                  if (hasKey(taskTypes, value)) setType(value);
+                  if (hasKey(taskTypes, value) && value !== "strm") {
+                    setType(value);
+                  }
                 }}
               />
               {capability && !capability.available && (
@@ -170,7 +163,19 @@ function ManualTaskDialog({
                 }
                 isPending={mutation.isPending}
                 onPress={() => {
-                  if (type) mutation.mutate({ type, libraryId });
+                  if (type) {
+                    mutation.mutate(
+                      { type, libraryId },
+                      {
+                        onSuccess: (task) => {
+                          setOpen(false);
+                          void navigate(
+                            `/tasks/${encodeURIComponent(task.id)}`,
+                          );
+                        },
+                      },
+                    );
+                  }
                 }}
               >
                 提交
@@ -336,6 +341,9 @@ export function TaskOverviewPage() {
   });
   const capabilities = useTaskCapabilities();
   const libraries = useTaskLibraries();
+  const manualCapabilities = capabilities.data?.filter(
+    ({ type }) => type !== "strm",
+  );
   const allCount = query.data
     ? keys(taskTypes).reduce(
         (sum, kind) => sum + (query.data.by_type[kind] ?? 0),
@@ -355,7 +363,7 @@ export function TaskOverviewPage() {
     <main className={taskPageClass}>
       <PageBanner
         title="任务中心"
-        description="统一管理扫描、STRM 生成、同步、检查、清理、刮削和回传任务。"
+        description="查看和管理媒体库任务的进度、结果与历史记录。"
       />
       <div className="grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[1.25fr_1fr]">
         <Panel title="任务分类" icon={LayoutGrid}>
@@ -465,10 +473,10 @@ export function TaskOverviewPage() {
               <CalendarClock aria-hidden="true" />
               定时计划
             </TaskButtonLink>
-            {capabilities.data?.some((item) => item.available) &&
+            {manualCapabilities?.some((item) => item.available) &&
               libraries.data && (
                 <ManualTaskDialog
-                  capabilities={capabilities.data}
+                  capabilities={manualCapabilities}
                   libraries={libraries.data}
                 />
               )}

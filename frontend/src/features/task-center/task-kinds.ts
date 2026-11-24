@@ -28,7 +28,7 @@ export type ScheduleInput = Schemas["ScheduleInput"];
 
 export const taskTypes = {
   scan: { label: "扫描", icon: Search, color: "success" },
-  strm: { label: "STRM 生成", icon: Link2, color: "accent" },
+  strm: { label: "全量同步（STRM）", icon: Link2, color: "accent" },
   sync: { label: "同步", icon: RefreshCw, color: "default" },
   check: { label: "检查", icon: ShieldCheck, color: "default" },
   cleanup: { label: "清理", icon: Trash2, color: "default" },

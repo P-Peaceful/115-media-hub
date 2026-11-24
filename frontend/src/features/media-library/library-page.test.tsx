@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
@@ -514,7 +514,7 @@ it("目录读取失败时提示重试", async () => {
   expect(screen.getByRole("button", { name: "重试" })).toBeVisible();
 });
 
-it("详情展示真实配置和系统信息，标记演示数据并展示统一的操作按钮", async () => {
+it("详情展示真实配置、同步历史与系统信息", async () => {
   server.use(
     http.get("/api/v1/libraries/1", () =>
       HttpResponse.json({
@@ -532,9 +532,25 @@ it("详情展示真实配置和系统信息，标记演示数据并展示统一�
         strm_link_format: "file_id",
       }),
     ),
+    http.get("/api/v1/strm", ({ request }) => {
+      expect(new URL(request.url).searchParams.get("library_id")).toBe("1");
+      return HttpResponse.json({ items: [], total: 0, page: 1, limit: 1 });
+    }),
     http.get("/api/v1/system/status", () =>
       HttpResponse.json({ uptime_seconds: 10860, version: "test-build" }),
     ),
+    http.get("/api/v1/tasks", ({ request }) => {
+      const params = new URL(request.url).searchParams;
+      expect(params.get("type")).toBe("strm");
+      expect(params.get("library_id")).toBe("1");
+      return HttpResponse.json({
+        items: [],
+        next_cursor: null,
+        total: 0,
+        by_type: {},
+        by_status: {},
+      });
+    }),
   );
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -550,8 +566,21 @@ it("详情展示真实配置和系统信息，标记演示数据并展示统一�
   for (const name of ["全量同步", "增量同步", "编辑配置"]) {
     expect(await screen.findByRole("button", { name })).toBeEnabled();
   }
-  expect(screen.getAllByText("演示数据")).toHaveLength(3);
-  expect(screen.getByText("12,860")).toBeVisible();
+  expect(await screen.findAllByText("暂无全量同步记录。")).toHaveLength(2);
+  expect(screen.queryByText("演示数据")).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "生成 STRM" }),
+  ).not.toBeInTheDocument();
+  const statistics = within(screen.getByRole("region", { name: "STRM 统计" }));
+  await waitFor(() => {
+    expect(
+      statistics.getAllByRole("definition").map((entry) => entry.textContent),
+    ).toEqual(["0", "0", "—", "—"]);
+  });
+  expect(screen.getByRole("link", { name: "查看 STRM" })).toHaveAttribute(
+    "href",
+    "/strm?library_id=1",
+  );
   expect(await screen.findByText("3 小时 1 分钟")).toBeVisible();
   expect(screen.queryByText("版本信息")).not.toBeInTheDocument();
   expect(screen.queryByText("test-build")).not.toBeInTheDocument();
@@ -569,7 +598,7 @@ it("详情展示真实配置和系统信息，标记演示数据并展示统一�
     ["STRM 已存在时", "覆盖"],
     ["文件编码", "UTF-8"],
     ["链接类型", "直连"],
-    ["STRM 直连域名", "media.example.com"],
+    ["STRM 播放地址", "media.example.com"],
     ["链接格式", "文件 ID"],
   ] as const) {
     expect(
@@ -583,10 +612,23 @@ it("详情展示真实配置和系统信息，标记演示数据并展示统一�
   expect(screen.queryByText("运行中")).not.toBeInTheDocument();
 });
 
-it("系统信息失败保留配置与演示数据，启停失败提供反馈", async () => {
+it("系统信息失败保留配置与同步历史，启停失败提供反馈", async () => {
   const user = userEvent.setup();
   server.use(
     http.get("/api/v1/libraries/1", () => HttpResponse.json(library)),
+    http.get("/api/v1/tasks", () =>
+      HttpResponse.json({
+        items: [],
+        next_cursor: null,
+        total: 0,
+        by_type: {},
+        by_status: {},
+      }),
+    ),
+    http.get("/api/v1/strm", ({ request }) => {
+      expect(new URL(request.url).searchParams.get("library_id")).toBe("1");
+      return HttpResponse.json({ items: [], total: 0, page: 1, limit: 1 });
+    }),
     http.get("/api/v1/system/status", () =>
       HttpResponse.json(
         { error: { code: "unavailable", message: "系统信息不可用" } },
@@ -613,7 +655,7 @@ it("系统信息失败保留配置与演示数据，启停失败提供反馈", a
   );
   expect(await screen.findByText("无法获取系统信息。")).toBeVisible();
   expect(screen.getByText(library.output_path)).toBeVisible();
-  expect(screen.getAllByText("演示数据")).toHaveLength(3);
+  expect(await screen.findAllByText("暂无全量同步记录。")).toHaveLength(2);
   await user.click(screen.getByRole("button", { name: "暂停媒体库" }));
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "请求未能完成，请稍后重试。",
@@ -631,28 +673,42 @@ it("链接格式示例跟随 Tab 与域名变化，保持纯文本", async () =>
     </QueryClientProvider>,
   );
   expect(
-    screen.getByText("格式示例：https://media.example.com/电影名称.mkv"),
+    screen.getByText(
+      "格式示例 https://media.example.com/p/artifact-id/playback-token/Movie%20Name.mkv",
+    ),
   ).toBeVisible();
   await user.click(screen.getByRole("tab", { name: "文件 ID" }));
   expect(
-    screen.getByText("格式示例：https://media.example.com/123456789"),
+    screen.getByText(
+      "格式示例 https://media.example.com/p/artifact-id/playback-token/123456789",
+    ),
   ).toBeVisible();
-  const domain = screen.getByLabelText("STRM 直连域名");
-  await user.type(domain, "media.local:8443");
+  const address = screen.getByLabelText("STRM 播放地址");
+  await user.type(address, "http://media.local:8080");
   expect(
-    screen.getByText("格式示例：https://media.local:8443/123456789"),
+    screen.getByText(
+      "格式示例 http://media.local:8080/p/artifact-id/playback-token/123456789",
+    ),
   ).toBeVisible();
   await user.click(screen.getByRole("tab", { name: "文件原名" }));
   expect(
     screen
-      .getByText("格式示例：https://media.local:8443/电影名称.mkv")
+      .getByText(
+        "格式示例 http://media.local:8080/p/artifact-id/playback-token/Movie%20Name.mkv",
+      )
       .closest("a"),
   ).toBeNull();
-  await user.clear(domain);
-  await user.type(domain, "https://bad.example/path");
+  await user.clear(address);
+  await user.type(address, "https://bad.example/path");
   expect(
-    screen.getByText("格式示例：https://media.example.com/电影名称.mkv"),
+    screen.getByText(
+      "格式示例 https://media.example.com/p/artifact-id/playback-token/Movie%20Name.mkv",
+    ),
   ).toBeVisible();
+  await user.click(screen.getByRole("button", { name: /链接类型/ }));
+  await user.click(screen.getByRole("option", { name: "直连" }));
+  expect(address).toHaveValue("https://bad.example/path");
+  expect(screen.getByText("当前全量同步使用 302 代理链接。")).toBeVisible();
 });
 
 it("响应策略必须存在且属于已知枚举", () => {

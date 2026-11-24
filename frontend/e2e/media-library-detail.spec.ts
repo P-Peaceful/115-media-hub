@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import type { components } from "../src/lib/api/generated/schema";
+
 const library = {
   id: "1",
   revision: 1,
@@ -50,6 +52,39 @@ test.beforeEach(async ({ page }, testInfo) => {
       },
     }),
   );
+  await page.route("**/api/v1/strm?**", (route) =>
+    route.fulfill({ json: { items: [], total: 0, page: 1, limit: 1 } }),
+  );
+  await page.route("**/api/v1/tasks?**", (route) => {
+    const search = new URL(route.request().url()).searchParams;
+    expect(search.get("type")).toBe("strm");
+    expect(search.get("library_id")).toBe(library.id);
+    return route.fulfill({
+      json: {
+        items: [],
+        next_cursor: null,
+        total: 0,
+        by_type: {},
+        by_status: {},
+      },
+    });
+  });
+  await page.route("**/api/v1/task-types", (route) =>
+    route.fulfill({
+      json: {
+        items: [
+          {
+            type: "strm",
+            available: false,
+            reason: "未配置播放地址",
+            can_pause: false,
+            can_retry_failed: false,
+            can_schedule: false,
+          },
+        ],
+      },
+    }),
+  );
   await page.route("**/api/v1/system/status", (route) =>
     route.fulfill({ json: { uptime_seconds: 1052880, version: "v1.3.0" } }),
   );
@@ -59,7 +94,98 @@ test.beforeEach(async ({ page }, testInfo) => {
   });
 });
 
-test("详情卡片、演示记录和真实启停适配主题与窄屏", async ({
+test("执行预览展示输出目录问题并阻止提交，重新扫描后可恢复", async ({
+  page,
+}) => {
+  let revision = library.revision;
+  let requests = 0;
+  await page.route("**/api/v1/libraries/1", (route) =>
+    route.fulfill({
+      json: { ...library, revision, strm_direct_domain: "media.example.com" },
+    }),
+  );
+  await page.route("**/api/v1/task-types", (route) =>
+    route.fulfill({
+      json: {
+        items: [
+          {
+            type: "strm",
+            available: true,
+            reason: null,
+            can_pause: false,
+            can_retry_failed: false,
+            can_schedule: false,
+          },
+        ],
+      },
+    }),
+  );
+  await page.route("**/api/v1/libraries/1/full-sync-preview", (route) => {
+    requests++;
+    if (requests === 2) {
+      return route.fulfill({
+        status: 409,
+        json: {
+          error: {
+            code: "provider_auth_invalid",
+            request_id: "invalid-115-auth",
+          },
+        },
+      });
+    }
+    return route.fulfill({
+      json: {
+        revision: requests === 3 ? revision + 1 : revision,
+        scan_complete: requests <= 3,
+        scanned_videos: 0,
+        candidate_count: 0,
+        failed_count: 0,
+        samples: [],
+        output:
+          requests === 1
+            ? {
+                status: "permission_denied",
+                message: "请确认运行服务的用户可写入此目录。",
+              }
+            : { status: "will_create", message: "同步任务会创建该输出目录。" },
+      } satisfies components["schemas"]["FullSyncPreview"],
+    });
+  });
+  await page.goto("/libraries/1/full-sync/execution-preview");
+  const confirm = page.getByRole("button", { name: "确认执行" });
+  const results = page.getByRole("region", { name: "扫描结果" });
+  await expect(results.getByRole("alert")).toContainText("输出目录权限不足");
+  await expect(
+    results.getByText("请确认运行服务的用户可写入此目录。"),
+  ).toBeVisible();
+  await expect(confirm).toBeDisabled();
+
+  await results.getByRole("button", { name: "重新扫描" }).click();
+  await expect(
+    results.getByRole("alert").filter({ hasText: "invalid-115-auth" }),
+  ).toBeVisible();
+  await expect(
+    results.getByRole("link", { name: "管理 115 网盘授权" }),
+  ).toHaveAttribute("href", "/settings?tab=account");
+  await expect(confirm).toBeDisabled();
+
+  await results.getByRole("button", { name: "重新扫描" }).click();
+  await expect(
+    results.getByText("媒体库配置已更新，请重新加载后扫描。"),
+  ).toBeVisible();
+  await expect(confirm).toBeDisabled();
+  revision++;
+  await results.getByRole("link", { name: "重新加载配置" }).click();
+  await expect(results.getByText("部分扫描结果")).toBeVisible();
+  await expect(
+    results.getByText("未扫描到可生成 STRM 的视频文件。"),
+  ).toHaveCount(0);
+  await expect(results.getByText("同步时创建输出目录")).toBeVisible();
+  await expect(confirm).toBeEnabled();
+  expect(requests).toBe(4);
+});
+
+test("详情卡片、同步记录空状态和真实启停适配主题与窄屏", async ({
   page,
 }, testInfo) => {
   let enabled = true;
@@ -85,7 +211,10 @@ test("详情卡片、演示记录和真实启停适配主题与窄屏", async ({
   });
   await page.goto("/libraries/1");
   await expect(page.getByRole("heading", { name: "库概览" })).toBeVisible();
-  await expect(page.getByText("演示数据", { exact: true })).toHaveCount(3);
+  await expect(page.getByText("演示数据", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByText("暂无全量同步记录。", { exact: true }),
+  ).toHaveCount(2);
   await expect(page.getByText("服务可访问", { exact: true })).toBeVisible();
   await expect(page.getByText("版本信息", { exact: true })).toHaveCount(0);
   await expect(page.getByText("v1.3.0", { exact: true })).toHaveCount(0);
@@ -189,9 +318,146 @@ test("详情卡片、演示记录和真实启停适配主题与窄屏", async ({
   await expect(page.getByRole("radio", { name: /已启用/ })).toBeChecked();
 });
 
-test("三个同步下级页面支持导航、演示交互和窄屏布局", async ({
+test("详情统计与执行记录摘要展示当前媒体库的数据", async ({
   page,
 }, testInfo) => {
+  const syncTask: components["schemas"]["Task"] = {
+    id: "latest-sync",
+    type: "strm",
+    library_id: library.id,
+    library_name: library.name,
+    source: "manual",
+    schedule_id: null,
+    parent_id: null,
+    status: "completed",
+    outcome: "success",
+    created_at: "2026-11-25T02:20:00Z",
+    started_at: "2026-11-25T02:24:00Z",
+    finished_at: "2026-11-25T02:26:17Z",
+    duration_ms: 137_000,
+    progress_percent: 100,
+    speed_bytes_per_second: null,
+    current_file: null,
+    total_items: 131,
+    succeeded_items: 128,
+    failed_items: 0,
+    skipped_items: 3,
+    actions: [],
+  };
+  const records = [
+    syncTask,
+    {
+      ...syncTask,
+      id: "prior-sync",
+      outcome: "partial_failure",
+      created_at: "2026-11-24T04:00:00Z",
+      started_at: "2026-11-24T04:00:00Z",
+      finished_at: "2026-11-24T04:01:03Z",
+      duration_ms: 63_000,
+      total_items: 57,
+      succeeded_items: 56,
+      failed_items: 1,
+      skipped_items: 0,
+    },
+    {
+      ...syncTask,
+      id: "older-sync",
+      created_at: "2026-11-23T03:00:00Z",
+      started_at: "2026-11-23T03:00:00Z",
+      finished_at: "2026-11-23T03:02:17Z",
+    },
+    {
+      ...syncTask,
+      id: "oldest-sync",
+      status: "failed",
+      outcome: "failure",
+      created_at: "2026-11-21T03:00:00Z",
+      started_at: "2026-11-21T03:00:00Z",
+      finished_at: "2026-11-21T03:02:17Z",
+      succeeded_items: 0,
+      failed_items: 131,
+      skipped_items: 0,
+    },
+  ] satisfies components["schemas"]["Task"][];
+  await page.clock.setFixedTime(new Date("2026-11-25T08:00:00Z"));
+  await page.route("**/api/v1/libraries/1", (route) =>
+    route.fulfill({ json: library }),
+  );
+  await page.route("**/api/v1/strm?**", (route) => {
+    expect(new URL(route.request().url()).searchParams.get("library_id")).toBe(
+      library.id,
+    );
+    return route.fulfill({
+      json: { items: [], total: 12_532, page: 1, limit: 1 },
+    });
+  });
+  await page.route("**/api/v1/tasks?**", (route) => {
+    const search = new URL(route.request().url()).searchParams;
+    expect(search.get("library_id")).toBe(library.id);
+    expect(search.get("type")).toBe("strm");
+    return route.fulfill({
+      json: {
+        items: records,
+        next_cursor: null,
+        total: records.length,
+        by_type: { strm: records.length },
+        by_status: { completed: 3, failed: 1 },
+      } satisfies components["schemas"]["TaskPage"],
+    });
+  });
+
+  await page.goto("/libraries/1");
+  const statistics = page.locator('[data-slot="card"]', {
+    has: page.getByRole("heading", { name: "STRM 统计", exact: true }),
+  });
+  const timeline = page.locator('[data-slot="card"]', {
+    has: page.getByRole("heading", { name: "执行记录摘要", exact: true }),
+  });
+  await expect(statistics.locator("dt")).toHaveText([
+    "总数量",
+    "已生成",
+    "待处理",
+    "失败",
+  ]);
+  await expect(statistics.locator("dd")).toHaveText([
+    "12,532",
+    "12,532",
+    "—",
+    "—",
+  ]);
+  await expect(
+    statistics.getByRole("link", { name: "查看 STRM" }),
+  ).toHaveAttribute("href", "/strm?library_id=1");
+  await expect(
+    timeline.getByRole("link", { name: "查看全部" }),
+  ).toHaveAttribute("href", "/tasks?type=strm&library_id=1");
+  const rows = timeline.getByRole("listitem");
+  await expect(rows).toHaveCount(4);
+  await expect(rows.first().locator("time")).toHaveText("今天 10:24");
+  await expect(rows.nth(1).locator("time")).toHaveText("昨天 12:00");
+  await expect(rows.nth(2).locator("time")).toHaveText("11-23 11:00");
+  await expect(rows.first()).toContainText("全量同步");
+  await expect(rows.first()).toContainText(/生成\s*128/);
+  await expect(rows.first()).toContainText(/跳过\s*3/);
+  await expect(rows.first()).toContainText("耗时 2 分 17 秒");
+  await expect(rows.first()).toContainText("成功");
+  await expect(rows.first().getByRole("link")).toHaveAttribute(
+    "href",
+    "/tasks/latest-sync",
+  );
+  await expect(rows.nth(1)).toContainText(/失败\s*1/);
+  await expect(rows.nth(1)).toContainText("已完成（部分失败）");
+  await expect(rows.last().getByText("失败", { exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await statistics.screenshot({ path: testInfo.outputPath("statistics.png") });
+  await timeline.screenshot({ path: testInfo.outputPath("timeline.png") });
+});
+
+test("同步页面支持真实配置预览、导航和窄屏布局", async ({ page }, testInfo) => {
   const writes: string[] = [];
   page.on("request", (request) => {
     if (request.url().includes("/api/") && request.method() !== "GET") {
@@ -209,9 +475,6 @@ test("三个同步下级页面支持导航、演示交互和窄屏布局", async
   );
 
   async function capture(name: string) {
-    await expect(
-      page.getByText("演示数据", { exact: true }).first(),
-    ).toBeVisible();
     const banner = page.locator("main .page-banner");
     const artwork = banner.locator("img");
     if (testInfo.project.name === "desktop") {
@@ -256,15 +519,10 @@ test("三个同步下级页面支持导航、演示交互和窄屏布局", async
     page.getByText(library.output_path, { exact: true }),
   ).toBeVisible();
   await capture("full-sync.png");
-  const history = page.getByRole("grid");
-  const initialRows = await history.getByRole("row").count();
-  await page.getByRole("button", { name: "查看全部" }).click();
-  await expect
-    .poll(() => history.getByRole("row").count())
-    .toBeGreaterThan(initialRows);
-  await history.getByRole("button", { name: "详情" }).first().click();
-  await expect(page.getByRole("heading", { name: "执行详情" })).toBeVisible();
-  await page.getByRole("button", { name: "返回记录" }).click();
+  await expect(
+    page.getByText("暂无全量同步记录。", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("演示数据", { exact: true })).toHaveCount(0);
   const preview = page.getByRole("button", { name: /下一步.*执行预览/ });
   await preview.focus();
   await page.keyboard.press("Enter");
@@ -273,23 +531,17 @@ test("三个同步下级页面支持导航、演示交互和窄屏布局", async
     page.getByRole("heading", { name: "执行预览", exact: true }),
   ).toBeVisible();
   await capture("execution-preview.png");
-  await page.getByText(/^删除\s*[（(]/).click();
-  await expect(page).toHaveURL(/change=deleted/);
+  await expect(page.getByText("演示数据", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("STRM 播放地址", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("请先在媒体库配置中填写 STRM 播放地址。"),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "确认执行" })).toBeDisabled();
+  await expect(
+    page.getByRole("link", { name: "编辑媒体库配置" }),
+  ).toHaveAttribute("href", "/libraries/1/edit");
   await page.reload();
-  await expect(
-    page.getByRole("grid").getByText("删除", { exact: true }).first(),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("grid").getByText("新增", { exact: true }),
-  ).toHaveCount(0);
-  await page.goBack();
-  await expect(
-    page.getByRole("grid").getByText("新增", { exact: true }).first(),
-  ).toBeVisible();
-  await page.goForward();
-  await expect(page).toHaveURL(/change=deleted/);
-  await page.getByRole("button", { name: "确认执行" }).click();
-  await expect(page.getByText("演示执行已完成。")).toBeVisible();
+  await expect(page.getByRole("button", { name: "确认执行" })).toBeDisabled();
   await page.getByRole("link", { name: "取消" }).click();
   await expect(page).toHaveURL(/\/libraries\/1\/full-sync$/);
 
@@ -297,6 +549,7 @@ test("三个同步下级页面支持导航、演示交互和窄屏布局", async
   await expect(
     page.getByRole("heading", { name: "增量同步", exact: true }),
   ).toBeVisible();
+  await expect(page.getByText("演示数据", { exact: true })).toBeVisible();
   await capture("incremental-sync.png");
   const interval = page.getByRole("button", { name: /轮询间隔/ });
   await interval.click();

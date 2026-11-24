@@ -82,7 +82,8 @@ function isCapability(value: unknown): value is TaskTypeCapability {
     isBoolean(value.available) &&
     nullable(value.reason, isString) &&
     isBoolean(value.can_pause) &&
-    isBoolean(value.can_retry_failed)
+    isBoolean(value.can_retry_failed) &&
+    isBoolean(value.can_schedule)
   );
 }
 

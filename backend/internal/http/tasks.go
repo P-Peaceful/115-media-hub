@@ -66,7 +66,7 @@ func (h *taskHandler) capabilities(c *gin.Context) {
 	for _, capability := range capabilities {
 		items = append(items, generated.TaskTypeCapability{
 			Type: generated.TaskType(capability.Type), Available: capability.Available, Reason: capability.Reason,
-			CanPause: capability.CanPause, CanRetryFailed: capability.CanRetryFailed,
+			CanPause: capability.CanPause, CanRetryFailed: capability.CanRetryFailed, CanSchedule: capability.CanSchedule,
 		})
 	}
 	c.JSON(http.StatusOK, generated.TaskTypeCapabilities{Items: items})

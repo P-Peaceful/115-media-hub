@@ -2,11 +2,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router";
 
 import { useAuth } from "@/features/auth/auth-provider";
-import { listLibraries } from "@/features/media-library/api";
+import { useLibraryList } from "@/features/media-library/use-library-list";
 import { ApiError } from "@/lib/api/errors";
 
-import { actOnTask, listCapabilities } from "./api";
-import type { TaskAction } from "./task-kinds";
+import { actOnTask, listCapabilities, submitTask } from "./api";
+import type { TaskAction, TaskType } from "./task-kinds";
 
 export const taskKeys = {
   all: ["tasks"] as const,
@@ -21,20 +21,15 @@ export const scheduleKeys = {
 };
 const capabilityKey = ["task-capabilities"] as const;
 
-export function useTaskCapabilities() {
+export function useTaskCapabilities(enabled = true) {
   return useQuery({
     queryKey: capabilityKey,
     queryFn: ({ signal }) => listCapabilities(signal),
     retry: false,
+    enabled,
   });
 }
-export function useTaskLibraries() {
-  return useQuery({
-    queryKey: ["libraries", "list"],
-    queryFn: ({ signal }) => listLibraries(signal),
-    retry: false,
-  });
-}
+export { useLibraryList as useTaskLibraries };
 
 export function useTaskSearch() {
   const [search, setSearch] = useSearchParams();
@@ -66,5 +61,18 @@ export function useTaskAction() {
     mutationFn: ({ id, action }: { id: string; action: TaskAction }) =>
       actOnTask(csrf(), id, action),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: taskKeys.all }),
+  });
+}
+
+export function useSubmitTask() {
+  const csrf = useTaskCsrf();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ type, libraryId }: { type: TaskType; libraryId: string }) =>
+      submitTask(csrf(), type, libraryId),
+    onSuccess: (task) => {
+      queryClient.setQueryData(taskKeys.detail(task.id), task);
+      void queryClient.invalidateQueries({ queryKey: taskKeys.lists });
+    },
   });
 }

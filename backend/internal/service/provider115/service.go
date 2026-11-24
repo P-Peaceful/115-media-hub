@@ -1,4 +1,4 @@
-// Package provider115 implements the single-account 115 QR authorization flow.
+// Package provider115 管理单账号 115 授权、网盘目录和播放链接。
 package provider115
 
 import (
@@ -56,21 +56,31 @@ type Service struct {
 	navURL        string
 	spaceURL      string
 	filesURL      string
+	playbackURL   string
 	now           func() time.Time
 }
 
 func New(repo Repository, logger *slog.Logger) *Service {
-	return &Service{repo: repo, logger: logger.With("module", "provider_115"), client: &http.Client{Timeout: 65 * time.Second}, baseURL: "https://qrcodeapi.115.com", navURL: "https://my.115.com/?ct=ajax&ac=nav", spaceURL: "https://webapi.115.com/files/index_info", filesURL: "https://webapi.115.com/files", now: time.Now}
+	return &Service{
+		repo: repo, logger: logger.With("module", "provider_115"), client: &http.Client{Timeout: 65 * time.Second},
+		baseURL: "https://qrcodeapi.115.com", navURL: "https://my.115.com/?ct=ajax&ac=nav",
+		spaceURL: "https://webapi.115.com/files/index_info", filesURL: "https://webapi.115.com/files",
+		playbackURL: "https://proapi.115.com/app/chrome/downurl", now: time.Now,
+	}
 }
 func (s *Service) log(ctx context.Context, operation, requestID string, start time.Time, err error) {
+	level := slog.LevelInfo
 	outcome := "succeeded"
 	attrs := []any{"operation", operation, "request_id", requestID, "duration_ms", time.Since(start).Milliseconds()}
 	if err != nil {
 		outcome = "failed"
 		attrs = append(attrs, "error_code", "provider_115_failed")
+	} else if operation == "list_files" {
+		// 批量扫描由 STRM 汇总进度，逐页成功记录只用于调试。
+		level = slog.LevelDebug
 	}
 	attrs = append(attrs, "outcome", outcome)
-	s.logger.InfoContext(ctx, "115 operation completed", attrs...)
+	s.logger.Log(ctx, level, "115 operation completed", attrs...)
 }
 func (s *Service) Account(ctx context.Context) (Account, error) { return s.repo.ProviderAccount(ctx) }
 func (s *Service) Start(ctx context.Context, owner, requestID string) (result QR, resultErr error) {

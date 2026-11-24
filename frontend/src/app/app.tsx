@@ -1,9 +1,14 @@
-import "@/features/strm-management/strm-management.css";
-
 import { Button, RouterProvider } from "@heroui/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
-import { BrowserRouter, Route, Routes, useNavigate } from "react-router";
+import {
+  BrowserRouter,
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useNavigate,
+} from "react-router";
 
 import { AuthBoundary } from "@/features/auth/auth-boundary";
 import { AuthProvider, useAuth } from "@/features/auth/auth-provider";
@@ -22,13 +27,8 @@ import {
   LibraryListPage,
 } from "@/features/media-library/library-page";
 import { SettingsPage } from "@/features/settings/settings-page";
-import { StrmCleanupPage } from "@/features/strm-management/strm-cleanup-page";
 import { StrmDetailPage } from "@/features/strm-management/strm-detail-page";
-import {
-  StrmCheckResultsPage,
-  StrmListPage,
-} from "@/features/strm-management/strm-list-page";
-import { StrmSessionLayout } from "@/features/strm-management/strm-session";
+import { StrmListPage } from "@/features/strm-management/strm-list-page";
 import { ScheduleEditorPage } from "@/features/task-center/schedule-editor-page";
 import { ScheduleListPage } from "@/features/task-center/schedule-list-page";
 import { TaskDetailPage } from "@/features/task-center/task-detail-page";
@@ -163,8 +163,8 @@ export function App() {
                   path="/strm"
                   element={
                     <AppShell currentPage="STRM 管理">
-                      <main className="strm-page">
-                        <StrmSessionLayout />
+                      <main className="mx-auto w-full min-w-0 max-w-[1600px] px-3 pt-4 pb-9 sm:px-5 sm:pt-5 sm:pb-12">
+                        <Outlet />
                       </main>
                     </AppShell>
                   }
@@ -173,9 +173,12 @@ export function App() {
                   <Route path="files/:id" element={<StrmDetailPage />} />
                   <Route
                     path="check-results"
-                    element={<StrmCheckResultsPage />}
+                    element={<Navigate to="/strm" replace />}
                   />
-                  <Route path="cleanup-preview" element={<StrmCleanupPage />} />
+                  <Route
+                    path="cleanup-preview"
+                    element={<Navigate to="/strm" replace />}
+                  />
                 </Route>
                 <Route
                   path="/tasks"

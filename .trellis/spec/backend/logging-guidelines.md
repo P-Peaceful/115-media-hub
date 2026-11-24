@@ -30,7 +30,7 @@ This is an explicit user requirement established on 2026-11-06. For every implem
 | Cloud browsing | Directory listing failures/timeouts, provider throttling, and pagination diagnostics with connection/directory identifiers; routine successful listings may use DEBUG plus HTTP access logs |
 | Library management | Library/rule/binding changes, validation conflicts, and affected library identifiers |
 | Scanning and synchronization | Scan start/result, directory completeness failures, discovered/changed/skipped counts, and deletion decisions blocked by incomplete scans |
-| STRM management | Generation, repair, preview, and cleanup start and result, with counts and ownership or hash conflicts |
+| STRM management | Generation, repair, preview, and cleanup start and result, with counts and ownership or content conflicts |
 | Playback resolution | Resolution failures/timeouts, upstream throttling, and aggregate cache/redirect diagnostics; routine successes may be DEBUG or aggregated, never log temporary links |
 | Job center | Submission, claim/skip, significant status transitions, retries with attempt/reason, cancellation, final outcome, and restart reconciliation |
 | Media wall | Refresh/synchronization results, cache/upstream failures, and media-file mapping conflicts; aggregate routine image/cache traffic |

@@ -78,29 +78,43 @@ func oneOf(s string, values ...string) bool {
 	}
 	return false
 }
-func validDirectDomain(domain string) bool {
-	if domain == "" {
-		return true
+
+// PlaybackOrigin 校验两种链接类型共用的媒体库播放地址。旧配置仅保存主机和端口，默认使用 HTTPS。
+// 空地址可以保存，生成任务需要可用的播放地址。
+func PlaybackOrigin(address string) (string, bool) {
+	if address == "" {
+		return "", true
 	}
-	if !validText(domain, 253) || strings.TrimSpace(domain) != domain {
-		return false
+	if !validText(address, 253) || strings.TrimSpace(address) != address || strings.ContainsAny(address, "?#") {
+		return "", false
 	}
-	parsed, err := url.Parse("//" + domain)
-	if err != nil || parsed.Host != domain || parsed.User != nil || parsed.Path != "" {
-		return false
+	explicitScheme := strings.Contains(address, "://")
+	if !explicitScheme {
+		address = "https://" + address
 	}
-	if strings.HasSuffix(domain, ":") {
-		return false
+	parsed, err := url.Parse(address)
+	if err != nil || !oneOf(parsed.Scheme, "http", "https") || parsed.User != nil || parsed.Host == "" ||
+		strings.HasSuffix(parsed.Host, ":") || (parsed.Path != "" && (!explicitScheme || parsed.EscapedPath() != "/")) {
+		return "", false
 	}
 	if port := parsed.Port(); port != "" {
 		if _, err := strconv.ParseUint(port, 10, 16); err != nil {
-			return false
+			return "", false
 		}
 	}
 	host := parsed.Hostname()
-	if net.ParseIP(host) != nil {
-		return true
+	bracketed := strings.HasPrefix(parsed.Host, "[")
+	if bracketed {
+		if !strings.Contains(host, ":") || net.ParseIP(host) == nil {
+			return "", false
+		}
+	} else if strings.Contains(host, ":") || !validPlaybackHostname(host) {
+		return "", false
 	}
+	return parsed.Scheme + "://" + parsed.Host, true
+}
+
+func validPlaybackHostname(host string) bool {
 	if host == "" || len(host) > 253 {
 		return false
 	}
@@ -119,13 +133,14 @@ func validDirectDomain(domain string) bool {
 }
 
 func Validate(c Config) error {
+	_, validPlaybackAddress := PlaybackOrigin(c.STRMDirectDomain)
 	if strings.TrimSpace(c.Name) == "" || !validText(c.Name, 100) ||
 		!directoryID.MatchString(c.DirectoryID) || strings.TrimSpace(c.DirectoryPath) == "" ||
 		!validText(c.DirectoryPath, 1024) || !filepath.IsAbs(c.OutputPath) ||
 		!validText(c.OutputPath, 1024) || !oneOf(c.MediaType, "movie", "tv", "anime", "documentary", "mixed") ||
 		!oneOf(c.LanguagePreference, "zh-CN") || !oneOf(c.ScrapeSource, "tmdb", "metatube", "none") ||
 		!validText(c.ExcludeDirectoryPath, 1024) || !oneOf(c.FileEncoding, "UTF-8") ||
-		!oneOf(c.LinkType, "direct", "proxy") || !validDirectDomain(c.STRMDirectDomain) ||
+		!oneOf(c.LinkType, "direct", "proxy") || !validPlaybackAddress ||
 		!oneOf(c.STRMLinkFormat, "original_name", "file_id") ||
 		!oneOf(c.STRMExistingFilePolicy, "skip", "overwrite") {
 		return ErrInvalid

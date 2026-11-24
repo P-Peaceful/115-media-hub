@@ -1,7 +1,7 @@
-import { Button, Card, Pagination } from "@heroui/react";
+import { Button, Card, Checkbox, Pagination } from "@heroui/react";
 import {
   CircleCheck,
-  Clock3,
+  Clock,
   Download,
   File,
   RefreshCw,
@@ -9,448 +9,364 @@ import {
   Trash2,
   TriangleAlert,
 } from "lucide-react";
-import { Fragment } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { Fragment, useState } from "react";
 
 import { PageBanner } from "@/components/page-banner";
+import { useLibraryList } from "@/features/media-library/use-library-list";
 
-import type { StrmFile } from "./strm-demo";
+import type { StrmFile } from "./api";
+import { useStrmFiles } from "./queries";
+import { StrmFileTable } from "./strm-file-table";
+import { maxPage, pageSizes, useStrmListQuery } from "./strm-list-query";
 import {
-  canRegenerateStrmFile,
-  downloadStrmCsv,
   formatStrmDate,
-  strmLibraries,
-  strmPlaybackStatusLabels,
-  strmSourceStatusLabels,
-  strmStatusLabels,
-  summarizeStrmFiles,
-} from "./strm-demo";
-import { FileCheckbox, StrmFileTable } from "./strm-file-table";
-import { pageSizes, timeOptions, useStrmListQuery } from "./strm-list-query";
-import type { StrmView } from "./strm-session-context";
-import { useStrmSession } from "./strm-session-context";
-import {
-  DemoBadge,
   MetricTile,
-  PageBack,
   StrmEmpty,
-  StrmFeedback,
+  StrmError,
+  StrmLoading,
   StrmSearch,
   StrmSelect,
 } from "./strm-ui";
 
 const countFormat = new Intl.NumberFormat("zh-CN");
-const libraryOptions = { all: "全部媒体库", ...strmLibraries };
+const unavailableActions = [
+  { label: "批量检查", icon: ShieldCheck },
+  { label: "批量重新生成", icon: RefreshCw },
+  { label: "批量清理", icon: Trash2 },
+];
 
-function StrmStats({
-  files,
-  isList,
-}: {
-  files: readonly StrmFile[];
-  isList: boolean;
-}) {
-  const counts = summarizeStrmFiles(files);
-  return (
-    <div
-      className="grid grid-cols-2 gap-3 xl:grid-cols-4"
-      aria-label="STRM 状态统计"
-    >
-      <MetricTile
-        label={isList ? "STRM 文件" : "全部文件"}
-        value={countFormat.format(counts.total)}
-        icon={File}
-        tone="accent"
-      />
-      <MetricTile
-        label="有效"
-        value={countFormat.format(counts.valid)}
-        icon={CircleCheck}
-        tone="success"
-      />
-      <MetricTile
-        label="异常"
-        value={countFormat.format(counts.invalid)}
-        icon={TriangleAlert}
-        tone="danger"
-      />
-      <MetricTile
-        label="待处理"
-        value={countFormat.format(counts.pending)}
-        icon={Clock3}
-        tone="warning"
-      />
-    </div>
-  );
-}
+type ListQuery = ReturnType<typeof useStrmListQuery>;
 
-function FileFilters({
-  view,
-  query,
-}: {
-  view: StrmView;
-  query: ReturnType<typeof useStrmListQuery>;
-}) {
-  const isList = view === "list";
-  const all = isList ? "全部状态" : "全部";
-  const search = (
-    <StrmSearch
-      value={query.query}
-      onChange={(value) => query.setFilter("q", value)}
-      placeholder={isList ? "按名称搜索（文件名／影片名）" : "按文件名搜索"}
-    />
-  );
+function FileFilters({ query }: { query: ListQuery }) {
+  const libraries = useLibraryList();
+  const options: Record<string, string> = { all: "全部媒体库" };
+  for (const library of libraries.data ?? []) {
+    options[library.id] = library.name;
+  }
+  if (query.libraryId && !Object.hasOwn(options, query.libraryId)) {
+    options[query.libraryId] = "指定媒体库";
+  }
+
   return (
-    <Card className="strm-card">
-      <Card.Content className="strm-card-row strm-filters flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2">
-        {isList && <div className="strm-filter-search">{search}</div>}
-        {isList && (
-          <StrmSelect
-            label="媒体库"
-            value={query.library}
-            options={libraryOptions}
-            onChange={(value) => query.setFilter("library", value)}
-          />
-        )}
-        <StrmSelect
-          label="状态"
-          value={query.status}
-          options={{ all, ...strmStatusLabels }}
-          onChange={(value) => query.setFilter("status", value)}
-        />
-        {isList ? (
-          <StrmSelect
-            label="时间"
-            value={query.time}
-            options={timeOptions}
-            onChange={(value) => query.setFilter("time", value)}
-          />
-        ) : (
-          <>
+    <Card>
+      <Card.Content>
+        <div className="@container">
+          <div className="grid grid-cols-2 items-center gap-2.5 @min-[47rem]:grid-cols-[minmax(14rem,2fr)_minmax(10rem,1.15fr)_minmax(8rem,1fr)_minmax(8rem,1fr)_auto]">
+            <div className="col-span-2 @min-[47rem]:col-span-1">
+              <StrmSearch
+                value={query.search}
+                onChange={query.setSearch}
+                placeholder="按名称搜索（文件名/影片名）"
+              />
+            </div>
             <StrmSelect
-              label="源文件关联"
-              value={query.source}
-              options={{ all, ...strmSourceStatusLabels }}
-              onChange={(value) => query.setFilter("source", value)}
+              label="媒体库"
+              value={query.libraryId || "all"}
+              options={options}
+              onChange={(id) => query.setLibrary(id === "all" ? "" : id)}
             />
             <StrmSelect
-              label="播放链接"
-              value={query.playback}
-              options={{ all, ...strmPlaybackStatusLabels }}
-              onChange={(value) => query.setFilter("playback", value)}
+              label="状态"
+              value="all"
+              options={{ all: "全部状态" }}
+              disabledReason="有效性检查暂未开放"
             />
-            <div className="strm-filter-search">{search}</div>
-          </>
-        )}
-        {isList && (
-          <Button variant="outline" size="sm" onPress={query.reset}>
-            重置
-          </Button>
+            <StrmSelect
+              label="时间"
+              value="all"
+              options={{ all: "全部时间" }}
+              disabledReason="生成时间筛选暂未开放"
+            />
+            <div className="justify-self-end">
+              <Button variant="outline" size="sm" onPress={query.reset}>
+                重置
+              </Button>
+            </div>
+          </div>
+        </div>
+        {libraries.isError && (
+          <div className="mt-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onPress={() => void libraries.refetch()}
+            >
+              重新加载媒体库
+            </Button>
+          </div>
         )}
       </Card.Content>
     </Card>
   );
 }
 
-function FilePagination({
-  query,
-  findings,
-}: {
-  query: ReturnType<typeof useStrmListQuery>;
-  findings: ReturnType<typeof summarizeStrmFiles> | null;
-}) {
-  const pageNumbers = Array.from(
-    new Set([1, query.page - 1, query.page, query.page + 1, query.pageCount]),
-  )
-    .filter((page) => page >= 1 && page <= query.pageCount)
-    .sort((first, second) => first - second);
-  return (
-    <Pagination
-      aria-label="STRM 文件分页"
-      size="sm"
-      className="strm-pagination"
-    >
-      <Pagination.Summary className="text-sm text-muted">
-        共 {countFormat.format(query.matching.length)} 条
-        {findings && `（异常 ${findings.invalid}，待处理 ${findings.pending}）`}
-      </Pagination.Summary>
-      <Pagination.Content>
-        <Pagination.Item>
-          <Pagination.Previous
-            aria-label="上一页"
-            isDisabled={query.page === 1}
-            onPress={() => query.setPage(query.page - 1)}
-          >
-            <Pagination.PreviousIcon />
-          </Pagination.Previous>
-        </Pagination.Item>
-        {pageNumbers.map((page, index) => (
-          <Fragment key={page}>
-            {page - (pageNumbers[index - 1] ?? page) > 1 && (
-              <Pagination.Item>
-                <Pagination.Ellipsis />
-              </Pagination.Item>
-            )}
-            <Pagination.Item>
-              <Pagination.Link
-                aria-label={`第 ${page} 页`}
-                isActive={page === query.page}
-                onPress={() => query.setPage(page)}
-              >
-                {page}
-              </Pagination.Link>
-            </Pagination.Item>
-          </Fragment>
-        ))}
-        <Pagination.Item>
-          <Pagination.Next
-            aria-label="下一页"
-            isDisabled={query.page >= query.pageCount}
-            onPress={() => query.setPage(query.page + 1)}
-          >
-            <Pagination.NextIcon />
-          </Pagination.Next>
-        </Pagination.Item>
-      </Pagination.Content>
-      <StrmSelect
-        label="每页"
-        options={pageSizes}
-        value={String(query.pageSize)}
-        onChange={query.setSize}
-      />
-    </Pagination>
-  );
+function csvCell(value: string) {
+  const text = /^(?:\s*[=+\-@＝＋－＠]|[\t\r\n])/u.test(value)
+    ? "'" + value
+    : value;
+  return '"' + text.replaceAll('"', '""') + '"';
 }
 
-function StrmListing({
+function exportFiles(files: readonly StrmFile[]) {
+  const rows = [
+    ["文件名称", "所属媒体库", "生成时间"],
+    ...files.map((file) => [
+      file.relative_path,
+      file.library_name ?? "媒体库已删除",
+      formatStrmDate(file.generated_at),
+    ]),
+  ];
+  const csv = rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+  const url = URL.createObjectURL(
+    new Blob(["\uFEFF", csv], { type: "text/csv;charset=utf-8" }),
+  );
+  const download = document.createElement("a");
+  download.href = url;
+  download.download = "strm-files.csv";
+  document.body.append(download);
+  download.click();
+  download.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+function FileActions({
   files,
-  view,
+  selected,
+  onSelectionChange,
 }: {
   files: readonly StrmFile[];
-  view: StrmView;
+  selected: readonly StrmFile[];
+  onSelectionChange: (ids: Set<string>) => void;
 }) {
-  const session = useStrmSession();
-  const location = useLocation();
-  const navigate = useNavigate();
-  const query = useStrmListQuery(files, view);
-  const isList = view === "list";
-  const returnTo = location.pathname + location.search;
-  const currentIds = new Set(session.files.map((file) => file.id));
-  const regenerableIds = new Set(
-    session.files.filter(canRegenerateStrmFile).map((file) => file.id),
-  );
-  const matchedIds = new Set(query.matching.map((file) => file.id));
-  const selected = new Set(
-    [...query.selectedIds].filter(
-      (id) => matchedIds.has(id) && currentIds.has(id),
-    ),
-  );
-  const visibleIds = query.visible
-    .filter(({ id }) => currentIds.has(id))
-    .map(({ id }) => id);
-  const selectedOnPage = visibleIds.filter((id) => selected.has(id)).length;
-  const canRegenerateSelection = [...selected].some((id) =>
-    regenerableIds.has(id),
-  );
-
-  function select(ids: readonly string[], selectedOnPage: ReadonlySet<string>) {
-    const next = new Set(selected);
-    for (const id of ids) {
-      if (selectedOnPage.has(id)) next.add(id);
-      else next.delete(id);
-    }
-    query.setSelectedIds(next);
-  }
-
-  function check(ids: Iterable<string>) {
-    session.checkFiles(ids, returnTo);
-    void navigate("/strm/check-results");
-  }
-
-  function cleanup(ids: Iterable<string>) {
-    session.openCleanup(ids, returnTo);
-    void navigate("/strm/cleanup-preview");
-  }
+  const selectionCount = selected.length;
+  const exportScope = selectionCount ? "导出已选文件" : "导出当前页文件";
 
   return (
-    <>
-      <FileFilters view={view} query={query} />
-      <StrmFeedback message={session.feedback} />
-      <Card className="strm-card">
-        {isList && (
-          <div className="flex flex-wrap items-center gap-2 px-3 py-2">
-            <div className="me-2 flex shrink-0 items-center gap-2 lg:me-7">
-              <FileCheckbox
-                label="选择当前页文件"
-                isSelected={
-                  selectedOnPage > 0 && selectedOnPage === visibleIds.length
-                }
-                isIndeterminate={
-                  selectedOnPage > 0 && selectedOnPage < visibleIds.length
-                }
-                isDisabled={!visibleIds.length}
-                onChange={(checked) =>
-                  select(visibleIds, new Set(checked ? visibleIds : []))
-                }
-              />
-              <span className="text-sm text-muted" aria-live="polite">
-                已选择 {selected.size} 项
-              </span>
-            </div>
-            <Button
-              size="sm"
-              variant="secondary"
-              isDisabled={!selected.size}
-              onPress={() => check(selected)}
-            >
-              <ShieldCheck aria-hidden="true" className="size-4" />
-              批量检查
-            </Button>
-            <Button
-              size="sm"
-              variant="secondary"
-              isDisabled={!canRegenerateSelection}
-              onPress={() => session.regenerateFiles(selected)}
-            >
-              <RefreshCw aria-hidden="true" className="size-4" />
-              批量重新生成
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              isDisabled={!selected.size}
-              onPress={() => cleanup(selected)}
-            >
-              <Trash2 aria-hidden="true" className="size-4" />
-              批量清理
-            </Button>
-            <Button
-              className="ms-auto"
-              size="sm"
-              variant="outline"
-              isDisabled={!query.matching.length}
-              onPress={() => downloadStrmCsv(query.matching)}
-            >
-              <Download aria-hidden="true" className="size-4" />
-              导出列表
-            </Button>
-          </div>
-        )}
-        <div className={isList ? "px-2" : "px-2 pt-2"}>
-          <StrmFileTable
-            view={view}
-            query={query}
-            returnTo={returnTo}
-            selected={selected}
-            onPageSelectionChange={select}
-            currentIds={currentIds}
-            regenerableIds={regenerableIds}
-            actions={{
-              onDetails: (id) => {
-                void navigate(`/strm/files/${id}`, { state: { returnTo } });
-              },
-              onCheck: (id) => check([id]),
-              onRegenerate: (id) => {
-                session.regenerateFiles([id]);
-              },
-              onCleanup: (id) => cleanup([id]),
-            }}
-          />
-        </div>
-        <FilePagination
-          query={query}
-          findings={isList ? null : summarizeStrmFiles(query.matching)}
-        />
-      </Card>
-    </>
-  );
-}
-
-export function StrmListPage() {
-  const { files } = useStrmSession();
-  return (
-    <div className="space-y-3">
-      <div className="strm-banner">
-        <PageBanner
-          title="STRM 管理"
-          description={
-            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              管理媒体库生成的 STRM 文件，支持有效性检查、重新生成与清理。
-              <DemoBadge />
-            </span>
+    <div className="grid grid-cols-[1fr_auto] items-center gap-2.5 @min-[42rem]:grid-cols-[auto_1fr_auto] @min-[42rem]:gap-x-6">
+      <div>
+        <Checkbox
+          aria-label="选择本页全部文件"
+          variant="secondary"
+          isDisabled={!files.length}
+          isSelected={files.length > 0 && selectionCount === files.length}
+          isIndeterminate={selectionCount > 0 && selectionCount < files.length}
+          onChange={(checked) =>
+            onSelectionChange(
+              new Set(checked ? files.map((file) => file.id) : []),
+            )
           }
-        />
+        >
+          <Checkbox.Content>
+            <Checkbox.Control>
+              <Checkbox.Indicator />
+            </Checkbox.Control>
+            <span
+              role="status"
+              className="text-sm whitespace-nowrap text-muted"
+            >
+              已选择 {countFormat.format(selectionCount)} 项
+            </span>
+          </Checkbox.Content>
+        </Checkbox>
       </div>
-      <StrmStats files={files} isList />
-      <StrmListing files={files} view="list" />
+      <div className="col-span-2 row-start-2 flex flex-wrap items-center gap-2 @min-[42rem]:col-span-1 @min-[42rem]:col-start-2 @min-[42rem]:row-start-1">
+        {unavailableActions.map(({ label, icon: Icon }) => (
+          <span key={label} title={label + "暂未开放"}>
+            <Button
+              variant="outline"
+              size="sm"
+              isDisabled
+              aria-description={label + "暂未开放"}
+            >
+              <Icon aria-hidden="true" />
+              {label}
+            </Button>
+          </span>
+        ))}
+      </div>
+      <div className="justify-self-end" title={exportScope}>
+        <Button
+          variant="outline"
+          size="sm"
+          isDisabled={!files.length}
+          aria-description={exportScope}
+          onPress={() => exportFiles(selectionCount ? selected : files)}
+        >
+          <Download aria-hidden="true" />
+          导出列表
+        </Button>
+      </div>
     </div>
   );
 }
 
-function formatCheckDuration(ms: number) {
-  if (ms < 1000) return `${ms} 毫秒`;
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds} 秒`;
-  return `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`;
+function FilePagination({ query, total }: { query: ListQuery; total: number }) {
+  const { page, limit, setPage } = query;
+  const lastPage = Math.min(maxPage, Math.max(1, Math.ceil(total / limit)));
+  const firstVisible = Math.max(1, Math.min(page - 2, lastPage - 4));
+  const visiblePages = Array.from(
+    { length: Math.min(lastPage, 5) },
+    (_, index) => firstVisible + index,
+  );
+  const pageNumbers = Array.from(new Set([1, ...visiblePages, lastPage]));
+  const activePage = page <= lastPage ? page : undefined;
+
+  return (
+    <div className="@container">
+      <div className="grid grid-cols-[1fr_auto] items-center gap-2.5 @min-[43rem]:grid-cols-[1fr_auto_1fr]">
+        <p className="text-sm whitespace-nowrap text-muted">
+          共 {countFormat.format(total)} 条
+        </p>
+        <div className="col-span-2 row-start-2 max-w-full justify-self-center overflow-x-auto @min-[43rem]:col-span-1 @min-[43rem]:col-start-2 @min-[43rem]:row-start-1">
+          <Pagination aria-label="STRM 文件分页" size="sm">
+            <Pagination.Content>
+              <Pagination.Item>
+                <Pagination.Previous
+                  aria-label="上一页"
+                  isDisabled={page <= 1}
+                  onPress={() => setPage(Math.min(page - 1, lastPage))}
+                >
+                  <Pagination.PreviousIcon />
+                </Pagination.Previous>
+              </Pagination.Item>
+              {pageNumbers.map((index, position) => (
+                <Fragment key={index}>
+                  {index - (pageNumbers[position - 1] ?? index) > 1 && (
+                    <Pagination.Item>
+                      <Pagination.Ellipsis />
+                    </Pagination.Item>
+                  )}
+                  <Pagination.Item>
+                    <Pagination.Link
+                      aria-label={"第 " + index + " 页"}
+                      isActive={index === activePage}
+                      onPress={() => setPage(index)}
+                    >
+                      {index}
+                    </Pagination.Link>
+                  </Pagination.Item>
+                </Fragment>
+              ))}
+              <Pagination.Item>
+                <Pagination.Next
+                  aria-label="下一页"
+                  isDisabled={page >= lastPage}
+                  onPress={() => setPage(page + 1)}
+                >
+                  <Pagination.NextIcon />
+                </Pagination.Next>
+              </Pagination.Item>
+            </Pagination.Content>
+          </Pagination>
+        </div>
+        <div className="w-32 justify-self-end">
+          <StrmSelect
+            label="每页"
+            options={pageSizes}
+            value={String(limit)}
+            onChange={query.setSize}
+            inline
+          />
+        </div>
+      </div>
+    </div>
+  );
 }
 
-export function StrmCheckResultsPage() {
-  const { checkRun } = useStrmSession();
-  if (!checkRun) {
-    return (
-      <Card className="strm-card">
-        <Card.Header className="flex items-center gap-3">
-          <h1>有效性检查结果</h1>
-          <DemoBadge />
-        </Card.Header>
-        <StrmEmpty
-          title="暂无检查结果"
-          description="请从 STRM 管理中选择文件并运行检查。"
-          href="/strm"
-          label="返回 STRM 管理"
-        />
-      </Card>
-    );
-  }
-  const { total, invalid, pending } = summarizeStrmFiles(checkRun.files);
+function FileResults({
+  files,
+  query,
+}: {
+  files: ReturnType<typeof useStrmFiles>;
+  query: ListQuery;
+}) {
+  const [selection, setSelection] = useState<ReadonlySet<string>>(
+    () => new Set(),
+  );
+  const items = files.data?.items ?? [];
+  const selectedFiles = items.filter((file) => selection.has(file.id));
+  const selectedIds = new Set(selectedFiles.map((file) => file.id));
+  const filtered = !!(query.libraryId || query.search.trim());
+
   return (
-    <div className="space-y-3">
-      <Card className="strm-card strm-check-banner">
-        <Card.Content className="strm-card-row flex-wrap items-center gap-3 px-3 py-3 sm:px-5">
-          <PageBack href={checkRun.returnTo} label="返回 STRM 管理" />
-          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-success-soft text-success-soft-foreground">
-            <ShieldCheck aria-hidden="true" className="size-6" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="strm-results-title">有效性检查完成</h1>
-              <DemoBadge />
-            </div>
-            <p className="text-sm text-muted">
-              共检查 {countFormat.format(total)} 个 STRM 文件，发现{" "}
-              <strong className="text-danger-soft-foreground">
-                {countFormat.format(invalid)}
-              </strong>{" "}
-              个异常，
-              <strong className="text-warning-soft-foreground">
-                {countFormat.format(pending)}
-              </strong>{" "}
-              个待处理。
-            </p>
-          </div>
-          <dl className="grid shrink-0 gap-1 text-sm text-muted tabular-nums sm:text-right">
-            <div className="flex gap-2 sm:justify-end">
-              <dt>检查时间</dt>
-              <dd>{formatStrmDate(checkRun.checkedAt, true)}</dd>
-            </div>
-            <div className="flex gap-2 sm:justify-end">
-              <dt>耗时</dt>
-              <dd>{formatCheckDuration(checkRun.durationMs)}</dd>
-            </div>
-          </dl>
-        </Card.Content>
-      </Card>
-      <StrmStats files={checkRun.files} isList={false} />
-      <StrmListing files={checkRun.files} view="results" />
+    <Card>
+      <Card.Content>
+        <div className="@container grid min-w-0 gap-3">
+          <FileActions
+            files={items}
+            selected={selectedFiles}
+            onSelectionChange={setSelection}
+          />
+          {files.isError && (
+            <StrmError
+              error={files.error}
+              onRetry={() => void files.refetch()}
+            />
+          )}
+          {files.isPending && <StrmLoading>正在加载 STRM 文件…</StrmLoading>}
+          {files.data && (
+            <>
+              {items.length > 0 ? (
+                <StrmFileTable
+                  files={items}
+                  query={query}
+                  selectedIds={selectedIds}
+                  onSelectionChange={setSelection}
+                />
+              ) : (
+                <StrmEmpty
+                  title={
+                    files.data.total > 0
+                      ? "这一页没有 STRM 文件"
+                      : filtered
+                        ? "没有符合条件的 STRM 文件"
+                        : "暂无 STRM 文件"
+                  }
+                  description={
+                    files.data.total > 0
+                      ? "请选择其他页。"
+                      : filtered
+                        ? "可以调整搜索条件或切换媒体库。"
+                        : "从媒体库详情运行全量同步后，文件将显示在这里。"
+                  }
+                  {...(!filtered && !files.data.total
+                    ? { href: "/libraries", label: "前往媒体库" }
+                    : {})}
+                />
+              )}
+              <FilePagination query={query} total={files.data.total} />
+            </>
+          )}
+        </div>
+      </Card.Content>
+    </Card>
+  );
+}
+
+export function StrmListPage() {
+  const query = useStrmListQuery();
+  const files = useStrmFiles(query.filters);
+  const total = files.data ? countFormat.format(files.data.total) : "—";
+
+  return (
+    <div className="@container grid min-w-0 gap-3">
+      <PageBanner
+        compact
+        title="STRM 管理"
+        description="管理媒体库生成的 STRM 文件，查看生成记录与源文件关联。"
+      />
+      <div className="grid grid-cols-2 gap-3 @min-[39rem]:grid-cols-4">
+        <MetricTile label="STRM 文件" value={total} icon={File} tone="accent" />
+        <MetricTile label="有效" value="—" icon={CircleCheck} tone="success" />
+        <MetricTile label="异常" value="—" icon={TriangleAlert} tone="danger" />
+        <MetricTile label="待处理" value={total} icon={Clock} tone="warning" />
+      </div>
+      <FileFilters query={query} />
+      <FileResults
+        key={JSON.stringify(query.filters)}
+        files={files}
+        query={query}
+      />
     </div>
   );
 }

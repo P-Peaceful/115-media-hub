@@ -9,22 +9,25 @@ import (
 
 // Defines values for APIErrorCode.
 const (
-	AlreadyInitialized     APIErrorCode = "already_initialized"
-	AuthenticationRequired APIErrorCode = "authentication_required"
-	Conflict               APIErrorCode = "conflict"
-	CsrfInvalid            APIErrorCode = "csrf_invalid"
-	InternalError          APIErrorCode = "internal_error"
-	InvalidCredentials     APIErrorCode = "invalid_credentials"
-	MethodNotAllowed       APIErrorCode = "method_not_allowed"
-	NotFound               APIErrorCode = "not_found"
-	ProviderAuthInvalid    APIErrorCode = "provider_auth_invalid"
-	ProviderNotConfigured  APIErrorCode = "provider_not_configured"
-	RateLimited            APIErrorCode = "rate_limited"
-	ServiceUnavailable     APIErrorCode = "service_unavailable"
-	SetupRequired          APIErrorCode = "setup_required"
-	TaskStateConflict      APIErrorCode = "task_state_conflict"
-	TaskTypeUnavailable    APIErrorCode = "task_type_unavailable"
-	ValidationFailed       APIErrorCode = "validation_failed"
+	AlreadyInitialized        APIErrorCode = "already_initialized"
+	AuthenticationRequired    APIErrorCode = "authentication_required"
+	Conflict                  APIErrorCode = "conflict"
+	CsrfInvalid               APIErrorCode = "csrf_invalid"
+	FullSyncPreviewTimeout    APIErrorCode = "full_sync_preview_timeout"
+	FullSyncUnavailable       APIErrorCode = "full_sync_unavailable"
+	InternalError             APIErrorCode = "internal_error"
+	InvalidCredentials        APIErrorCode = "invalid_credentials"
+	MethodNotAllowed          APIErrorCode = "method_not_allowed"
+	NotFound                  APIErrorCode = "not_found"
+	ProviderAuthInvalid       APIErrorCode = "provider_auth_invalid"
+	ProviderDirectoryNotFound APIErrorCode = "provider_directory_not_found"
+	ProviderNotConfigured     APIErrorCode = "provider_not_configured"
+	RateLimited               APIErrorCode = "rate_limited"
+	ServiceUnavailable        APIErrorCode = "service_unavailable"
+	SetupRequired             APIErrorCode = "setup_required"
+	TaskStateConflict         APIErrorCode = "task_state_conflict"
+	TaskTypeUnavailable       APIErrorCode = "task_type_unavailable"
+	ValidationFailed          APIErrorCode = "validation_failed"
 )
 
 // Valid indicates whether the value is a known member of the APIErrorCode enum.
@@ -38,6 +41,10 @@ func (e APIErrorCode) Valid() bool {
 		return true
 	case CsrfInvalid:
 		return true
+	case FullSyncPreviewTimeout:
+		return true
+	case FullSyncUnavailable:
+		return true
 	case InternalError:
 		return true
 	case InvalidCredentials:
@@ -47,6 +54,8 @@ func (e APIErrorCode) Valid() bool {
 	case NotFound:
 		return true
 	case ProviderAuthInvalid:
+		return true
+	case ProviderDirectoryNotFound:
 		return true
 	case ProviderNotConfigured:
 		return true
@@ -61,6 +70,36 @@ func (e APIErrorCode) Valid() bool {
 	case TaskTypeUnavailable:
 		return true
 	case ValidationFailed:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FullSyncOutputCheckStatus.
+const (
+	FullSyncOutputCheckStatusMissing          FullSyncOutputCheckStatus = "missing"
+	FullSyncOutputCheckStatusNotDirectory     FullSyncOutputCheckStatus = "not_directory"
+	FullSyncOutputCheckStatusPermissionDenied FullSyncOutputCheckStatus = "permission_denied"
+	FullSyncOutputCheckStatusReady            FullSyncOutputCheckStatus = "ready"
+	FullSyncOutputCheckStatusUnavailable      FullSyncOutputCheckStatus = "unavailable"
+	FullSyncOutputCheckStatusWillCreate       FullSyncOutputCheckStatus = "will_create"
+)
+
+// Valid indicates whether the value is a known member of the FullSyncOutputCheckStatus enum.
+func (e FullSyncOutputCheckStatus) Valid() bool {
+	switch e {
+	case FullSyncOutputCheckStatusMissing:
+		return true
+	case FullSyncOutputCheckStatusNotDirectory:
+		return true
+	case FullSyncOutputCheckStatusPermissionDenied:
+		return true
+	case FullSyncOutputCheckStatusReady:
+		return true
+	case FullSyncOutputCheckStatusUnavailable:
+		return true
+	case FullSyncOutputCheckStatusWillCreate:
 		return true
 	default:
 		return false
@@ -517,6 +556,30 @@ func (e SecuritySettingsSessionLifetimeDays) Valid() bool {
 	}
 }
 
+// Defines values for StrmDetailFileState.
+const (
+	StrmDetailFileStateMissing     StrmDetailFileState = "missing"
+	StrmDetailFileStateModified    StrmDetailFileState = "modified"
+	StrmDetailFileStatePresent     StrmDetailFileState = "present"
+	StrmDetailFileStateUnavailable StrmDetailFileState = "unavailable"
+)
+
+// Valid indicates whether the value is a known member of the StrmDetailFileState enum.
+func (e StrmDetailFileState) Valid() bool {
+	switch e {
+	case StrmDetailFileStateMissing:
+		return true
+	case StrmDetailFileStateModified:
+		return true
+	case StrmDetailFileStatePresent:
+		return true
+	case StrmDetailFileStateUnavailable:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for TaskAction.
 const (
 	TaskActionCancel      TaskAction = "cancel"
@@ -651,19 +714,19 @@ func (e TaskType) Valid() bool {
 
 // Defines values for ListCloudDriveFilesParamsSort.
 const (
-	ModifiedAt ListCloudDriveFilesParamsSort = "modified_at"
-	Name       ListCloudDriveFilesParamsSort = "name"
-	Size       ListCloudDriveFilesParamsSort = "size"
+	ListCloudDriveFilesParamsSortModifiedAt ListCloudDriveFilesParamsSort = "modified_at"
+	ListCloudDriveFilesParamsSortName       ListCloudDriveFilesParamsSort = "name"
+	ListCloudDriveFilesParamsSortSize       ListCloudDriveFilesParamsSort = "size"
 )
 
 // Valid indicates whether the value is a known member of the ListCloudDriveFilesParamsSort enum.
 func (e ListCloudDriveFilesParamsSort) Valid() bool {
 	switch e {
-	case ModifiedAt:
+	case ListCloudDriveFilesParamsSortModifiedAt:
 		return true
-	case Name:
+	case ListCloudDriveFilesParamsSortName:
 		return true
-	case Size:
+	case ListCloudDriveFilesParamsSortSize:
 		return true
 	default:
 		return false
@@ -672,16 +735,16 @@ func (e ListCloudDriveFilesParamsSort) Valid() bool {
 
 // Defines values for ListCloudDriveFilesParamsOrder.
 const (
-	Asc  ListCloudDriveFilesParamsOrder = "asc"
-	Desc ListCloudDriveFilesParamsOrder = "desc"
+	ListCloudDriveFilesParamsOrderAsc  ListCloudDriveFilesParamsOrder = "asc"
+	ListCloudDriveFilesParamsOrderDesc ListCloudDriveFilesParamsOrder = "desc"
 )
 
 // Valid indicates whether the value is a known member of the ListCloudDriveFilesParamsOrder enum.
 func (e ListCloudDriveFilesParamsOrder) Valid() bool {
 	switch e {
-	case Asc:
+	case ListCloudDriveFilesParamsOrderAsc:
 		return true
-	case Desc:
+	case ListCloudDriveFilesParamsOrderDesc:
 		return true
 	default:
 		return false
@@ -709,6 +772,42 @@ func (e ListCloudDriveFilesParamsType) Valid() bool {
 	case Image:
 		return true
 	case Video:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListStrmFilesParamsSort.
+const (
+	ListStrmFilesParamsSortGenerated ListStrmFilesParamsSort = "generated"
+	ListStrmFilesParamsSortName      ListStrmFilesParamsSort = "name"
+)
+
+// Valid indicates whether the value is a known member of the ListStrmFilesParamsSort enum.
+func (e ListStrmFilesParamsSort) Valid() bool {
+	switch e {
+	case ListStrmFilesParamsSortGenerated:
+		return true
+	case ListStrmFilesParamsSortName:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ListStrmFilesParamsOrder.
+const (
+	ListStrmFilesParamsOrderAsc  ListStrmFilesParamsOrder = "asc"
+	ListStrmFilesParamsOrderDesc ListStrmFilesParamsOrder = "desc"
+)
+
+// Valid indicates whether the value is a known member of the ListStrmFilesParamsOrder enum.
+func (e ListStrmFilesParamsOrder) Valid() bool {
+	switch e {
+	case ListStrmFilesParamsOrderAsc:
+		return true
+	case ListStrmFilesParamsOrderDesc:
 		return true
 	default:
 		return false
@@ -789,6 +888,36 @@ type ErrorResponse struct {
 	Error APIError `json:"error"`
 }
 
+// FullSyncOutputCheck defines model for FullSyncOutputCheck.
+type FullSyncOutputCheck struct {
+	Message string                    `json:"message"`
+	Status  FullSyncOutputCheckStatus `json:"status"`
+}
+
+// FullSyncOutputCheckStatus defines model for FullSyncOutputCheck.Status.
+type FullSyncOutputCheckStatus string
+
+// FullSyncPreview defines model for FullSyncPreview.
+type FullSyncPreview struct {
+	CandidateCount int64 `json:"candidate_count"`
+
+	// FailedCount Count of invalid source entries and failed subdirectories.
+	FailedCount int64                   `json:"failed_count"`
+	Output      FullSyncOutputCheck     `json:"output"`
+	Revision    int64                   `json:"revision"`
+	Samples     []FullSyncPreviewSample `json:"samples"`
+
+	// ScanComplete Whether scanning reached the end of the requested scope. See failed_count for individual failures.
+	ScanComplete  bool  `json:"scan_complete"`
+	ScannedVideos int64 `json:"scanned_videos"`
+}
+
+// FullSyncPreviewSample defines model for FullSyncPreviewSample.
+type FullSyncPreviewSample struct {
+	RelativePath string `json:"relative_path"`
+	SourcePath   string `json:"source_path"`
+}
+
 // HealthResponse defines model for HealthResponse.
 type HealthResponse struct {
 	Status HealthResponseStatus `json:"status"`
@@ -834,10 +963,12 @@ type Library struct {
 	Name                   string                    `json:"name"`
 
 	// OutputPath Absolute local path
-	OutputPath       string              `json:"output_path"`
-	Revision         int64               `json:"revision"`
-	ScrapeSource     LibraryScrapeSource `json:"scrape_source"`
-	StrmDirectDomain string              `json:"strm_direct_domain"`
+	OutputPath   string              `json:"output_path"`
+	Revision     int64               `json:"revision"`
+	ScrapeSource LibraryScrapeSource `json:"scrape_source"`
+
+	// StrmDirectDomain Saved STRM playback address shared by both link modes.
+	StrmDirectDomain string `json:"strm_direct_domain"`
 
 	// StrmExistingFilePolicy Preference for an existing STRM at the target output path; no file operations are executed.
 	StrmExistingFilePolicy LibraryStrmExistingFilePolicy `json:"strm_existing_file_policy"`
@@ -883,9 +1014,11 @@ type LibraryConfig struct {
 	Name                   string                          `json:"name"`
 
 	// OutputPath Absolute local path
-	OutputPath       string                    `json:"output_path"`
-	ScrapeSource     LibraryConfigScrapeSource `json:"scrape_source"`
-	StrmDirectDomain string                    `json:"strm_direct_domain"`
+	OutputPath   string                    `json:"output_path"`
+	ScrapeSource LibraryConfigScrapeSource `json:"scrape_source"`
+
+	// StrmDirectDomain Shared STRM playback address. Accepts an HTTP(S) origin or a hostname/IP with optional port (defaults to HTTPS). May be empty until STRM generation is needed.
+	StrmDirectDomain string `json:"strm_direct_domain"`
 
 	// StrmExistingFilePolicy Preference for an existing STRM at the target output path; no file operations are executed.
 	StrmExistingFilePolicy LibraryConfigStrmExistingFilePolicy `json:"strm_existing_file_policy"`
@@ -1082,6 +1215,46 @@ type SecuritySettings struct {
 // SecuritySettingsSessionLifetimeDays defines model for SecuritySettings.SessionLifetimeDays.
 type SecuritySettingsSessionLifetimeDays int
 
+// StrmDetail defines model for StrmDetail.
+type StrmDetail struct {
+	Content      *string             `json:"content"`
+	FileState    StrmDetailFileState `json:"file_state"`
+	GeneratedAt  time.Time           `json:"generated_at"`
+	Id           string              `json:"id"`
+	LibraryId    string              `json:"library_id"`
+	LibraryName  *string             `json:"library_name"`
+	Name         string              `json:"name"`
+	OutputPath   string              `json:"output_path"`
+	RelativePath string              `json:"relative_path"`
+	SizeBytes    int64               `json:"size_bytes"`
+	SourceFileId string              `json:"source_file_id"`
+	SourcePath   string              `json:"source_path"`
+}
+
+// StrmDetailFileState defines model for StrmDetail.FileState.
+type StrmDetailFileState string
+
+// StrmFile defines model for StrmFile.
+type StrmFile struct {
+	GeneratedAt  time.Time `json:"generated_at"`
+	Id           string    `json:"id"`
+	LibraryId    string    `json:"library_id"`
+	LibraryName  *string   `json:"library_name"`
+	Name         string    `json:"name"`
+	RelativePath string    `json:"relative_path"`
+	SizeBytes    int64     `json:"size_bytes"`
+	SourceFileId string    `json:"source_file_id"`
+	SourcePath   string    `json:"source_path"`
+}
+
+// StrmPage defines model for StrmPage.
+type StrmPage struct {
+	Items []StrmFile `json:"items"`
+	Limit int        `json:"limit"`
+	Page  int        `json:"page"`
+	Total int64      `json:"total"`
+}
+
 // SubmitTaskInput defines model for SubmitTaskInput.
 type SubmitTaskInput struct {
 	LibraryId string   `json:"library_id"`
@@ -1185,6 +1358,7 @@ type TaskTypeCapability struct {
 	Available      bool     `json:"available"`
 	CanPause       bool     `json:"can_pause"`
 	CanRetryFailed bool     `json:"can_retry_failed"`
+	CanSchedule    bool     `json:"can_schedule"`
 	Reason         *string  `json:"reason"`
 	Type           TaskType `json:"type"`
 }
@@ -1362,6 +1536,22 @@ type UpdateSecurityCredentialsParams struct {
 type UpdateSecuritySessionParams struct {
 	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
 }
+
+// ListStrmFilesParams defines parameters for ListStrmFiles.
+type ListStrmFilesParams struct {
+	LibraryId *string                   `form:"library_id,omitempty" json:"library_id,omitempty"`
+	Q         *string                   `form:"q,omitempty" json:"q,omitempty"`
+	Sort      *ListStrmFilesParamsSort  `form:"sort,omitempty" json:"sort,omitempty"`
+	Order     *ListStrmFilesParamsOrder `form:"order,omitempty" json:"order,omitempty"`
+	Page      *int                      `form:"page,omitempty" json:"page,omitempty"`
+	Limit     *int                      `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListStrmFilesParamsSort defines parameters for ListStrmFiles.
+type ListStrmFilesParamsSort string
+
+// ListStrmFilesParamsOrder defines parameters for ListStrmFiles.
+type ListStrmFilesParamsOrder string
 
 // ListTasksParams defines parameters for ListTasks.
 type ListTasksParams struct {

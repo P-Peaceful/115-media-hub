@@ -13,15 +13,16 @@ import (
 )
 
 func TestFilesPaginationAndProviderFailures(t *testing.T) {
-	response := `{"state":true,"cid":"123","count":2,"path":[{"cid":"0","name":"115网盘"},{"cid":"123","name":"Movies"}],"data":[{"fid":"999999999999999999","cid":"123","n":"movie.mp4","s":12345,"te":"1700000000"}]}`
+	response := `{"state":true,"cid":"123","count":2,"path":[{"cid":"0","name":"115网盘"},{"cid":"123","name":"Movies"}],"data":[{"fid":"999999999999999999","cid":"123","n":"movie.mp4","s":12345,"te":"1700000000","pc":"private-pickcode"}]}`
+	const cookie = "UID=4123456789_A1_private"
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Header.Get("Cookie") != "UID=private" || r.URL.Query().Get("cur") != "1" || r.URL.Query().Get("custom_order") != "1" || r.URL.Query().Get("type") != "4" {
+		if r.Header.Get("Cookie") != cookie || r.URL.Query().Get("cur") != "1" || r.URL.Query().Get("custom_order") != "1" || r.URL.Query().Get("type") != "4" {
 			t.Error("incorrect upstream request")
 		}
 		_, _ = io.WriteString(w, response)
 	}))
 	defer server.Close()
-	repo := &detailsRepository{credential: "UID=private"}
+	repo := &detailsRepository{credential: cookie}
 	logs := &strings.Builder{}
 	service := New(repo, slog.New(slog.NewJSONHandler(logs, nil)))
 	service.filesURL = server.URL
@@ -29,6 +30,13 @@ func TestFilesPaginationAndProviderFailures(t *testing.T) {
 	page, err := service.Files(t.Context(), query, "request")
 	if err != nil || len(page.Items) != 1 || page.Items[0].ID != "999999999999999999" || page.Items[0].SizeBytes == nil || *page.Items[0].SizeBytes != "12345" || page.Items[0].ModifiedAt == nil || page.NextCursor == nil || len(page.Path) != 2 || page.Total != 2 {
 		t.Fatalf("page: %+v, %v", page, err)
+	}
+	if page.AccountID != "4123456789" || page.Items[0].PlaybackCode != "private-pickcode" {
+		t.Fatal("playback metadata missing from internal listing")
+	}
+	public, err := json.Marshal(page)
+	if err != nil || strings.Contains(string(public), page.AccountID) || strings.Contains(string(public), page.Items[0].PlaybackCode) {
+		t.Fatal("internal identity or playback code leaked in JSON")
 	}
 	query.Cursor = *page.NextCursor
 	response = `{"state":true,"cid":"123","count":2,"path":[{"cid":"0","name":"115网盘"},{"cid":"123","name":"Movies"}],"data":[{"cid":"456","n":"Folder","te":"1700000000"}]}`
@@ -65,7 +73,7 @@ func TestFilesPaginationAndProviderFailures(t *testing.T) {
 	if _, err = service.Files(t.Context(), query, "request"); !errors.Is(err, ErrUnconfigured) {
 		t.Fatalf("unconfigured: %v", err)
 	}
-	if strings.Contains(logs.String(), "UID=private") {
+	if strings.Contains(logs.String(), cookie) || strings.Contains(logs.String(), "private-pickcode") {
 		t.Fatal("credential in logs")
 	}
 }

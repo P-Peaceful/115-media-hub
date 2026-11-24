@@ -117,7 +117,7 @@ function ScheduleEditor({
   const capability = capabilities.find((entry) => entry.type === type);
   const typeOptions = keys(taskTypes).map((id) => ({
     id,
-    label: capabilities.some((entry) => entry.type === id && entry.available)
+    label: capabilities.some((entry) => entry.type === id && entry.can_schedule)
       ? taskTypes[id].label
       : `${taskTypes[id].label}（暂不可用）`,
   }));
@@ -137,7 +137,7 @@ function ScheduleEditor({
   }
 
   function submit() {
-    if (!type || !capability?.available || !libraryAvailable) return;
+    if (!type || !capability?.can_schedule || !libraryAvailable) return;
     if (!name.trim()) return setValidation("请输入计划名称。");
     if (!isTimeZone(timezone.trim()))
       return setValidation("请输入有效的 IANA 时区，例如 Asia/Shanghai。");
@@ -197,7 +197,7 @@ function ScheduleEditor({
               size="sm"
               type="submit"
               isPending={mutation.isPending}
-              isDisabled={!capability?.available || !libraryAvailable}
+              isDisabled={!capability?.can_schedule || !libraryAvailable}
             >
               <Save aria-hidden="true" />
               保存
@@ -229,9 +229,11 @@ function ScheduleEditor({
                 if (hasKey(taskTypes, value)) setType(value);
               }}
               description={
-                capability?.available === false
-                  ? (capability.reason ?? "此类型暂不可用。")
-                  : !type && capabilities.every((item) => !item.available)
+                capability?.can_schedule === false
+                  ? capability.available
+                    ? "此类型目前只支持手动运行。"
+                    : (capability.reason ?? "此类型暂不可用。")
+                  : !type && capabilities.every((item) => !item.can_schedule)
                     ? "暂无可用的任务类型。选择类型可查看原因。"
                     : null
               }

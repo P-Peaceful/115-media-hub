@@ -65,6 +65,8 @@ go run ./cmd/mediahub
 | `MEDIAHUB_SHUTDOWN_TIMEOUT` | `10s` | 优雅关闭超时 |
 | `MEDIAHUB_COOKIE_SECURE` | `false` | 外部 HTTPS 部署使用安全 Cookie，反向代理终止 TLS 时设为 `true` |
 
+在媒体库配置中启用 STRM 文件输出，选择「302 代理」，并填写播放器可访问的「STRM 播放地址」。只填域名或 IP 时使用 HTTPS。内网 HTTP 可填写 `http://192.168.1.10:8080`。保存后从该库的「全量同步」进入执行预览，查看 115 扫描结果和输出目录状态。确认后，后端会在可写的父目录下创建缺失的输出目录。进度和结果显示在任务中心。
+
 SQLite 启动时应用嵌入的版本化迁移，并启用 WAL、外键、busy timeout 和受控连接数。数据库应放在本地磁盘，部署单个应用实例。`GET /health/live` 返回进程存活状态；`GET /health/ready` 检查数据库可访问性，成功响应均为 `{"status":"ok"}`。
 
 ## 管理员初始化与登录

@@ -131,6 +131,7 @@ export function LibraryIncrementalSyncPage() {
         title="增量同步"
         description="查看目录变更的演示记录，试用自动监听和批量处理设置。"
         icon={Zap}
+        demonstration
       />
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <SyncSection

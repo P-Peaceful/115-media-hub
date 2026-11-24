@@ -10,7 +10,7 @@ Read the [project baseline](../guides/project-baseline.md) first for Notion sour
 | --- | --- |
 | [Authentication](./authentication.md) | Login/setup routes, session state, recovery guidance and visual acceptance |
 | [Task center](./task-center.md) | Task and schedule routes, capability gating and live updates |
-| [STRM management](./strm-management.md) | Demo routes, file selection, check results and cleanup scope |
+| [STRM management](./strm-management.md) | Media-library generation, real file registry and detail navigation |
 | [Directory structure](./directory-structure.md) | Feature ownership, naming, dependency boundaries |
 | [Components](./component-guidelines.md) | Props, composition, HeroUI v3, styling, accessibility |
 | [Hooks](./hook-guidelines.md) | Query keys, cancellation, effects, mutations |

@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 12
-- **Last Active**: 2026-11-21
+- **Total Sessions**: 13
+- **Last Active**: 2026-11-25
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~320 | Active |
+| `journal-1.md` | ~347 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 13 | 2026-11-25 | 媒体库 STRM 生成与产物登记 | `0bcfbc1` | `codex/strm-generation` |
 | 12 | 2026-11-21 | STRM 管理前端演示 | `e735f4c` | `main` |
 | 11 | 2026-11-21 | 任务中心开发 | `e83e7b3` | `codex/task-center` |
 | 10 | 2026-11-20 | 媒体库详情页同步与预览开发 | `bfdb986` | `codex/media-library-sync-preview` |

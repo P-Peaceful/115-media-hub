@@ -85,7 +85,7 @@ func TestTaskCenterDowngradeRejectsHistoryLoss(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := provider.Down(ctx); err == nil || !strings.Contains(err.Error(), "task_center_down_is_irreversible_restore_a_consistent_backup") {
+	if _, err := provider.DownTo(ctx, 4); err == nil || !strings.Contains(err.Error(), "task_center_down_is_irreversible_restore_a_consistent_backup") {
 		t.Fatalf("downgrade did not report the intentional rejection: %v", err)
 	}
 	version, err := provider.GetDBVersion(ctx)

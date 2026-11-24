@@ -105,6 +105,7 @@ test("未注册执行器时，任务中心、筛选和计划编辑均可浏览",
           reason: "业务模块暂未接入",
           can_pause: false,
           can_retry_failed: false,
+          can_schedule: false,
         })),
       },
     }),
@@ -156,7 +157,9 @@ test("未注册执行器时，任务中心、筛选和计划编辑均可浏览",
   await screen.getByRole("link", { name: "创建计划" }).click();
   await expect(screen.getByRole("heading", { name: "创建计划" })).toBeVisible();
   await screen.getByRole("button", { name: "执行类型" }).click();
-  await page.getByRole("option", { name: "STRM 生成（暂不可用）" }).click();
+  await page
+    .getByRole("option", { name: "全量同步（STRM）（暂不可用）" })
+    .click();
   await expect(screen.getByText("业务模块暂未接入")).toBeVisible();
   await expect(screen.getByRole("button", { name: "保存" })).toBeDisabled();
   await expect(screen.getByText("执行参数")).toHaveCount(0);
@@ -171,6 +174,51 @@ test("未注册执行器时，任务中心、筛选和计划编辑均可浏览",
         document.documentElement.clientWidth,
     ),
   ).toBe(true);
+});
+
+test("全量同步保留历史筛选，提交弹窗只提供独立任务", async ({ page }) => {
+  await page.route("**/api/v1/task-types", (route) =>
+    route.fulfill({
+      json: {
+        items: taskTypes.map((type) => ({
+          type,
+          available: type === "strm" || type === "scan",
+          reason: null,
+          can_pause: false,
+          can_retry_failed: false,
+          can_schedule: false,
+        })),
+      },
+    }),
+  );
+  await page.route("**/api/v1/tasks?**", (route) => {
+    const query = new URL(route.request().url()).searchParams;
+    expect(query.get("type")).toBe("strm");
+    expect(query.get("library_id")).toBe(library.id);
+    return route.fulfill({
+      json: {
+        items: [completed],
+        next_cursor: null,
+        total: 1,
+        by_type: { strm: 1 },
+        by_status: { completed: 1 },
+      },
+    });
+  });
+  const search = `?type=strm&library_id=${encodeURIComponent(library.id)}`;
+  await page.goto(`/tasks${search}`);
+  await expect(
+    page.getByRole("radio", { name: /全量同步（STRM）/ }),
+  ).toBeChecked();
+  await expect(
+    page.getByRole("link", { name: "全量同步（STRM） · 电视剧" }),
+  ).toHaveAttribute("href", `/tasks/task-1?from=${encodeURIComponent(search)}`);
+  await page.getByRole("button", { name: "提交任务" }).click();
+  await page.getByRole("button", { name: "任务类型" }).click();
+  await expect(
+    page.getByRole("option", { name: "扫描", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("option", { name: /全量同步/ })).toHaveCount(0);
 });
 
 test("任务详情显示进度、失败原因和日志，并创建关联的失败重试任务", async ({
@@ -233,6 +281,9 @@ test("任务详情显示进度、失败原因和日志，并创建关联的失�
     route.fulfill({ json: { items: [], next_cursor: null } }),
   );
   await page.goto("/tasks/task-1");
+  await expect(
+    page.getByRole("heading", { name: "全量同步（STRM）任务" }),
+  ).toBeVisible();
   await expect(page.getByText("已完成（部分失败）")).toBeVisible();
   await expect(page.getByRole("progressbar")).toHaveAttribute(
     "aria-valuenow",
@@ -265,17 +316,18 @@ test("保存和编辑每周计划时只提交调度和媒体库配置", async ({
       json: {
         items: taskTypes.map((type) => ({
           type,
-          available: type === "strm",
+          available: type === "scan",
           reason: null,
           can_pause: false,
           can_retry_failed: false,
+          can_schedule: type === "scan",
         })),
       },
     }),
   );
   const input = {
-    name: "每周电视生成",
-    type: "strm",
+    name: "每周电视扫描",
+    type: "scan",
     library_id: "1",
     enabled: true,
     period: "weekly",
@@ -308,17 +360,17 @@ test("保存和编辑每周计划时只提交调度和媒体库配置", async ({
       expect(route.request().headers()["x-schedule-revision"]).toBe("1");
       expect(route.request().postDataJSON()).toEqual({
         ...input,
-        name: "每周电视生成更新",
+        name: "每周电视扫描更新",
       });
       if (!schedule) throw new Error("计划尚未保存");
-      schedule = { ...schedule, name: "每周电视生成更新", revision: 2 };
+      schedule = { ...schedule, name: "每周电视扫描更新", revision: 2 };
     }
     await route.fulfill({ json: schedule });
   });
   await page.goto("/tasks/schedules/new");
   await page.getByRole("textbox", { name: "计划名称" }).fill(input.name);
   await page.getByRole("button", { name: "执行类型" }).click();
-  await page.getByRole("option", { name: "STRM 生成", exact: true }).click();
+  await page.getByRole("option", { name: "扫描", exact: true }).click();
   await page.getByRole("button", { name: "目标媒体库" }).click();
   await page.getByRole("option", { name: "电视剧" }).click();
   await page.getByRole("radio", { name: "每天" }).press("ArrowRight");
@@ -338,10 +390,10 @@ test("保存和编辑每周计划时只提交调度和媒体库配置", async ({
   await expect(page.getByRole("checkbox", { name: "周日" })).toBeChecked();
   await page
     .getByRole("textbox", { name: "计划名称" })
-    .fill("每周电视生成更新");
+    .fill("每周电视扫描更新");
   await page.getByRole("button", { name: "保存" }).click();
   await expect(
-    page.getByRole("link", { name: "每周电视生成更新" }),
+    page.getByRole("link", { name: "每周电视扫描更新" }),
   ).toBeVisible();
 });
 
@@ -361,7 +413,20 @@ test("已连接的页面收到任务更新和站内通知", async ({ page }) => 
     });
   });
   await page.route("**/api/v1/task-types", (route) =>
-    route.fulfill({ json: { items: [] } }),
+    route.fulfill({
+      json: {
+        items: [
+          {
+            type: "strm",
+            available: true,
+            reason: null,
+            can_pause: false,
+            can_retry_failed: true,
+            can_schedule: false,
+          },
+        ],
+      },
+    }),
   );
   await page.route("**/api/v1/tasks?**", (route) =>
     route.fulfill({
@@ -379,8 +444,9 @@ test("已连接的页面收到任务更新和站内通知", async ({ page }) => 
   await expect(screen.getByText("暂无任务", { exact: true })).toBeVisible();
   sendEvent();
   await expect(
-    screen.getByRole("link", { name: "STRM 生成 · 电视剧" }),
+    screen.getByRole("link", { name: "全量同步（STRM） · 电视剧" }),
   ).toBeVisible();
+  await expect(screen.getByRole("button", { name: "提交任务" })).toHaveCount(0);
   await expect(
     page.getByRole("link", { name: "查看任务", exact: true }),
   ).toHaveAttribute("href", "/tasks/task-1");
@@ -396,6 +462,7 @@ test("计划类型下拉菜单跟随应用主题切换", async ({ page }) => {
           reason: "业务模块暂未接入",
           can_pause: false,
           can_retry_failed: false,
+          can_schedule: false,
         })),
       },
     }),

@@ -23,6 +23,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/jobs"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/provider115"
+	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/strm"
 )
 
 const sessionCookie = "mediahub_session"
@@ -35,6 +36,7 @@ type AuthOptions struct {
 	Provider     *provider115.Service
 	Library      *library.Service
 	Jobs         *jobs.Service
+	STRM         *strm.Service
 }
 
 type authenticationHandler struct {

@@ -1,21 +1,17 @@
 import { Button, Card, Chip } from "@heroui/react";
 import type { LucideIcon } from "lucide-react";
-import { ArrowLeft, CheckCircle2, Play } from "lucide-react";
-import { type ReactNode, useId, useState } from "react";
+import { ArrowLeft } from "lucide-react";
+import { type ReactNode, useId } from "react";
 import { Link } from "react-router";
 
 import folderArtwork from "@/assets/media-folder.svg";
 
+import type { Library } from "./api";
 import {
   libraryDetailPath,
   useLibraryDetailContext,
 } from "./library-detail-context";
-import {
-  type ChangeKind,
-  changeKinds,
-  changeLabels,
-  formatSyncCount,
-} from "./library-sync-demo";
+import { type ChangeKind, changeLabels } from "./library-sync-demo";
 
 const changeColors = {
   added: "success",
@@ -29,11 +25,13 @@ export function SyncPageHeader({
   description,
   icon: Icon,
   backToFullSync = false,
+  demonstration = false,
 }: {
   title: string;
   description: string;
   icon: LucideIcon;
   backToFullSync?: boolean;
+  demonstration?: boolean;
 }) {
   const { item } = useLibraryDetailContext();
   return (
@@ -60,9 +58,11 @@ export function SyncPageHeader({
             >
               {title}
             </h1>
-            <Chip size="sm" variant="soft" color="accent">
-              演示数据
-            </Chip>
+            {demonstration && (
+              <Chip size="sm" variant="soft" color="accent">
+                演示数据
+              </Chip>
+            )}
           </div>
           <p className="text-sm text-foreground">{description}</p>
         </div>
@@ -133,79 +133,22 @@ export function ResultChip({ result }: { result: "成功" | "失败" }) {
   );
 }
 
-export function LibraryLocalTime({
-  at,
-  compact = false,
-}: {
-  at: string;
-  compact?: boolean;
-}) {
+export function SyncScope({ library }: { library: Library }) {
   return (
-    <time dateTime={at} className="whitespace-nowrap tabular-nums">
-      {new Date(at)
-        .toLocaleString("zh-CN", {
-          ...(compact ? {} : { year: "numeric" }),
-          month: "2-digit",
-          day: "2-digit",
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-        })
-        .replaceAll("/", "-")}
-    </time>
-  );
-}
-
-export function SyncCounts({ counts }: { counts: Record<ChangeKind, number> }) {
-  return (
-    <span className="inline-flex flex-wrap gap-x-3 gap-y-1 tabular-nums">
-      {changeKinds.map((kind) => (
-        <span key={kind} className="whitespace-nowrap">
-          {changeLabels[kind]} {formatSyncCount(counts[kind])}
-        </span>
-      ))}
-    </span>
-  );
-}
-
-export function DemoExecutionAction({
-  label,
-  summary,
-  secondaryAction,
-}: {
-  label: string;
-  summary?: ReactNode;
-  secondaryAction?: ReactNode;
-}) {
-  const [completed, setCompleted] = useState(false);
-  return (
-    <Card>
-      <Card.Content>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="min-w-0 flex-1 basis-full text-sm sm:basis-60">
-            {summary}
-            <div role="status" className="text-success">
-              {completed && (
-                <p className="flex items-center gap-2">
-                  <CheckCircle2
-                    aria-hidden="true"
-                    className="size-4 shrink-0"
-                  />
-                  演示执行已完成。
-                </p>
-              )}
-            </div>
-          </div>
-          <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-            {secondaryAction}
-            <Button onPress={() => setCompleted(true)}>
-              <Play aria-hidden="true" className="size-4" />
-              {label}
-            </Button>
-          </div>
-        </div>
-      </Card.Content>
-    </Card>
+    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 rounded-xl bg-surface-secondary p-3 text-sm">
+      <dt className="text-muted">媒体源目录</dt>
+      <dd className="wrap-anywhere font-medium">{library.directory_path}</dd>
+      <dt className="text-muted">输出目录</dt>
+      <dd className="wrap-anywhere font-medium">{library.output_path}</dd>
+      <dt className="text-muted">递归扫描</dt>
+      <dd>
+        {library.include_subdirectories ? "包含子目录" : "仅扫描绑定目录"}
+      </dd>
+      <dt className="text-muted">排除目录</dt>
+      <dd className="wrap-anywhere">
+        {library.exclude_directory_path || "无"}
+      </dd>
+    </dl>
   );
 }
 

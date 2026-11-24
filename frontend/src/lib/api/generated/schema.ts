@@ -233,6 +233,78 @@ export interface paths {
     patch: operations["setLibraryEnabled"];
     trace?: never;
   };
+  "/api/v1/libraries/{id}/full-sync-preview": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /**
+     * Scan the saved 115 source and inspect the configured STRM output directory
+     * @description Read-only. Samples are bounded. When the preview deadline expires, counts include only the portion already scanned. Confirmation scans again with the current saved configuration.
+     */
+    get: operations["previewLibraryFullSync"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/strm": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List registered STRM artifacts and count the same filtered result */
+    get: operations["listStrmFiles"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/strm/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Read a registered STRM artifact and inspect current file contents */
+    get: operations["getStrmFile"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/p/{id}/{token}/{name}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Resolve a registered STRM to a fresh 115 playback link */
+    get: operations["redirectStrmPlayback"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    /** Resolve a playback probe */
+    head: operations["redirectStrmPlaybackHead"];
+    patch?: never;
+    trace?: never;
+  };
   "/health/live": {
     parameters: {
       query?: never;
@@ -542,12 +614,71 @@ export interface components {
     TaskAction: "pause" | "resume" | "cancel" | "retry" | "retry_failed";
     /** @enum {string} */
     SchedulePeriod: "daily" | "weekly" | "monthly" | "custom";
+    FullSyncPreview: {
+      /** Format: int64 */
+      revision: number;
+      /** @description Whether scanning reached the end of the requested scope. See failed_count for individual failures. */
+      scan_complete: boolean;
+      /** Format: int64 */
+      scanned_videos: number;
+      /** Format: int64 */
+      candidate_count: number;
+      /**
+       * Format: int64
+       * @description Count of invalid source entries and failed subdirectories.
+       */
+      failed_count: number;
+      samples: components["schemas"]["FullSyncPreviewSample"][];
+      output: components["schemas"]["FullSyncOutputCheck"];
+    };
+    FullSyncPreviewSample: {
+      source_path: string;
+      relative_path: string;
+    };
+    FullSyncOutputCheck: {
+      /** @enum {string} */
+      status:
+        | "ready"
+        | "will_create"
+        | "missing"
+        | "not_directory"
+        | "permission_denied"
+        | "unavailable";
+      message: string;
+    };
+    StrmFile: {
+      id: string;
+      library_id: string;
+      library_name: string | null;
+      name: string;
+      relative_path: string;
+      source_file_id: string;
+      source_path: string;
+      /** Format: date-time */
+      generated_at: string;
+      /** Format: int64 */
+      size_bytes: number;
+    };
+    StrmPage: {
+      items: components["schemas"]["StrmFile"][];
+      /** Format: int64 */
+      total: number;
+      page: number;
+      limit: number;
+    };
+    StrmDetail: components["schemas"]["StrmFile"] & {
+      output_path: string;
+      /** @enum {string} */
+      file_state: "present" | "missing" | "modified" | "unavailable";
+      content: string | null;
+    };
     TaskTypeCapability: {
       type: components["schemas"]["TaskType"];
       available: boolean;
       reason: string | null;
       can_pause: boolean;
       can_retry_failed: boolean;
+      can_schedule: boolean;
     };
     TaskTypeCapabilities: {
       items: components["schemas"]["TaskTypeCapability"][];
@@ -702,6 +833,7 @@ export interface components {
       file_encoding: "UTF-8";
       /** @enum {string} */
       link_type: "direct" | "proxy";
+      /** @description Shared STRM playback address. Accepts an HTTP(S) origin or a hostname/IP with optional port (defaults to HTTPS). May be empty until STRM generation is needed. */
       strm_direct_domain: string;
       /** @enum {string} */
       strm_link_format: "original_name" | "file_id";
@@ -734,6 +866,7 @@ export interface components {
       file_encoding: "UTF-8";
       /** @enum {string} */
       link_type: "direct" | "proxy";
+      /** @description Saved STRM playback address shared by both link modes. */
       strm_direct_domain: string;
       /** @enum {string} */
       strm_link_format: "original_name" | "file_id";
@@ -919,6 +1052,9 @@ export interface components {
       code:
         | "provider_not_configured"
         | "provider_auth_invalid"
+        | "provider_directory_not_found"
+        | "full_sync_preview_timeout"
+        | "full_sync_unavailable"
         | "service_unavailable"
         | "not_found"
         | "method_not_allowed"
@@ -1618,6 +1754,149 @@ export interface operations {
       400: components["responses"]["AuthError"];
       401: components["responses"]["AuthError"];
       403: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      409: components["responses"]["AuthError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  previewLibraryFullSync: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Source scan and local output readiness */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["FullSyncPreview"];
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      409: components["responses"]["AuthError"];
+      503: components["responses"]["Unavailable"];
+      /** @description Preview scan deadline exceeded */
+      504: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorResponse"];
+        };
+      };
+    };
+  };
+  listStrmFiles: {
+    parameters: {
+      query?: {
+        library_id?: string;
+        q?: string;
+        sort?: "name" | "generated";
+        order?: "asc" | "desc";
+        page?: number;
+        limit?: number;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Registered STRM page */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["StrmPage"];
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  getStrmFile: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description STRM file details */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["StrmDetail"];
+        };
+      };
+      401: components["responses"]["AuthError"];
+      404: components["responses"]["AuthError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  redirectStrmPlayback: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        token: string;
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Temporary 115 media URL */
+      302: {
+        headers: {
+          Location: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      404: components["responses"]["AuthError"];
+      409: components["responses"]["AuthError"];
+      503: components["responses"]["Unavailable"];
+    };
+  };
+  redirectStrmPlaybackHead: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+        token: string;
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Temporary 115 media URL */
+      302: {
+        headers: {
+          Location: string;
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
       404: components["responses"]["AuthError"];
       409: components["responses"]["AuthError"];
       503: components["responses"]["Unavailable"];

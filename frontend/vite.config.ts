@@ -16,6 +16,10 @@ export default defineConfig({
         target: process.env.MEDIAHUB_BACKEND_URL ?? "http://127.0.0.1:8080",
         changeOrigin: false,
       },
+      "/p": {
+        target: process.env.MEDIAHUB_BACKEND_URL ?? "http://127.0.0.1:8080",
+        changeOrigin: false,
+      },
       "/api": {
         target: process.env.MEDIAHUB_BACKEND_URL ?? "http://127.0.0.1:8080",
         changeOrigin: false,

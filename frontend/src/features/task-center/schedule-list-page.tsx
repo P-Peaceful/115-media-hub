@@ -113,7 +113,7 @@ export function ScheduleListPage() {
     <main className={taskPageClass}>
       <PageBanner
         title="定时计划"
-        description="按计划执行扫描、STRM 生成、同步、检查、清理、刮削和回传任务。"
+        description="查看和管理媒体库任务的执行计划。"
       />
       <Panel
         title="计划列表"
@@ -152,7 +152,7 @@ export function ScheduleListPage() {
           </div>
         }
       >
-        {capabilities.data?.every((item) => !item.available) && (
+        {capabilities.data?.every((item) => !item.can_schedule) && (
           <p className="text-sm text-muted">
             可创建的计划类型将在对应业务模块接入后开放。
           </p>
@@ -202,7 +202,7 @@ export function ScheduleListPage() {
                     const available =
                       capabilities.data?.some(
                         (entry) =>
-                          entry.type === schedule.type && entry.available,
+                          entry.type === schedule.type && entry.can_schedule,
                       ) ?? false;
                     const libraryName =
                       schedule.library_id === null

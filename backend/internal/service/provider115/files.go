@@ -31,12 +31,13 @@ type FilePath struct {
 	Name string `json:"name"`
 }
 type FileItem struct {
-	ID          string     `json:"id"`
-	Name        string     `json:"name"`
-	IsDirectory bool       `json:"is_directory"`
-	SizeBytes   *string    `json:"size_bytes"`
-	ModifiedAt  *time.Time `json:"modified_at"`
-	FileType    string     `json:"file_type"`
+	ID           string     `json:"id"`
+	Name         string     `json:"name"`
+	IsDirectory  bool       `json:"is_directory"`
+	SizeBytes    *string    `json:"size_bytes"`
+	ModifiedAt   *time.Time `json:"modified_at"`
+	FileType     string     `json:"file_type"`
+	PlaybackCode string     `json:"-"`
 }
 type FilePage struct {
 	DirectoryID string     `json:"directory_id"`
@@ -47,6 +48,7 @@ type FilePage struct {
 	Page        *int64     `json:"page"`
 	PageSize    int        `json:"page_size"`
 	TotalPages  int64      `json:"total_pages"`
+	AccountID   string     `json:"-"`
 }
 type fileCursor struct {
 	DirectoryID string `json:"d"`
@@ -152,7 +154,7 @@ func (s *Service) Files(ctx context.Context, q FileQuery, requestID string) (res
 		page := int64(offset/q.Limit) + 1
 		currentPage = &page
 	}
-	result = FilePage{DirectoryID: q.DirectoryID, Path: []FilePath{}, Items: []FileItem{}, Total: *response.Count, Page: currentPage, PageSize: q.Limit, TotalPages: totalPages}
+	result = FilePage{DirectoryID: q.DirectoryID, Path: []FilePath{}, Items: []FileItem{}, Total: *response.Count, Page: currentPage, PageSize: q.Limit, TotalPages: totalPages, AccountID: credentialAccountID(cookie)}
 	for _, p := range response.Path {
 		id := parseID(p.CID)
 		if id == nil || p.Name == "" {
@@ -170,6 +172,7 @@ func (s *Service) Files(ctx context.Context, q FileQuery, requestID string) (res
 			Name     string          `json:"n"`
 			Size     json.RawMessage `json:"s"`
 			Modified json.RawMessage `json:"te"`
+			PickCode json.RawMessage `json:"pc"`
 		}
 		if json.Unmarshal(raw, &entry) != nil || entry.Name == "" {
 			return FilePage{}, ErrUpstream
@@ -190,6 +193,7 @@ func (s *Service) Files(ctx context.Context, q FileQuery, requestID string) (res
 				item.SizeBytes = &size
 			}
 			item.FileType = classifyFile(entry.Name)
+			item.PlaybackCode = parseOptionalString(entry.PickCode)
 		}
 		result.Items = append(result.Items, item)
 	}
@@ -199,6 +203,22 @@ func (s *Service) Files(ctx context.Context, q FileQuery, requestID string) (res
 		result.NextCursor = &cursor
 	}
 	return result, nil
+}
+
+// credentialAccountID 提取 UID 的账号部分，使同一用户重新扫码后已有产物仍能播放。
+func credentialAccountID(cookie string) string {
+	for field := range strings.SplitSeq(cookie, ";") {
+		name, value, found := strings.Cut(strings.TrimSpace(field), "=")
+		if !found || name != "UID" {
+			continue
+		}
+		id, _, _ := strings.Cut(value, "_")
+		if len(id) <= 32 && strings.Trim(id, "0123456789") == "" {
+			return id
+		}
+		return ""
+	}
+	return ""
 }
 
 func classifyFile(name string) string {

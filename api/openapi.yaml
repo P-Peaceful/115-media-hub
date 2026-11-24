@@ -377,6 +377,98 @@ paths:
         "404": {$ref: "#/components/responses/AuthError"}
         "409": {$ref: "#/components/responses/AuthError"}
         "503": {$ref: "#/components/responses/Unavailable"}
+  /api/v1/libraries/{id}/full-sync-preview:
+    get:
+      operationId: previewLibraryFullSync
+      summary: Scan the saved 115 source and inspect the configured STRM output directory
+      description: Read-only. Samples are bounded. When the preview deadline expires, counts include only the portion already scanned. Confirmation scans again with the current saved configuration.
+      security: [{adminSession: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
+      responses:
+        "200":
+          description: Source scan and local output readiness
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/FullSyncPreview"}
+        "400": {$ref: "#/components/responses/AuthError"}
+        "401": {$ref: "#/components/responses/AuthError"}
+        "404": {$ref: "#/components/responses/AuthError"}
+        "409": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/Unavailable"}
+        "504":
+          description: Preview scan deadline exceeded
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ErrorResponse"}
+  /api/v1/strm:
+    get:
+      operationId: listStrmFiles
+      summary: List registered STRM artifacts and count the same filtered result
+      security: [{adminSession: []}]
+      parameters:
+        - {name: library_id, in: query, schema: {type: string, minLength: 1, maxLength: 128}}
+        - {name: q, in: query, schema: {type: string, maxLength: 256}}
+        - {name: sort, in: query, schema: {type: string, enum: [name, generated], default: generated}}
+        - {name: order, in: query, schema: {type: string, enum: [asc, desc], default: desc}}
+        - {name: page, in: query, schema: {type: integer, minimum: 1, maximum: 1000000, default: 1}}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+      responses:
+        "200":
+          description: Registered STRM page
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/StrmPage"}
+        "400": {$ref: "#/components/responses/AuthError"}
+        "401": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/Unavailable"}
+  /api/v1/strm/{id}:
+    get:
+      operationId: getStrmFile
+      summary: Read a registered STRM artifact and inspect current file contents
+      security: [{adminSession: []}]
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+      responses:
+        "200":
+          description: STRM file details
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/StrmDetail"}
+        "401": {$ref: "#/components/responses/AuthError"}
+        "404": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/Unavailable"}
+  /p/{id}/{token}/{name}:
+    get:
+      operationId: redirectStrmPlayback
+      summary: Resolve a registered STRM to a fresh 115 playback link
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+        - {name: token, in: path, required: true, schema: {type: string}}
+        - {name: name, in: path, required: true, schema: {type: string}}
+      responses:
+        "302":
+          description: Temporary 115 media URL
+          headers:
+            Location: {required: true, schema: {type: string, format: uri}}
+        "404": {$ref: "#/components/responses/AuthError"}
+        "409": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/Unavailable"}
+    head:
+      operationId: redirectStrmPlaybackHead
+      summary: Resolve a playback probe
+      parameters:
+        - {name: id, in: path, required: true, schema: {type: string}}
+        - {name: token, in: path, required: true, schema: {type: string}}
+        - {name: name, in: path, required: true, schema: {type: string}}
+      responses:
+        "302":
+          description: Temporary 115 media URL
+          headers:
+            Location: {required: true, schema: {type: string, format: uri}}
+        "404": {$ref: "#/components/responses/AuthError"}
+        "409": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/Unavailable"}
   /health/live:
     get:
       operationId: getLiveness
@@ -888,16 +980,78 @@ components:
     SchedulePeriod:
       type: string
       enum: [daily, weekly, monthly, custom]
+    FullSyncPreview:
+      type: object
+      additionalProperties: false
+      required: [revision, scan_complete, scanned_videos, candidate_count, failed_count, samples, output]
+      properties:
+        revision: {type: integer, format: int64, minimum: 1}
+        scan_complete: {type: boolean, description: Whether scanning reached the end of the requested scope. See failed_count for individual failures.}
+        scanned_videos: {type: integer, format: int64, minimum: 0}
+        candidate_count: {type: integer, format: int64, minimum: 0}
+        failed_count: {type: integer, format: int64, minimum: 0, description: Count of invalid source entries and failed subdirectories.}
+        samples:
+          type: array
+          maxItems: 20
+          items: {$ref: "#/components/schemas/FullSyncPreviewSample"}
+        output: {$ref: "#/components/schemas/FullSyncOutputCheck"}
+    FullSyncPreviewSample:
+      type: object
+      additionalProperties: false
+      required: [source_path, relative_path]
+      properties:
+        source_path: {type: string}
+        relative_path: {type: string}
+    FullSyncOutputCheck:
+      type: object
+      additionalProperties: false
+      required: [status, message]
+      properties:
+        status: {type: string, enum: [ready, will_create, missing, not_directory, permission_denied, unavailable]}
+        message: {type: string}
+    StrmFile:
+      type: object
+      additionalProperties: false
+      required: [id, library_id, library_name, name, relative_path, source_file_id, source_path, generated_at, size_bytes]
+      properties:
+        id: {type: string}
+        library_id: {type: string}
+        library_name: {type: string, nullable: true}
+        name: {type: string}
+        relative_path: {type: string}
+        source_file_id: {type: string}
+        source_path: {type: string}
+        generated_at: {type: string, format: date-time}
+        size_bytes: {type: integer, format: int64, minimum: 0}
+    StrmPage:
+      type: object
+      additionalProperties: false
+      required: [items, total, page, limit]
+      properties:
+        items: {type: array, items: {$ref: "#/components/schemas/StrmFile"}}
+        total: {type: integer, format: int64, minimum: 0}
+        page: {type: integer}
+        limit: {type: integer}
+    StrmDetail:
+      allOf:
+        - {$ref: "#/components/schemas/StrmFile"}
+        - type: object
+          required: [output_path, file_state, content]
+          properties:
+            output_path: {type: string}
+            file_state: {type: string, enum: [present, missing, modified, unavailable]}
+            content: {type: string, nullable: true}
     TaskTypeCapability:
       type: object
       additionalProperties: false
-      required: [type, available, reason, can_pause, can_retry_failed]
+      required: [type, available, reason, can_pause, can_retry_failed, can_schedule]
       properties:
         type: {$ref: "#/components/schemas/TaskType"}
         available: {type: boolean}
         reason: {type: string, nullable: true}
         can_pause: {type: boolean}
         can_retry_failed: {type: boolean}
+        can_schedule: {type: boolean}
     TaskTypeCapabilities:
       type: object
       additionalProperties: false
@@ -1063,7 +1217,7 @@ components:
         follow_directory_changes: {type: boolean}
         file_encoding: {type: string, enum: [UTF-8]}
         link_type: {type: string, enum: [direct, proxy]}
-        strm_direct_domain: {type: string, maxLength: 253}
+        strm_direct_domain: {type: string, maxLength: 253, description: Shared STRM playback address. Accepts an HTTP(S) origin or a hostname/IP with optional port (defaults to HTTPS). May be empty until STRM generation is needed.}
         strm_link_format: {type: string, enum: [original_name, file_id]}
     Library:
       type: object
@@ -1087,7 +1241,7 @@ components:
         follow_directory_changes: {type: boolean}
         file_encoding: {type: string, enum: [UTF-8]}
         link_type: {type: string, enum: [direct, proxy]}
-        strm_direct_domain: {type: string, maxLength: 253}
+        strm_direct_domain: {type: string, maxLength: 253, description: Saved STRM playback address shared by both link modes.}
         strm_link_format: {type: string, enum: [original_name, file_id]}
         id: {type: string}
         revision: {type: integer, format: int64, minimum: 1}
@@ -1391,6 +1545,9 @@ components:
             [
               provider_not_configured,
               provider_auth_invalid,
+              provider_directory_not_found,
+              full_sync_preview_timeout,
+              full_sync_unavailable,
               service_unavailable,
               not_found,
               method_not_allowed,

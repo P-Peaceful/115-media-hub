@@ -49,7 +49,7 @@ import { useAuth } from "@/features/auth/auth-provider";
 import { ApiError } from "@/lib/api/errors";
 
 import type { Library, LibraryInput } from "./api";
-import { changeLibrary, getLibrary, listLibraries, setEnabled } from "./api";
+import { changeLibrary, getLibrary, setEnabled } from "./api";
 import { DirectoryPicker } from "./directory-picker";
 import {
   existingFilePolicyLabels,
@@ -65,6 +65,7 @@ import {
 } from "./library-detail-context";
 import { LibraryDetailView } from "./library-detail-view";
 import { formatSTRMExample } from "./strm-format-example";
+import { useLibraryList } from "./use-library-list";
 
 const initial: LibraryInput = {
   name: "",
@@ -215,11 +216,7 @@ export function LibraryListPage() {
   const filter =
     savedFilter === "enabled" || savedFilter === "paused" ? savedFilter : "all";
   const [deleting, setDeleting] = useState<Library | null>(null);
-  const query = useQuery({
-    queryKey: ["libraries", "list"],
-    queryFn: ({ signal }) => listLibraries(signal),
-    retry: false,
-  });
+  const query = useLibraryList();
   const actions = useActions();
   const deleteAction = useActions();
   const items =
@@ -498,6 +495,23 @@ function Field({
     </TextField>
   );
 }
+
+function STRMLinkFormatExample({
+  config,
+  format,
+}: {
+  config: Pick<LibraryInput, "link_type" | "strm_direct_domain">;
+  format: LibraryInput["strm_link_format"];
+}) {
+  return (
+    <p className="wrap-anywhere text-sm text-muted">
+      {config.link_type === "proxy"
+        ? `格式示例 ${formatSTRMExample(config.strm_direct_domain, format)}`
+        : "当前全量同步使用 302 代理链接。"}
+    </p>
+  );
+}
+
 function LibrarySelect({
   label,
   value,
@@ -927,15 +941,22 @@ function LibraryForm({
                 update({ link_type: key === "direct" ? "direct" : "proxy" })
               }
             />
-            <Field label="STRM 直连域名">
+            <Field label="STRM 播放地址">
               <Input
                 value={value.strm_direct_domain}
                 onChange={(event) =>
                   update({ strm_direct_domain: event.target.value })
                 }
-                placeholder="例如：media.example.com"
+                placeholder="例如 https://media.example.com"
+                aria-describedby="strm-playback-address-help"
                 maxLength={253}
               />
+              <p
+                id="strm-playback-address-help"
+                className="mt-1 text-sm text-muted"
+              >
+                302 代理和直连共用此地址。只填域名或 IP 时使用 HTTPS。
+              </p>
             </Field>
             <div className="min-w-0">
               <Tabs
@@ -968,19 +989,13 @@ function LibraryForm({
                   id="original_name"
                   className="min-w-0 lg:col-start-2"
                 >
-                  <p className="wrap-anywhere text-sm text-muted">
-                    格式示例：
-                    {formatSTRMExample(
-                      value.strm_direct_domain,
-                      "original_name",
-                    )}
-                  </p>
+                  <STRMLinkFormatExample
+                    config={value}
+                    format="original_name"
+                  />
                 </Tabs.Panel>
                 <Tabs.Panel id="file_id" className="min-w-0 lg:col-start-2">
-                  <p className="wrap-anywhere text-sm text-muted">
-                    格式示例：
-                    {formatSTRMExample(value.strm_direct_domain, "file_id")}
-                  </p>
+                  <STRMLinkFormatExample config={value} format="file_id" />
                 </Tabs.Panel>
               </Tabs>
             </div>

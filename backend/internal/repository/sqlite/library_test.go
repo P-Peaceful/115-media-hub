@@ -106,11 +106,29 @@ func TestLibraryValidation(t *testing.T) {
 			t.Errorf("existing-file policy %q: expected valid=%v", policy, valid)
 		}
 	}
-	for _, domain := range []string{"media.example.com:65536", "127.0.0.1:99999", "[::1]:99999", "media.example.com:"} {
+	for _, address := range []string{
+		"media.example.com:65536", "127.0.0.1:99999", "[::1]:99999", "media.example.com:",
+		"https://example.com/path", "https://example.com/#", "https://example.com/?", "https://example.com/%2F",
+		"https://private@example.com", "ftp://example.com", "http://[example.com]", "http://2001:db8::1:80",
+	} {
 		c := validLibraryConfig("/media")
-		c.STRMDirectDomain = domain
+		c.STRMDirectDomain = address
 		if library.Validate(c) == nil {
-			t.Errorf("invalid direct domain accepted: %q", domain)
+			t.Errorf("invalid playback address accepted: %q", address)
+		}
+	}
+	for address, want := range map[string]string{
+		"":                             "",
+		"media.example.com:443":        "https://media.example.com:443",
+		"legacy.example.com:0":         "https://legacy.example.com:0",
+		"http://192.168.1.42:8080/":    "http://192.168.1.42:8080",
+		"HTTPS://media.example.com/":   "https://media.example.com",
+		"https://[2001:db8::42]:8443/": "https://[2001:db8::42]:8443",
+	} {
+		c := validLibraryConfig("/media")
+		c.STRMDirectDomain = address
+		if got, valid := library.PlaybackOrigin(address); !valid || got != want || library.Validate(c) != nil {
+			t.Errorf("playback address %q resolved to %q, valid=%v, want %q", address, got, valid, want)
 		}
 	}
 	c := validLibraryConfig("/media")
@@ -121,16 +139,6 @@ func TestLibraryValidation(t *testing.T) {
 	c = validLibraryConfig("relative")
 	if library.Validate(c) == nil {
 		t.Fatal("relative path accepted")
-	}
-	c = validLibraryConfig("/media")
-	c.STRMDirectDomain = "https://example.com/path"
-	if library.Validate(c) == nil {
-		t.Fatal("invalid direct domain accepted")
-	}
-	c = validLibraryConfig("/media")
-	c.STRMDirectDomain = "media.example.com:443"
-	if library.Validate(c) != nil {
-		t.Fatal("valid direct domain rejected")
 	}
 	c = validLibraryConfig("/media")
 	c.ExcludeDirectoryPath = "115 网盘/待排除"

@@ -47,8 +47,8 @@ func TestDatabaseConfigurationAndMigrations(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := provider.Down(ctx); err == nil {
-		t.Fatal("credential migration must reject destructive downgrade")
+	if _, err := provider.DownTo(ctx, 4); err == nil {
+		t.Fatal("task history migration must reject destructive downgrade")
 	}
 	var applicationID int
 	if err := database.sql.QueryRowContext(ctx, "PRAGMA application_id").Scan(&applicationID); err != nil || applicationID != 115 {

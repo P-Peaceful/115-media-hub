@@ -87,7 +87,12 @@ class AuthenticationSmoke:
         assert {item["type"] for item in capabilities} == {
             "scan", "strm", "sync", "check", "cleanup", "scrape", "upload",
         }
-        assert all(not item["available"] and item["reason"] for item in capabilities)
+        for item in capabilities:
+            if item["type"] == "strm":
+                assert item["available"] and item["reason"] is None
+                assert not item["can_schedule"]
+            else:
+                assert not item["available"] and item["reason"]
         for path in ("/api/v1/tasks", "/api/v1/schedules"):
             with self.opener.open(base + path, timeout=5) as result:
                 page = json.load(result)

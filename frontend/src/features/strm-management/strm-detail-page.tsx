@@ -1,10 +1,7 @@
-import "./strm-detail.css";
-
-import { Button, Chip, Modal, Surface } from "@heroui/react";
+import { Button, Chip, Surface } from "@heroui/react";
 import {
   CircleCheck,
   Copy,
-  ExternalLink,
   FileText,
   Folder,
   PlayCircle,
@@ -15,35 +12,39 @@ import type { ReactNode } from "react";
 import { useState } from "react";
 import { useLocation, useParams } from "react-router";
 
-import type { StrmFile } from "./strm-demo";
+import { ApiError } from "@/lib/api/errors";
+
+import type { StrmDetail } from "./api";
+import { strmLibraryPath, useStrmDetail } from "./queries";
 import {
   formatStrmDate,
   formatStrmSize,
-  strmLibraries,
-  strmPlaybackStatusLabels,
-  strmSourceStatusLabels,
-  strmStatusLabels,
-} from "./strm-demo";
-import { useStrmSession } from "./strm-session-context";
-import {
-  DemoBadge,
   PageBack,
   StatusChip,
   StrmEmpty,
+  StrmError,
+  StrmLoading,
   StrmPanel,
   strmReturnTo,
 } from "./strm-ui";
 
-const statusTones = {
-  valid: "success",
-  invalid: "danger",
-  pending: "warning",
-} as const;
-
-const playbackTones = {
-  playable: "success",
-  unplayable: "danger",
-  unchecked: "warning",
+const fileStates = {
+  present: { label: "文件存在", tone: "success", notice: "文件内容为空。" },
+  missing: {
+    label: "文件缺失",
+    tone: "danger",
+    notice: "本地文件已缺失，无法预览。",
+  },
+  modified: {
+    label: "文件已变更",
+    tone: "warning",
+    notice: "本地内容与生成时的记录不一致。",
+  },
+  unavailable: {
+    label: "文件不可读取",
+    tone: "danger",
+    notice: "无法读取本地文件。",
+  },
 } as const;
 
 function FileMetadataField({
@@ -61,7 +62,7 @@ function FileMetadataField({
   );
 }
 
-function FileMetadata({ file }: { file: StrmFile }) {
+function FileMetadata({ file }: { file: StrmDetail }) {
   const [notice, setNotice] = useState("");
 
   async function copy(value: string, label: string) {
@@ -75,8 +76,8 @@ function FileMetadata({ file }: { file: StrmFile }) {
 
   const copyFields = [
     { label: "文件名称", value: file.name },
-    { label: "本地路径", value: file.localPath },
-    { label: "源文件", value: file.sourcePath },
+    { label: "本地路径", value: file.output_path },
+    { label: "源文件", value: file.source_path },
   ];
 
   return (
@@ -100,19 +101,21 @@ function FileMetadata({ file }: { file: StrmFile }) {
           </FileMetadataField>
         ))}
         <FileMetadataField label="所属媒体库">
-          <StatusChip tone="accent">{strmLibraries[file.library]}</StatusChip>
+          <StatusChip tone="accent">
+            {file.library_name ?? "媒体库已删除"}
+          </StatusChip>
         </FileMetadataField>
         <FileMetadataField label="生成时间">
-          <time dateTime={file.generatedAt}>
-            {formatStrmDate(file.generatedAt, true)}
+          <time dateTime={file.generated_at}>
+            {formatStrmDate(file.generated_at, true)}
           </time>
         </FileMetadataField>
         <FileMetadataField label="文件大小">
-          {formatStrmSize(file.sizeBytes)}
+          {formatStrmSize(file.size_bytes)}
         </FileMetadataField>
         <FileMetadataField label="当前状态">
-          <StatusChip tone={statusTones[file.status]}>
-            {strmStatusLabels[file.status]}
+          <StatusChip tone={fileStates[file.file_state].tone}>
+            {fileStates[file.file_state].label}
           </StatusChip>
         </FileMetadataField>
       </dl>
@@ -126,128 +129,73 @@ function FileMetadata({ file }: { file: StrmFile }) {
   );
 }
 
-function SourceLocation({ file }: { file: StrmFile }) {
-  const separator = file.sourcePath.lastIndexOf("/");
-  const sourceDirectory = file.sourcePath.slice(0, separator + 1);
-  const sourceName = file.sourcePath.slice(separator + 1);
-
+function SourceLocation({ file }: { file: StrmDetail }) {
   return (
-    <StrmPanel title="源文件定位" icon={Folder}>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
-        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">
-          <span className="inline-flex shrink-0 items-center gap-2 font-medium">
-            <Folder aria-hidden="true" className="size-4 text-muted" />
-            打开源文件所在目录
+    <StrmPanel title="源文件记录" icon={Folder}>
+      <dl className="space-y-2 text-sm">
+        <FileMetadataField label="源文件 ID">
+          <span className="wrap-anywhere">{file.source_file_id}</span>
+        </FileMetadataField>
+        <FileMetadataField label="源目录">
+          <span className="wrap-anywhere">
+            {file.source_path.slice(0, file.source_path.lastIndexOf("/") + 1) ||
+              "/"}
           </span>
-          <span className="min-w-0 wrap-anywhere text-muted">
-            {sourceDirectory}
-          </span>
-        </div>
-        <Modal>
-          <Button
-            aria-label="定位源文件"
-            className="shrink-0"
-            size="sm"
-            variant="outline"
-          >
-            定位
-            <ExternalLink aria-hidden="true" className="size-4" />
-          </Button>
-          <Modal.Backdrop>
-            <Modal.Container>
-              <Modal.Dialog>
-                <Modal.CloseTrigger aria-label="关闭样例源目录" />
-                <Modal.Header>
-                  <Modal.Heading>样例源目录</Modal.Heading>
-                </Modal.Header>
-                <Modal.Body>
-                  <p className="flex items-center gap-2 text-sm font-medium">
-                    <Folder
-                      aria-hidden="true"
-                      className="size-4 shrink-0 text-accent"
-                    />
-                    <span className="min-w-0 wrap-anywhere">
-                      {sourceDirectory}
-                    </span>
-                  </p>
-                  {file.sourceStatus === "linked" ? (
-                    <Surface
-                      className="flex items-center gap-2 rounded-xl p-3 text-sm"
-                      variant="secondary"
-                    >
-                      <FileText
-                        aria-hidden="true"
-                        className="size-4 shrink-0 text-accent"
-                      />
-                      <span className="min-w-0 wrap-anywhere">
-                        {sourceName}
-                      </span>
-                    </Surface>
-                  ) : (
-                    <p className="text-sm text-muted">
-                      样例目录中没有关联的源文件。
-                    </p>
-                  )}
-                </Modal.Body>
-              </Modal.Dialog>
-            </Modal.Container>
-          </Modal.Backdrop>
-        </Modal>
-      </div>
+        </FileMetadataField>
+      </dl>
     </StrmPanel>
   );
 }
 
-function FileStatuses({ file }: { file: StrmFile }) {
+function FileStatuses() {
+  const statuses = [
+    { label: "源文件关联", icon: CircleCheck, checked: true },
+    { label: "播放链接", icon: PlayCircle, checked: false },
+    { label: "有效性检查", icon: ShieldCheck, checked: false },
+  ];
   return (
     <StrmPanel title="关联与状态" icon={SquareCode}>
       <dl className="divide-y divide-border text-sm">
-        <div className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-0">
-          <dt className="inline-flex items-center gap-2.5 font-medium">
-            <CircleCheck aria-hidden="true" className="size-5 text-muted" />
-            源文件关联
-          </dt>
-          <dd>
-            <StatusChip
-              tone={file.sourceStatus === "linked" ? "success" : "danger"}
-            >
-              {strmSourceStatusLabels[file.sourceStatus]}
-            </StatusChip>
-          </dd>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 py-2.5">
-          <dt className="inline-flex items-center gap-2.5 font-medium">
-            <PlayCircle aria-hidden="true" className="size-5 text-muted" />
-            播放链接
-          </dt>
-          <dd>
-            <StatusChip tone={playbackTones[file.playbackStatus]}>
-              {strmPlaybackStatusLabels[file.playbackStatus]}
-            </StatusChip>
-          </dd>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2.5">
-          <dt className="inline-flex items-center gap-2.5 font-medium">
-            <ShieldCheck aria-hidden="true" className="size-5 text-muted" />
-            有效性检查
-          </dt>
-          <dd className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <span className="text-xs text-muted">
-              最近检查：
-              {file.lastCheckedAt ? (
-                <time dateTime={file.lastCheckedAt}>
-                  {formatStrmDate(file.lastCheckedAt)}
-                </time>
-              ) : (
-                "尚未检查"
-              )}
-            </span>
-            <StatusChip tone={statusTones[file.status]}>
-              {strmStatusLabels[file.status]}
-            </StatusChip>
-          </dd>
-        </div>
+        {statuses.map(({ label, icon: Icon, checked }) => (
+          <div
+            key={label}
+            className="flex flex-wrap items-center justify-between gap-2 py-2.5 first:pt-0 last:pb-0"
+          >
+            <dt className="inline-flex items-center gap-2.5 font-medium">
+              <Icon aria-hidden="true" className="size-5 text-muted" />
+              {label}
+            </dt>
+            <dd>
+              <StatusChip tone={checked ? "success" : "neutral"}>
+                {checked ? "已登记" : "未检查"}
+              </StatusChip>
+            </dd>
+          </div>
+        ))}
       </dl>
+    </StrmPanel>
+  );
+}
+
+function FilePreview({ file }: { file: StrmDetail }) {
+  return (
+    <StrmPanel title="STRM 内容预览" icon={SquareCode}>
+      <Surface variant="secondary">
+        <div className="flex min-h-28 min-w-0 items-start justify-between gap-2 p-3 sm:p-4">
+          {file.content ? (
+            <pre className="min-w-0 flex-1 font-mono text-sm leading-relaxed wrap-anywhere whitespace-pre-wrap">
+              <code>{file.content}</code>
+            </pre>
+          ) : (
+            <p className="text-sm text-muted">
+              {fileStates[file.file_state].notice}
+            </p>
+          )}
+          <Chip className="shrink-0" size="sm" variant="secondary">
+            只读
+          </Chip>
+        </div>
+      </Surface>
     </StrmPanel>
   );
 }
@@ -255,53 +203,44 @@ function FileStatuses({ file }: { file: StrmFile }) {
 export function StrmDetailPage() {
   const { id } = useParams();
   const navigationState: unknown = useLocation().state;
-  const { files, checkRun } = useStrmSession();
-  const file = files.find((item) => item.id === id);
-  const returnTo = strmReturnTo(navigationState);
-  const isResultsReturn = returnTo.startsWith("/strm/check-results");
-  const backHref = isResultsReturn && checkRun === null ? "/strm" : returnTo;
-  const backLabel =
-    isResultsReturn && checkRun !== null ? "返回检查结果" : "返回 STRM 管理";
+  const query = useStrmDetail(id);
+  const file = query.data;
+  const backHref = strmReturnTo(
+    navigationState,
+    file ? strmLibraryPath(file.library_id) : "/strm",
+  );
+  const notFound =
+    query.error instanceof ApiError && query.error.status === 404;
 
   return (
     <div className="space-y-3">
-      <header className="strm-detail-heading flex flex-wrap items-center gap-x-3 gap-y-1">
-        <PageBack href={backHref} label={backLabel} />
-        <h1>文件详情</h1>
-        <DemoBadge />
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <PageBack href={backHref} label="返回 STRM 管理" />
+        <h1 className="m-0 text-2xl font-bold tracking-tight sm:text-[1.75rem]">
+          文件详情
+        </h1>
       </header>
-      {file ? (
+      {notFound && (
+        <StrmEmpty
+          title="找不到此文件"
+          description="没有找到对应的 STRM 登记记录。"
+        />
+      )}
+      {query.isError && !notFound && (
+        <StrmError error={query.error} onRetry={() => void query.refetch()} />
+      )}
+      {query.isPending && <StrmLoading>正在加载文件详情…</StrmLoading>}
+      {file && !notFound && (
         <div className="grid items-start gap-3 lg:grid-cols-2">
           <div className="grid min-w-0 gap-3">
             <FileMetadata key={file.id} file={file} />
             <SourceLocation file={file} />
           </div>
           <div className="grid min-w-0 gap-3">
-            <StrmPanel title="STRM 内容预览" icon={SquareCode}>
-              <Surface
-                className="min-h-28 min-w-0 rounded-xl p-3 sm:p-4"
-                variant="secondary"
-              >
-                <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
-                  <pre className="min-w-0 flex-1 font-mono text-sm leading-relaxed wrap-anywhere whitespace-pre-wrap">
-                    <code>{file.content}</code>
-                  </pre>
-                  <Chip className="shrink-0" size="sm" variant="secondary">
-                    只读
-                  </Chip>
-                </div>
-              </Surface>
-            </StrmPanel>
-            <FileStatuses file={file} />
+            <FilePreview file={file} />
+            <FileStatuses />
           </div>
         </div>
-      ) : (
-        <StrmEmpty
-          title="找不到此文件"
-          description="样例文件可能已在本次演示中清理。"
-          href={backHref}
-          label={backLabel}
-        />
       )}
     </div>
   );
