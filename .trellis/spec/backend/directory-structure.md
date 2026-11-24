@@ -38,4 +38,6 @@ Use short lowercase Go package names without underscores; avoid `common`, `base`
 
 Keep code with its owning feature; promote it only when actual consumers require it. Avoid circular dependencies, global database/client variables, side effects in `init`, and empty directories standing in for implemented modules.
 
+Every new/changed handwritten Go file needs a Chinese responsibility description at the beginning, and its exported/major methods need Chinese responsibility comments. Follow the exact scope, placement, directive, and generated-file rules in [quality guidelines](./quality-guidelines.md#required-chinese-comments).
+
 Reference: [Go Code Review Comments](https://go.dev/wiki/CodeReviewComments).

@@ -1,0 +1,14 @@
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "中文注释、上下文、门禁和测试规则"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "保持 SDK、同步层和持久化的职责"}
+{"file": ".trellis/spec/backend/media-library.md", "reason": "NFO/海报开关及现有 STRM-only 覆盖策略"}
+{"file": ".trellis/spec/backend/strm.md", "reason": "维护产物、路径、扫描和恢复安全边界"}
+{"file": ".trellis/spec/backend/task-center.md", "reason": "任务条目、计数、取消和失败结果"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "文件发布与数据库事务边界，具体持久化待设计"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "下载 URL/凭据脱敏与分类结果"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "附属筛选、下载、落盘和任务展示的端到端合同"}
+{"file": ".trellis/tasks/11-25-library-sidecar-sync/research/integration-boundaries.md", "reason": "配置、后缀、路径、所有权和下载集成证据"}
+{"file": ".trellis/tasks/11-25-backend-comments-provider115/research/sidecar-sync-gap.md", "reason": "用户报告与缺口证据"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "取链/内容请求错误与取消映射"}
+{"file": ".trellis/spec/frontend/task-center.md", "reason": "任务计数、失败条目和日志展示"}
+{"file": ".trellis/spec/frontend/strm-management.md", "reason": "不把附件混入 STRM 数量和预览下载"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "必要前端说明与浏览器验证"}

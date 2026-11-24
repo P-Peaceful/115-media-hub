@@ -1,0 +1,31 @@
+{
+  "id": "library-sidecar-sync",
+  "name": "library-sidecar-sync",
+  "title": "媒体库附属文件同步",
+  "description": "全量同步时按媒体库配置下载网盘已有 NFO、海报封面等附属文件，复用扫描清单并明确本地冲突、下载恢复和任务结果。",
+  "status": "planning",
+  "dev_type": "backend",
+  "scope": "sidecar-sync",
+  "package": null,
+  "priority": "P1",
+  "creator": "P_Peaceful",
+  "assignee": "P_Peaceful",
+  "createdAt": "2026-11-25",
+  "completedAt": null,
+  "branch": "codex/backend-provider115-sidecars",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [],
+  "parent": "11-25-backend-comments-provider115",
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "planning_review": "approved_for_implementation_2026-11-25",
+    "existing_file_policy": "skip",
+    "image_policy": "all_supported_images_only_in_strm_eligible_directories",
+    "sidecar_prerequisite": "same_source_directory_video_with_generated_or_verified_same_source_strm"
+  }
+}

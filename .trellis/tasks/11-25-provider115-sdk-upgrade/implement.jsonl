@@ -1,0 +1,14 @@
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "保持包边界、依赖方向与 Go 文件组织"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "注释质量、生成文件边界与工具门禁"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "职责说明和改造均不得泄露敏感信息"}
+{"file": ".trellis/spec/backend/cloud-drive.md", "reason": "保持目录身份、公共分页和错误合同"}
+{"file": ".trellis/spec/backend/settings.md", "reason": "保持单账号 Cookie 授权和凭据变化合同"}
+{"file": ".trellis/spec/backend/strm.md", "reason": "保持扫描、预览、产物和 302 播放合同"}
+{"file": ".trellis/tasks/11-25-provider115-sdk-upgrade/research/provider115-baseline.md", "reason": "固定上游和兼容性证据；SDK 方案 A，抽样预览另见当前 PRD/设计"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "保持内部分类与公共错误映射、上下文和脱敏"}
+{"file": ".trellis/spec/backend/initialization.md", "reason": "启动配置、环境变量与 app 依赖注入"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "核对 provider/STRM/HTTP 及运行配置的完整数据流"}
+{"file": ".trellis/spec/frontend/strm-management.md", "reason": "抽样预览提示、合法确认、任务导航和旧 UI 约束"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "预览响应变更的生成类型和运行时解码"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "抽样查询显式刷新、取消和避免聚焦反复扫描"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "预览跨层变更的前端和浏览器验收"}

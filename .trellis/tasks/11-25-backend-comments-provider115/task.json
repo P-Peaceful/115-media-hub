@@ -1,0 +1,36 @@
+{
+  "id": "backend-comments-provider115",
+  "name": "backend-comments-provider115",
+  "title": "后端中文注释、115 底层改造与附属同步",
+  "description": "协调后端中文注释、Cookie SDK 与有界抽样预览、媒体库 NFO/全部常见图片下载三项规划及最终集成验收。",
+  "status": "planning",
+  "dev_type": "backend",
+  "scope": "backend",
+  "package": null,
+  "priority": "P1",
+  "creator": "P_Peaceful",
+  "assignee": "P_Peaceful",
+  "createdAt": "2026-11-25",
+  "completedAt": null,
+  "branch": "codex/backend-provider115-sidecars",
+  "base_branch": "main",
+  "worktree_path": null,
+  "commit": null,
+  "pr_url": null,
+  "subtasks": [],
+  "children": [
+    "11-25-backend-chinese-comments",
+    "11-25-provider115-sdk-upgrade",
+    "11-25-library-sidecar-sync"
+  ],
+  "parent": null,
+  "relatedFiles": [],
+  "notes": "",
+  "meta": {
+    "planning_review": "approved_for_implementation_2026-11-25",
+    "sdk_scope": "A_cookie_transport_and_fast_scan",
+    "preview_scope": "bounded_directory_sampling_then_full_execution",
+    "preview_limits": "confirmed_3_directories_5_requests_15_seconds_20_samples",
+    "sidecar_prerequisite": "same_source_directory_video_with_generated_or_verified_same_source_strm"
+  }
+}
