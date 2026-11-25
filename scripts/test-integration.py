@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Run each browser project against its own real backend and fresh database."""
+import argparse
 import os
 from pathlib import Path
 import socket
@@ -36,7 +37,7 @@ def wait_ready(base, process):
     raise RuntimeError(f"后端提前退出：{process.returncode}")
 
 
-def run_project(binary, project):
+def run_project(binary, project, workers=None, timeout_ms=None):
     with tempfile.TemporaryDirectory(prefix=f"mediahub-{project}-") as directory:
         port = available_port()
         base = f"http://127.0.0.1:{port}"
@@ -49,7 +50,12 @@ def run_project(binary, project):
                                        stdout=output, stderr=output)
             try:
                 wait_ready(base, process)
-                subprocess.run(["pnpm", "test:e2e", f"--project={project}"],
+                command = ["pnpm", "test:e2e", f"--project={project}"]
+                if workers is not None:
+                    command.append(f"--workers={workers}")
+                if timeout_ms is not None:
+                    command.append(f"--timeout={timeout_ms}")
+                subprocess.run(command,
                                cwd=ROOT / "frontend", env=env, check=True)
             except BaseException:
                 output.seek(0)
@@ -67,13 +73,30 @@ def run_project(binary, project):
                     raise RuntimeError(f"后端退出码：{code}")
 
 
+def positive_integer(value):
+    """只接受正整数，以免将禁用超时或无效并发参数传给 Playwright。"""
+    try:
+        parsed = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError("必须为正整数") from None
+    if parsed <= 0:
+        raise argparse.ArgumentTypeError("必须为正整数")
+    return parsed
+
+
 def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--workers", type=positive_integer,
+                        help="显式指定每个浏览器项目的 Playwright worker 数量")
+    parser.add_argument("--timeout-ms", type=positive_integer,
+                        help="显式指定 Playwright 单场测试超时（毫秒）")
+    args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="mediahub-integration-build-") as directory:
         binary = Path(directory, "mediahub")
         subprocess.run(["go", "build", "-o", str(binary), "./cmd/mediahub"],
                        cwd=ROOT / "backend", env=dict(os.environ, CGO_ENABLED="1"), check=True)
         for project in BROWSER_PROJECTS:
-            run_project(binary, project)
+            run_project(binary, project, args.workers, args.timeout_ms)
 
 
 if __name__ == "__main__":

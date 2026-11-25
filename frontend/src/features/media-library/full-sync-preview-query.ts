@@ -17,6 +17,15 @@ const outputStatuses = [
   "unavailable",
 ] as const satisfies readonly FullSyncOutputCheck["status"][];
 
+const stopReasons = [
+  "scope_complete",
+  "directory_limit",
+  "request_limit",
+  "time_limit",
+  "sample_limit",
+  "source_error",
+] as const satisfies readonly FullSyncPreview["stop_reason"][];
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -44,6 +53,9 @@ function isOutputCheck(value: unknown): value is FullSyncOutputCheck {
 function isPreview(value: unknown): value is FullSyncPreview {
   return (
     isRecord(value) &&
+    value.mode === "sample" &&
+    stopReasons.some((reason) => reason === value.stop_reason) &&
+    value.scan_complete === (value.stop_reason === "scope_complete") &&
     isCount(value.revision) &&
     value.revision > 0 &&
     typeof value.scan_complete === "boolean" &&
@@ -74,10 +86,12 @@ export function useFullSyncPreview(
   enabled: boolean,
 ) {
   return useQuery({
-    queryKey: ["libraries", "full-sync-preview", libraryId, revision],
+    queryKey: ["full-sync-preview", libraryId, revision],
     queryFn: ({ signal }) => getPreview(libraryId, signal),
     enabled,
     gcTime: 0,
+    staleTime: "static",
+    refetchInterval: false,
     retry: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,

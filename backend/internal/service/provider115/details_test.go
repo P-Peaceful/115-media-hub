@@ -13,7 +13,29 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"testing/synctest"
+	"time"
 )
+
+// TestDetailsOptionalRequestBudgetPreservesProfile 验证长账号间隔使可选容量请求超时后仍保留已验证资料，不误报账号失效。
+func TestDetailsOptionalRequestBudgetPreservesProfile(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		service := NewWithConfig(&detailsRepository{credential: "UID=123_A1_private"}, slog.New(slog.NewJSONHandler(io.Discard, nil)), time.Minute, true)
+		calls := 0
+		service.client.Transport = scanTransport(func(r *http.Request) (*http.Response, error) {
+			calls++
+			if r.URL.Host != "my.115.com" {
+				t.Fatal("optional request escaped its foreground budget")
+			}
+			return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"state":true,"data":{"user_name":"sample"}}`))}, nil
+		})
+		start := time.Now()
+		details, err := service.Details(t.Context(), "req")
+		if err != nil || details.Status != "valid" || details.Profile == nil || details.SpaceStatus != "unavailable" || calls != 1 || time.Since(start) != 45*time.Second {
+			t.Fatalf("optional budget erased profile: details=%+v calls=%d elapsed=%s err=%v", details, calls, time.Since(start), err)
+		}
+	})
+}
 
 // detailsRepository 为账号详情和目录测试提供可替换的明文测试凭据。
 type detailsRepository struct {
@@ -192,5 +214,52 @@ func TestDetailsRejectsReplacedOrDeletedAccount(t *testing.T) {
 				t.Fatalf("stale account details returned: %v", err)
 			}
 		})
+	}
+}
+
+// TestDetailsHTTPAuthorization 验证 HTTP 401 与已知业务登录错误一样报告 invalid，不能误当临时上游故障。
+func TestDetailsHTTPAuthorization(t *testing.T) {
+	service := New(&detailsRepository{credential: "UID=123_A1_private"}, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	service.client.Transport = scanTransport(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusUnauthorized, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}, nil
+	})
+	details, err := service.Details(t.Context(), "req")
+	if err != nil || details.Status != "invalid" || details.Profile != nil {
+		t.Fatalf("http authorization %+v %v", details, err)
+	}
+}
+
+// TestDetailsSpaceCancellation 验证账号资料成功后容量请求取消不能被可选字段降级吞掉。
+func TestDetailsSpaceCancellation(t *testing.T) {
+	service := New(&detailsRepository{credential: "UID=123_A1_private"}, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	service.client.Transport = scanTransport(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Host == "my.115.com" {
+			return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"state":true,"data":{"user_name":"sample"}}`))}, nil
+		}
+		cancel()
+		return nil, context.Canceled
+	})
+	_, err := service.Details(ctx, "req")
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled details returned success: %v", err)
+	}
+}
+
+// TestDetailsFinalCredentialCheck 验证容量读取结束后的最终检查仍保留凭据变更身份，并清除旧账号资料。
+func TestDetailsFinalCredentialCheck(t *testing.T) {
+	repo := &finalReadCredentialRepository{changeAt: 6}
+	service := New(repo, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	service.client.Transport = scanTransport(func(r *http.Request) (*http.Response, error) {
+		body := `{"state":false}`
+		if r.URL.Host == "my.115.com" {
+			body = `{"state":true,"data":{"user_name":"sample"}}`
+		}
+		return &http.Response{StatusCode: 200, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body))}, nil
+	})
+	details, err := service.Details(t.Context(), "req")
+	if repo.reads != 6 || !errors.Is(err, ErrCredentialChanged) || details.Profile != nil || details.Status != "" {
+		t.Fatalf("final details reads=%d details=%+v err=%v", repo.reads, details, err)
 	}
 }

@@ -33,3 +33,9 @@ Use real SQLite for migration, audit rollback, credential/session revocation and
 ## 7. Wrong vs correct
 
 Wrong: return the provider cookie in the QR response, treat a network timeout as proof that authorization expired, or expose the raw `vip` integer as a level. Correct: exchange server-side, map known `vip` values only to member/not-member, return only needed account metadata, distinguish inconclusive checks from invalid authorization, and surface failures without overwriting prior authorization.
+
+## Shared Cookie transport
+
+Account metadata, browsing and playback now share the bounded Cookie adapter and account limiter described in [cloud browsing](./cloud-drive.md#cookie-request-control-and-internal-scanning). QR token/poll/login uses the same bounded transport but does not consume file-account admission or automatically repeat a login exchange. Each account request checks its credential snapshot before sending/adopting and between retries. A credential replacement race is an unavailable result, not proof that the authorization expired.
+
+If the optional capacity request exhausts its own adapter budget after a valid profile was read (for example with a 60-second account interval), keep the profile valid and report capacity unavailable. Caller cancellation/deadline or a credential change still aborts the whole result.

@@ -43,7 +43,7 @@ func New(ctx context.Context, config Config, logger *slog.Logger, assets fs.FS) 
 		return nil, errors.Join(fmt.Errorf("initialize authentication: %w", err), database.Close())
 	}
 	libraries := library.New(database, logger)
-	provider := provider115.New(database, logger)
+	provider := provider115.NewWithConfig(database, logger, config.ProviderRequestInterval, config.ProviderFastScan)
 	strmFiles := strm.New(database, provider, logger)
 	tasks := jobs.New(database, libraries, map[domain.Type]jobs.Module{domain.STRM: strmFiles.Module()}, logger)
 	handler, err := transport.NewRouter(database, logger, assets, transport.AuthOptions{

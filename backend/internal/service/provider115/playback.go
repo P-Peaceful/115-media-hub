@@ -3,6 +3,7 @@
 package provider115
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -11,7 +12,10 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
 	"time"
+
+	adapter "github.com/wenzhengcheng/115-media-hub/backend/internal/adapter/provider115"
 
 	"github.com/SheltonZhu/115driver/pkg/crypto/m115"
 )
@@ -23,7 +27,7 @@ var ErrSourceNotFound = errors.New("115 source file not found")
 var errPlaybackThrottled = errors.New("115 playback lookup throttled")
 
 // playbackTimeout 限制单次播放解析的总时长。
-const playbackTimeout = 10 * time.Second
+const playbackTimeout = 15 * time.Second
 
 // ResolvePlayback 用当前 115 授权为登记的源文件签发临时链接。
 func (s *Service) ResolvePlayback(ctx context.Context, accountID, sourceFileID, playbackCode, userAgent, requestID string) (target string, resultErr error) {
@@ -40,7 +44,7 @@ func (s *Service) ResolvePlayback(ctx context.Context, accountID, sourceFileID, 
 	}
 	cookie, err := repo.ProviderCredential(ctx)
 	if err != nil {
-		return "", ErrUpstream
+		return "", errors.Join(ErrUpstream, err)
 	}
 	if cookie == "" {
 		return "", ErrUnconfigured
@@ -54,8 +58,11 @@ func (s *Service) ResolvePlayback(ctx context.Context, accountID, sourceFileID, 
 	}
 	// 查询期间若已解绑或替换凭据，即使上游成功也不能下发旧账号的临时链接。
 	current, err := repo.ProviderCredential(ctx)
-	if err != nil || current != cookie {
-		return "", ErrUpstream
+	if err != nil {
+		return "", errors.Join(ErrUpstream, err)
+	}
+	if current != cookie {
+		return "", ErrCredentialChanged
 	}
 	return target, nil
 }
@@ -72,39 +79,11 @@ func (s *Service) requestPlayback(ctx context.Context, cookie, sourceFileID, pla
 	key := m115.GenerateKey()
 	form := url.Values{"data": {m115.Encode(payload, key)}}
 	query := url.Values{"t": {strconv.FormatInt(s.now().Unix(), 10)}}
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.playbackURL+"?"+query.Encode(), strings.NewReader(form.Encode()))
+	data, err := s.doRequest(ctx, adapter.Request{Scope: accountScope(cookie), Operation: adapter.Playback, Method: http.MethodPost, URL: s.playbackURL + "?" + query.Encode(), Header: requestHeaders(cookie, userAgent), Body: []byte(form.Encode()), MaxBytes: 64 << 10, Check: s.checkCredential(cookie), Inspect: s.inspectBusiness(cookie)})
 	if err != nil {
-		return "", ErrUpstream
+		return "", mapRequestError(err, ErrSourceNotFound)
 	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Cookie", cookie)
-	req.Header.Set("Referer", "https://115.com/")
-	// CDN 可能会把链接绑定到签发时的 UA。空值也显式保留以禁用 Go 默认 UA。
-	req.Header.Set("User-Agent", userAgent)
-	client := *s.client
-	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	resp, err := client.Do(req)
-	if err != nil {
-		if ctx.Err() != nil {
-			return "", ctx.Err()
-		}
-		return "", ErrUpstream
-	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			s.logger.DebugContext(ctx, "115 playback response body close failed", "operation", "resolve_playback")
-		}
-	}()
-	if resp.StatusCode == http.StatusTooManyRequests {
-		return "", errors.Join(ErrUpstream, errPlaybackThrottled)
-	}
-	if resp.StatusCode == http.StatusUnauthorized {
-		return "", ErrInvalidAuthorization
-	}
-	if resp.StatusCode != http.StatusOK {
-		return "", ErrUpstream
-	}
-	return readPlaybackResponse(resp.Body, key, sourceFileID, playbackCode)
+	return readPlaybackResponse(bytes.NewReader(data), key, sourceFileID, playbackCode)
 }
 
 // readPlaybackResponse 有界读取取链响应，先判断错误信封，再解码并核对源文件和可信目标。

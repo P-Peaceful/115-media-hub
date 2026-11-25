@@ -45,6 +45,20 @@ func providerID(id string) bool {
 // scan 广度遍历保存的范围并按稳定身份去重；目录分页失败时丢弃该目录结果，兄弟目录可继续。
 // 根目录、授权或账号变更失败终止整轮；取消只返回此前完整读取的目录。
 func (s *Service) scan(ctx context.Context, target library.Library, requestID string, reportDirectory func(string, scanSummary) error, reportFailure func(sourceFile)) ([]sourceFile, scanSummary, error) {
+	if target.IncludeSubdirectories {
+		if rapid, ok := s.provider.(interface {
+			RapidScan(context.Context, string, string) (provider115.TreeSnapshot, error)
+		}); ok {
+			snapshot, err := rapid.RapidScan(ctx, target.DirectoryID, requestID)
+			if err == nil {
+				return s.adoptRapidSnapshot(ctx, target, snapshot, reportDirectory, reportFailure)
+			}
+			if !errors.Is(err, provider115.ErrFastUnavailable) {
+				return nil, scanSummary{}, err
+			}
+			s.logger.DebugContext(ctx, "115 fast scan falling back", "operation", "scan", "scan_mode", "standard", "fallback_reason", "snapshot_unavailable", "library_id", target.ID)
+		}
+	}
 	directories := []sourceDirectory{{id: target.DirectoryID, display: target.DirectoryPath}}
 	seenDirectories := map[string]bool{target.DirectoryID: true}
 	seenFiles := make(map[string]bool)
@@ -70,7 +84,7 @@ func (s *Service) scan(ctx context.Context, target library.Library, requestID st
 			if reportFailure != nil {
 				reportFailure(failed)
 			}
-			if directory.parentID == "" || errors.Is(err, errAccountChanged) || errors.Is(err, provider115.ErrUnconfigured) || errors.Is(err, provider115.ErrInvalidAuthorization) {
+			if directory.parentID == "" || errors.Is(err, errAccountChanged) || errors.Is(err, provider115.ErrCredentialChanged) || errors.Is(err, provider115.ErrUnconfigured) || errors.Is(err, provider115.ErrInvalidAuthorization) {
 				return nil, summary, err
 			}
 			files = append(files, failed)
@@ -108,16 +122,49 @@ func (s *Service) scan(ctx context.Context, target library.Library, requestID st
 
 // scanDirectory 读取单目录所有分页并核对账号、路径及游标；仅完整成功才返回子目录和视频列表。
 func (s *Service) scanDirectory(ctx context.Context, config library.Config, requestID string, directory sourceDirectory, accountID *string) ([]sourceDirectory, []sourceFile, error) {
-	query := provider115.FileQuery{DirectoryID: directory.id, Limit: 200, Sort: "name", Order: "asc", Type: "all"}
+	return s.scanDirectoryPages(ctx, config, requestID, directory, accountID, 10000)
+}
+
+// scanDirectoryPages 限制单目录分页总次数，游标持续增长的异常上游也不能形成无界扫描。
+func (s *Service) scanDirectoryPages(ctx context.Context, config library.Config, requestID string, directory sourceDirectory, accountID *string, maxPages int) ([]sourceDirectory, []sourceFile, error) {
+	limit := 200
+	scanner, hasScanner := s.provider.(interface {
+		ScanFiles(context.Context, provider115.FileQuery, string) (provider115.FilePage, error)
+	})
+	if hasScanner {
+		limit = 1150
+	}
+	query := provider115.FileQuery{DirectoryID: directory.id, Limit: limit, Sort: "name", Order: "asc", Type: "all"}
 	var directories []sourceDirectory
 	var files []sourceFile
 	var firstPath string
 	seenCursors := make(map[string]bool)
-	for {
+	var expectedTotal int64 = -1
+	var received int64
+	seenEntries := make(map[string]bool)
+	for pages := 0; pages < maxPages; pages++ {
 		if err := ctx.Err(); err != nil {
 			return nil, nil, err
 		}
-		page, err := s.provider.Files(ctx, query, requestID)
+		var page provider115.FilePage
+		var err error
+		if hasScanner {
+			page, err = scanner.ScanFiles(ctx, query, requestID)
+		} else {
+			page, err = s.provider.Files(ctx, query, requestID)
+		}
+		if errors.Is(err, provider115.ErrLargePageUnsupported) && query.Limit > 200 {
+			query.Limit = 200
+			query.Cursor = ""
+			directories = nil
+			files = nil
+			firstPath = ""
+			seenCursors = make(map[string]bool)
+			expectedTotal = -1
+			received = 0
+			seenEntries = make(map[string]bool)
+			continue
+		}
 		if err != nil {
 			return nil, nil, err
 		}
@@ -125,6 +172,25 @@ func (s *Service) scanDirectory(ctx context.Context, config library.Config, requ
 			return nil, nil, errAccountChanged
 		}
 		*accountID = page.AccountID
+		if hasScanner {
+			if expectedTotal < 0 {
+				expectedTotal = page.Total
+			}
+			received += int64(len(page.Items))
+			if page.Total != expectedTotal || received > expectedTotal || (page.NextCursor == nil && received != expectedTotal) {
+				return nil, nil, errSourcePagination
+			}
+			for _, item := range page.Items {
+				key := "file:" + item.ID
+				if item.IsDirectory {
+					key = "directory:" + item.ID
+				}
+				if seenEntries[key] {
+					return nil, nil, errSourcePagination
+				}
+				seenEntries[key] = true
+			}
+		}
 		display, relative, err := sourceDirectoryPaths(directory, page)
 		if err != nil {
 			return nil, nil, err
@@ -168,6 +234,7 @@ func (s *Service) scanDirectory(ctx context.Context, config library.Config, requ
 		seenCursors[*page.NextCursor] = true
 		query.Cursor = *page.NextCursor
 	}
+	return nil, nil, errSourcePagination
 }
 
 // sourceDirectoryPaths 核对请求目录及父子路径身份，拒绝扫描期间被移动或改名的子目录。

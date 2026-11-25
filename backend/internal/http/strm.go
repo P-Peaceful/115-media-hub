@@ -19,7 +19,7 @@ import (
 )
 
 // fullSyncPreviewTimeout 为只读预览保留独立期限，在服务器写入超时前留出响应时间。
-const fullSyncPreviewTimeout = 55 * time.Second
+const fullSyncPreviewTimeout = 15 * time.Second
 
 // strmHandler 连接 STRM 服务及媒体库配置，不在传输层实现扫描和落盘。
 type strmHandler struct {
@@ -77,6 +77,8 @@ func (h *strmHandler) previewFullSync(c *gin.Context) {
 		writeError(c, http.StatusConflict, generated.ProviderAuthInvalid, "115 授权已失效，请重新登录")
 	case errors.Is(err, provider115.ErrDirectoryNotFound):
 		writeError(c, http.StatusNotFound, generated.ProviderDirectoryNotFound, "115 源目录不存在，请检查媒体库配置")
+	case errors.Is(err, context.DeadlineExceeded):
+		writeError(c, http.StatusGatewayTimeout, generated.FullSyncPreviewTimeout, "抽样预览超时，请重试")
 	case err != nil:
 		writeError(c, http.StatusServiceUnavailable, generated.ServiceUnavailable, "暂时无法扫描 115 源目录，请重试")
 	default:
@@ -85,6 +87,7 @@ func (h *strmHandler) previewFullSync(c *gin.Context) {
 			samples = append(samples, generated.FullSyncPreviewSample{SourcePath: sample.SourcePath, RelativePath: sample.RelativePath})
 		}
 		c.JSON(http.StatusOK, generated.FullSyncPreview{
+			Mode: generated.FullSyncPreviewMode(result.Mode), StopReason: generated.FullSyncPreviewStopReason(result.StopReason),
 			Revision: result.Revision, ScanComplete: result.ScanComplete, ScannedVideos: result.ScannedVideos,
 			CandidateCount: result.CandidateCount, FailedCount: result.FailedCount, Samples: samples,
 			Output: generated.FullSyncOutputCheck{Status: generated.FullSyncOutputCheckStatus(result.Output.Status), Message: result.Output.Message},

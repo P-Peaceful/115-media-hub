@@ -6,9 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
 	"math/big"
-	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -81,14 +79,22 @@ func (s *Service) Details(ctx context.Context, correlation string) (result Accou
 			return
 		}
 		current, err := repo.ProviderCredential(ctx)
-		if err != nil || current != cookie {
-			resultErr = ErrUpstream
+		if err != nil {
+			resultErr = errors.Join(ErrUpstream, err)
+			result = AccountDetails{}
+		} else if current != cookie {
+			resultErr = ErrCredentialChanged
 			result = AccountDetails{}
 		}
 	}()
 	body, err := s.accountRequest(ctx, s.navURL, cookie)
+	err = mapRequestError(err, ErrDirectoryNotFound)
+	if errors.Is(err, ErrInvalidAuthorization) {
+		result.Status = "invalid"
+		return result, nil
+	}
 	if err != nil {
-		return result, ErrUpstream
+		return result, err
 	}
 	var nav struct {
 		State upstreamState   `json:"state"`
@@ -127,6 +133,13 @@ func (s *Service) Details(ctx context.Context, correlation string) (result Accou
 	result.Profile = profile
 	spaceBody, err := s.accountRequest(ctx, s.spaceURL, cookie)
 	if err != nil {
+		if ctx.Err() != nil {
+			return result, ctx.Err()
+		}
+		if errors.Is(err, ErrCredentialChanged) {
+			return result, err
+		}
+		// 可选请求自身的预算耗尽不否定已验证的账号资料；调用方取消或期限仍须向上传播。
 		s.log(ctx, "account_space", correlation, start, err)
 		return result, nil
 	}
@@ -299,30 +312,7 @@ func parseBytes(raw json.RawMessage) (string, bool) {
 	return integer.String(), true
 }
 
-// accountRequest 携带 Cookie 发起 15 秒只读请求，禁用跳转以免转发凭据，限制响应读取并关闭响应体。
+// accountRequest 通过共享账号调度读取元数据，每次重试前及返回前核对原凭据。
 func (s *Service) accountRequest(ctx context.Context, address, cookie string) ([]byte, error) {
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, address, nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Cookie", cookie)
-	req.Header.Set("User-Agent", "Mozilla/5.0 115Browser/36.0.0")
-	req.Header.Set("Referer", "https://115.com/")
-	client := *s.client
-	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	data, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	closeErr := resp.Body.Close()
-	if readErr != nil || closeErr != nil {
-		return nil, errors.Join(readErr, closeErr)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, ErrUpstream
-	}
-	return data, nil
+	return s.readRequest(ctx, address, cookie, false, false)
 }

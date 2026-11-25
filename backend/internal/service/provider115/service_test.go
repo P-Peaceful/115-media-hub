@@ -3,7 +3,9 @@
 package provider115
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"log/slog"
@@ -13,6 +15,37 @@ import (
 	"testing"
 	"time"
 )
+
+// TestOperationLogClassifiesWrappedErrors 验证取消、限流、授权和凭据竞态日志的真实分类，不输出原始错误。
+func TestOperationLogClassifiesWrappedErrors(t *testing.T) {
+	for _, tc := range []struct {
+		name, outcome, code string
+		err                 error
+	}{
+		{"canceled", "canceled", "request_canceled", context.Canceled},
+		{"deadline", "failed", "provider_timeout", context.DeadlineExceeded},
+		{"throttled", "failed", "provider_throttled", errPlaybackThrottled},
+		{"authorization", "failed", "provider_auth_invalid", ErrInvalidAuthorization},
+		{"credential_changed", "failed", "provider_credential_changed", ErrCredentialChanged},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var output bytes.Buffer
+			logger := slog.New(slog.NewJSONHandler(&output, &slog.HandlerOptions{Level: slog.LevelDebug}))
+			s := New(&testRepository{}, logger)
+			s.log(t.Context(), "list_files", "request", time.Now(), errors.Join(tc.err, errors.New("private-cookie-and-url")))
+			var event struct {
+				Outcome   string `json:"outcome"`
+				ErrorCode string `json:"error_code"`
+			}
+			if err := json.Unmarshal(output.Bytes(), &event); err != nil {
+				t.Fatal(err)
+			}
+			if event.Outcome != tc.outcome || event.ErrorCode != tc.code || strings.Contains(output.String(), "private-cookie-and-url") {
+				t.Fatalf("wrong or unsafe outcome: %s", output.String())
+			}
+		})
+	}
+}
 
 // testRepository 在内存中模拟账号保存、删除及存储失败。
 type testRepository struct {

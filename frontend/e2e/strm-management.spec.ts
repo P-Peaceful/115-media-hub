@@ -202,7 +202,12 @@ test("有数据时以 HeroUI 展示统计、筛选、选择和列表操作", asy
   if (testInfo.project.name === "desktop") {
     await page.setViewportSize({ width: 1440, height: 980 });
   }
+  const rowsLoaded = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === "/api/v1/strm" && response.ok(),
+  );
   await page.goto("/strm");
+  await rowsLoaded;
   const main = page.getByRole("main");
   await expect(main.getByText("共 26 条")).toBeVisible();
   for (const label of ["STRM 文件", "有效", "异常", "待处理"]) {
@@ -295,6 +300,8 @@ test("媒体库全量同步确认后提交任务并关联真实同步历史和�
       await route.fulfill({
         json: {
           revision: library.revision,
+          mode: "sample",
+          stop_reason: "scope_complete",
           scan_complete: true,
           scanned_videos: 27,
           candidate_count: 26,
@@ -383,12 +390,12 @@ test("媒体库全量同步确认后提交任务并关联真实同步历史和�
   expect(submissions).toBe(0);
   const confirm = page.getByRole("button", { name: "确认执行" });
   await expect(
-    page.getByText("正在扫描 115 媒体源并检查输出目录…"),
+    page.getByText("正在抽样读取 115 目录并检查输出目录…"),
   ).toBeVisible();
   await expect(confirm).toBeDisabled();
   releaseScan();
-  const scanResults = page.getByRole("region", { name: "扫描结果" });
-  await expect(scanResults.getByText("扫描到的视频")).toBeVisible();
+  const scanResults = page.getByRole("region", { name: "抽样结果" });
+  await expect(scanResults.getByText("抽样发现的视频")).toBeVisible();
   await expect(scanResults.getByText("27", { exact: true })).toBeVisible();
   await expect(scanResults.getByText("26", { exact: true })).toBeVisible();
   await expect(scanResults.getByText("1", { exact: true })).toBeVisible();

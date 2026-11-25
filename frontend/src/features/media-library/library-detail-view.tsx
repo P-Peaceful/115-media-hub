@@ -12,9 +12,7 @@ import {
   Folder,
   Link2,
   ListChecks,
-  Pause,
   Pencil,
-  Play,
   RefreshCw,
   Settings2,
   Timer,
@@ -311,8 +309,6 @@ function SyncHistoryRow({ task }: { task: Task }) {
 
 export function LibraryDetailView({
   item,
-  onToggle,
-  pending,
 }: {
   item: Library;
   onToggle: () => void;

@@ -16,6 +16,15 @@ const outputLabels: Record<FullSyncOutputCheck["status"], string> = {
   unavailable: "无法访问输出目录",
 };
 
+const stopMessages: Record<FullSyncPreview["stop_reason"], string> = {
+  scope_complete: "已读完当前配置的源目录范围。",
+  directory_limit: "已达到 3 个目录的抽样上限。",
+  request_limit: "已达到 5 次目录请求的抽样上限（包含重试）。",
+  time_limit: "已达到 15 秒的抽样时间上限。",
+  sample_limit: "已达到 20 条文件样例的抽样上限。",
+  source_error: "部分源目录无法完整读取。",
+};
+
 export function canUsePreviewOutput({ status }: FullSyncOutputCheck) {
   return status === "ready" || status === "will_create";
 }
@@ -26,9 +35,9 @@ export function FullSyncPreviewResults({
   preview: FullSyncPreview;
 }) {
   const visibleCounts = [
-    ["扫描到的视频", preview.scanned_videos],
-    ["STRM 候选文件", preview.candidate_count],
-    ["扫描异常", preview.failed_count],
+    ["抽样发现的视频", preview.scanned_videos],
+    ["抽样 STRM 候选", preview.candidate_count],
+    ["抽样异常", preview.failed_count],
   ] as const;
   const { output, samples } = preview;
   const outputLabel = outputLabels[output.status];
@@ -45,9 +54,10 @@ export function FullSyncPreviewResults({
         <Alert status="warning" role="status">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>部分扫描结果</Alert.Title>
+            <Alert.Title>抽样结果（未覆盖全部范围）</Alert.Title>
             <Alert.Description>
-              预览扫描已达到时间上限，当前数量仅统计已扫描的部分。确认后会完整扫描媒体源。
+              {stopMessages[preview.stop_reason]}{" "}
+              当前数量仅为抽样已见结果，不代表全库总量。确认后会完整扫描媒体源。
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -106,9 +116,11 @@ export function FullSyncPreviewResults({
             </Table.Content>
           </Table.ScrollContainer>
         </Table>
-      ) : preview.scan_complete ? (
-        <p className="text-sm text-muted">未扫描到可生成 STRM 的视频文件。</p>
-      ) : null}
+      ) : (
+        <p className="text-sm text-muted">
+          本次抽样未发现可生成 STRM 的视频文件。
+        </p>
+      )}
     </div>
   );
 }

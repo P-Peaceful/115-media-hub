@@ -106,6 +106,51 @@ func (e FullSyncOutputCheckStatus) Valid() bool {
 	}
 }
 
+// Defines values for FullSyncPreviewMode.
+const (
+	Sample FullSyncPreviewMode = "sample"
+)
+
+// Valid indicates whether the value is a known member of the FullSyncPreviewMode enum.
+func (e FullSyncPreviewMode) Valid() bool {
+	switch e {
+	case Sample:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for FullSyncPreviewStopReason.
+const (
+	DirectoryLimit FullSyncPreviewStopReason = "directory_limit"
+	RequestLimit   FullSyncPreviewStopReason = "request_limit"
+	SampleLimit    FullSyncPreviewStopReason = "sample_limit"
+	ScopeComplete  FullSyncPreviewStopReason = "scope_complete"
+	SourceError    FullSyncPreviewStopReason = "source_error"
+	TimeLimit      FullSyncPreviewStopReason = "time_limit"
+)
+
+// Valid indicates whether the value is a known member of the FullSyncPreviewStopReason enum.
+func (e FullSyncPreviewStopReason) Valid() bool {
+	switch e {
+	case DirectoryLimit:
+		return true
+	case RequestLimit:
+		return true
+	case SampleLimit:
+		return true
+	case ScopeComplete:
+		return true
+	case SourceError:
+		return true
+	case TimeLimit:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for HealthResponseStatus.
 const (
 	Ok HealthResponseStatus = "ok"
@@ -899,18 +944,29 @@ type FullSyncOutputCheckStatus string
 
 // FullSyncPreview defines model for FullSyncPreview.
 type FullSyncPreview struct {
+	// CandidateCount Valid candidates observed in the sample; not a library total.
 	CandidateCount int64 `json:"candidate_count"`
 
 	// FailedCount Count of invalid source entries and failed subdirectories.
 	FailedCount int64                   `json:"failed_count"`
+	Mode        FullSyncPreviewMode     `json:"mode"`
 	Output      FullSyncOutputCheck     `json:"output"`
 	Revision    int64                   `json:"revision"`
 	Samples     []FullSyncPreviewSample `json:"samples"`
 
-	// ScanComplete Whether scanning reached the end of the requested scope. See failed_count for individual failures.
-	ScanComplete  bool  `json:"scan_complete"`
-	ScannedVideos int64 `json:"scanned_videos"`
+	// ScanComplete True only when the requested scope was exhausted with no unread or failed directories. Invalid individual source entries remain in failed_count.
+	ScanComplete bool `json:"scan_complete"`
+
+	// ScannedVideos Deduplicated videos observed in validated sample pages; not a library total.
+	ScannedVideos int64                     `json:"scanned_videos"`
+	StopReason    FullSyncPreviewStopReason `json:"stop_reason"`
 }
+
+// FullSyncPreviewMode defines model for FullSyncPreview.Mode.
+type FullSyncPreviewMode string
+
+// FullSyncPreviewStopReason defines model for FullSyncPreview.StopReason.
+type FullSyncPreviewStopReason string
 
 // FullSyncPreviewSample defines model for FullSyncPreviewSample.
 type FullSyncPreviewSample struct {

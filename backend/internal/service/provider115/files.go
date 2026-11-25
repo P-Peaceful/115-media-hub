@@ -23,6 +23,9 @@ var ErrInvalidAuthorization = errors.New("115 authorization invalid")
 // ErrDirectoryNotFound 表示上游返回的目录身份与请求不符。
 var ErrDirectoryNotFound = errors.New("115 directory not found")
 
+// ErrLargePageUnsupported 仅标记上游明确将内部大页收窄为既有 200 条能力。
+var ErrLargePageUnsupported = errors.New("115 large directory page unsupported")
+
 // ErrInvalidQuery 表示目录查询参数或分页游标不符合合同。
 var ErrInvalidQuery = errors.New("invalid directory query")
 
@@ -80,11 +83,21 @@ type fileCursor struct {
 // Files 校验并读取实时目录的一页，核对目录、数量及路径后转换条目；授权变化时丢弃结果。
 // 偏移分页可能受并发目录变化影响，刷新浏览应从头开始。
 func (s *Service) Files(ctx context.Context, q FileQuery, requestID string) (result FilePage, resultErr error) {
+	return s.files(ctx, q, requestID, false)
+}
+
+// ScanFiles 为正式扫描提供独立大批次读取，公开 Files 的 200 条上限保持不变。
+func (s *Service) ScanFiles(ctx context.Context, q FileQuery, requestID string) (FilePage, error) {
+	return s.files(ctx, q, requestID, true)
+}
+
+// files 校验公开或内部查询并核对响应目录及凭据身份。
+func (s *Service) files(ctx context.Context, q FileQuery, requestID string, background bool) (result FilePage, resultErr error) {
 	start := time.Now()
 	defer func() { s.log(ctx, "list_files", requestID, start, resultErr) }()
 	sorts := map[string]string{"name": "file_name", "size": "file_size", "modified_at": "user_utime"}
 	types := map[string]string{"all": "0", "document": "1", "image": "2", "audio": "3", "video": "4"}
-	if q.DirectoryID == "" || len(q.DirectoryID) > 32 || strings.Trim(q.DirectoryID, "0123456789") != "" || q.Limit < 1 || q.Limit > 200 || sorts[q.Sort] == "" || types[q.Type] == "" || (q.Order != "asc" && q.Order != "desc") {
+	if q.DirectoryID == "" || len(q.DirectoryID) > 32 || strings.Trim(q.DirectoryID, "0123456789") != "" || q.Limit < 1 || (q.Limit > 200 && (!background || q.Limit > 1150)) || sorts[q.Sort] == "" || types[q.Type] == "" || (q.Order != "asc" && q.Order != "desc") {
 		return result, ErrInvalidQuery
 	}
 	const maxSafeInteger int64 = 9007199254740991
@@ -119,9 +132,12 @@ func (s *Service) Files(ctx context.Context, q FileQuery, requestID string) (res
 	}
 	defer func() {
 		current, e := repo.ProviderCredential(ctx)
-		if e != nil || current != cookie {
+		if e != nil {
 			result = FilePage{}
-			resultErr = ErrUpstream
+			resultErr = errors.Join(resultErr, ErrUpstream, e)
+		} else if current != cookie {
+			result = FilePage{}
+			resultErr = errors.Join(resultErr, ErrCredentialChanged)
 		}
 	}()
 	asc := "1"
@@ -129,15 +145,16 @@ func (s *Service) Files(ctx context.Context, q FileQuery, requestID string) (res
 		asc = "0"
 	}
 	values := url.Values{"aid": {"1"}, "cid": {q.DirectoryID}, "offset": {strconv.Itoa(offset)}, "limit": {strconv.Itoa(q.Limit)}, "cur": {"1"}, "custom_order": {"1"}, "o": {sorts[q.Sort]}, "asc": {asc}, "type": {types[q.Type]}}
-	body, err := s.accountRequest(ctx, s.filesURL+"?"+values.Encode(), cookie)
+	body, err := s.readRequest(ctx, s.filesURL+"?"+values.Encode(), cookie, background, true)
 	if err != nil {
-		return result, ErrUpstream
+		return result, mapRequestError(err, ErrDirectoryNotFound)
 	}
 	var response struct {
 		State upstreamState     `json:"state"`
 		Error string            `json:"error"`
 		CID   json.RawMessage   `json:"cid"`
 		Count *int64            `json:"count"`
+		Limit *int              `json:"limit"`
 		Data  []json.RawMessage `json:"data"`
 		Path  []struct {
 			CID  json.RawMessage `json:"cid"`
@@ -152,6 +169,9 @@ func (s *Service) Files(ctx context.Context, q FileQuery, requestID string) (res
 			return result, ErrInvalidAuthorization
 		}
 		return result, ErrUpstream
+	}
+	if background && q.Limit > 200 && response.Limit != nil && *response.Limit == 200 {
+		return result, ErrLargePageUnsupported
 	}
 	if response.Count == nil || *response.Count < 0 || *response.Count > 9007199254740991 || len(response.Data) > q.Limit || int64(len(response.Data)) > *response.Count || (int64(offset) < *response.Count && len(response.Data) == 0) || (len(response.Data) > 0 && int64(offset)+int64(len(response.Data)) > *response.Count) || (q.Page > 0 && int64(offset)+int64(len(response.Data)) < *response.Count && len(response.Data) != q.Limit) {
 		return result, ErrUpstream

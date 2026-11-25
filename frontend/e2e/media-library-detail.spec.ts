@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 import type { components } from "../src/lib/api/generated/schema";
 
@@ -27,6 +27,28 @@ const library = {
   strm_direct_domain: "",
   strm_link_format: "original_name",
 };
+
+// 文档重载先等待保存配置的真实响应，再断言视图，避免将模块冷启动时间算作 UI 状态等待。
+async function reloadLibrary(page: Page) {
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/api/v1/libraries/1") && response.ok(),
+    ),
+    page.reload(),
+  ]);
+}
+
+async function openLibrary(page: Page, path: string) {
+  const id = path.split("/")[2];
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        new URL(response.url()).pathname === `/api/v1/libraries/${id}`,
+    ),
+    page.goto(path),
+  ]);
+}
 
 test.beforeEach(async ({ page }, testInfo) => {
   await page.route("**/api/v1/auth/bootstrap", (route) =>
@@ -136,6 +158,8 @@ test("执行预览展示输出目录问题并阻止提交，重新扫描后可�
     return route.fulfill({
       json: {
         revision: requests === 3 ? revision + 1 : revision,
+        mode: "sample",
+        stop_reason: requests <= 3 ? "scope_complete" : "time_limit",
         scan_complete: requests <= 3,
         scanned_videos: 0,
         candidate_count: 0,
@@ -151,16 +175,16 @@ test("执行预览展示输出目录问题并阻止提交，重新扫描后可�
       } satisfies components["schemas"]["FullSyncPreview"],
     });
   });
-  await page.goto("/libraries/1/full-sync/execution-preview");
+  await openLibrary(page, "/libraries/1/full-sync/execution-preview");
   const confirm = page.getByRole("button", { name: "确认执行" });
-  const results = page.getByRole("region", { name: "扫描结果" });
+  const results = page.getByRole("region", { name: "抽样结果" });
   await expect(results.getByRole("alert")).toContainText("输出目录权限不足");
   await expect(
     results.getByText("请确认运行服务的用户可写入此目录。"),
   ).toBeVisible();
   await expect(confirm).toBeDisabled();
 
-  await results.getByRole("button", { name: "重新扫描" }).click();
+  await results.getByRole("button", { name: "刷新抽样" }).click();
   await expect(
     results.getByRole("alert").filter({ hasText: "invalid-115-auth" }),
   ).toBeVisible();
@@ -169,23 +193,29 @@ test("执行预览展示输出目录问题并阻止提交，重新扫描后可�
   ).toHaveAttribute("href", "/settings?tab=account");
   await expect(confirm).toBeDisabled();
 
-  await results.getByRole("button", { name: "重新扫描" }).click();
+  await results.getByRole("button", { name: "刷新抽样" }).click();
   await expect(
     results.getByText("媒体库配置已更新，请重新加载后扫描。"),
   ).toBeVisible();
   await expect(confirm).toBeDisabled();
   revision++;
+  const refreshedPreview = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/v1/libraries/1/full-sync-preview") &&
+      response.status() === 200,
+  );
   await results.getByRole("link", { name: "重新加载配置" }).click();
-  await expect(results.getByText("部分扫描结果")).toBeVisible();
+  await refreshedPreview;
+  await expect(results.getByText("抽样结果（未覆盖全部范围）")).toBeVisible();
   await expect(
-    results.getByText("未扫描到可生成 STRM 的视频文件。"),
-  ).toHaveCount(0);
+    results.getByText("本次抽样未发现可生成 STRM 的视频文件。"),
+  ).toBeVisible();
   await expect(results.getByText("同步时创建输出目录")).toBeVisible();
   await expect(confirm).toBeEnabled();
   expect(requests).toBe(4);
 });
 
-test("详情卡片、同步记录空状态和真实启停适配主题与窄屏", async ({
+test("详情卡片、同步记录空状态和启停状态适配主题与窄屏", async ({
   page,
 }, testInfo) => {
   let enabled = true;
@@ -209,7 +239,7 @@ test("详情卡片、同步记录空状态和真实启停适配主题与窄屏",
     enabled = false;
     await route.fulfill({ json: { ...library, enabled } });
   });
-  await page.goto("/libraries/1");
+  await openLibrary(page, "/libraries/1");
   await expect(page.getByRole("heading", { name: "库概览" })).toBeVisible();
   await expect(page.getByText("演示数据", { exact: true })).toHaveCount(0);
   await expect(
@@ -283,11 +313,11 @@ test("详情卡片、同步记录空状态和真实启停适配主题与窄屏",
     path: testInfo.outputPath("detail.png"),
     fullPage: true,
   });
-  await page.getByRole("button", { name: "暂停媒体库" }).click();
-  await expect(page.getByText("已暂停", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "启用媒体库" })).toBeEnabled();
+  await expect(page.getByText("已启用", { exact: true }).first()).toBeVisible();
+  enabled = false;
   longText = true;
-  await page.reload();
+  await reloadLibrary(page);
+  await expect(page.getByText("已暂停", { exact: true })).toBeVisible();
   await expect(
     page
       .getByRole("heading", { name: "Library".repeat(16), exact: true })
@@ -312,7 +342,7 @@ test("详情卡片、同步记录空状态和真实启停适配主题与窄屏",
   await page.goto("/libraries?filter=enabled");
   await page.getByRole("button", { name: "编辑", exact: true }).click();
   await expect(page).toHaveURL(/\/libraries\/1\/edit$/);
-  await page.reload();
+  await reloadLibrary(page);
   await page.getByRole("button", { name: "取消", exact: true }).click();
   await expect(page).toHaveURL(/\/libraries\?filter=enabled$/);
   await expect(page.getByRole("radio", { name: /已启用/ })).toBeChecked();
@@ -406,7 +436,7 @@ test("详情统计与执行记录摘要展示当前媒体库的数据", async ({
     });
   });
 
-  await page.goto("/libraries/1");
+  await openLibrary(page, "/libraries/1");
   const statistics = page.locator('[data-slot="card"]', {
     has: page.getByRole("heading", { name: "STRM 统计", exact: true }),
   });
@@ -507,7 +537,7 @@ test("同步页面支持真实配置预览、导航和窄屏布局", async ({ pa
     await page.screenshot({ path: testInfo.outputPath(name), fullPage: true });
   }
 
-  await page.goto("/libraries/1");
+  await openLibrary(page, "/libraries/1");
   await expect(
     page.getByRole("button", { name: "执行预览", exact: true }),
   ).toHaveCount(0);
@@ -540,12 +570,12 @@ test("同步页面支持真实配置预览、导航和窄屏布局", async ({ pa
   await expect(
     page.getByRole("link", { name: "编辑媒体库配置" }),
   ).toHaveAttribute("href", "/libraries/1/edit");
-  await page.reload();
+  await reloadLibrary(page);
   await expect(page.getByRole("button", { name: "确认执行" })).toBeDisabled();
   await page.getByRole("link", { name: "取消" }).click();
   await expect(page).toHaveURL(/\/libraries\/1\/full-sync$/);
 
-  await page.goto("/libraries/1/incremental-sync");
+  await openLibrary(page, "/libraries/1/incremental-sync");
   await expect(
     page.getByRole("heading", { name: "增量同步", exact: true }),
   ).toBeVisible();
@@ -571,12 +601,12 @@ test("同步页面支持真实配置预览、导航和窄屏布局", async ({ pa
   await expect(listener).not.toBeChecked();
   await expect(interval).toContainText("60 秒");
   await expect(batchLimit).toContainText("250 条");
-  await page.reload();
+  await reloadLibrary(page);
   await expect(listener).toBeChecked();
   await expect(interval).toContainText("30 秒");
   await expect(batchLimit).toContainText("500 条");
 
-  await page.goto("/libraries/2/full-sync");
+  await openLibrary(page, "/libraries/2/full-sync");
   await expect(page.getByRole("alert")).toBeVisible();
   await expect(page.getByRole("link", { name: "返回媒体库" })).toHaveAttribute(
     "href",

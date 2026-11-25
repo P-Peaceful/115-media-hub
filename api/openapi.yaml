@@ -380,8 +380,8 @@ paths:
   /api/v1/libraries/{id}/full-sync-preview:
     get:
       operationId: previewLibraryFullSync
-      summary: Scan the saved 115 source and inspect the configured STRM output directory
-      description: Read-only. Samples are bounded. When the preview deadline expires, counts include only the portion already scanned. Confirmation scans again with the current saved configuration.
+      summary: Sample the saved 115 source and inspect the configured STRM output directory
+      description: Read-only breadth-first sampling of at most 3 directories including the root, 5 actual directory requests including retries, 15 seconds, and 20 samples, with at most 200 entries per page. Stops at the first limit and never performs recursive fast enumeration. Counts describe only validated pages and are not estimates of library totals. Confirmation performs a fresh full scan.
       security: [{adminSession: []}]
       parameters:
         - {name: id, in: path, required: true, schema: {type: string, minLength: 1, maxLength: 128}}
@@ -983,12 +983,14 @@ components:
     FullSyncPreview:
       type: object
       additionalProperties: false
-      required: [revision, scan_complete, scanned_videos, candidate_count, failed_count, samples, output]
+      required: [revision, mode, stop_reason, scan_complete, scanned_videos, candidate_count, failed_count, samples, output]
       properties:
         revision: {type: integer, format: int64, minimum: 1}
-        scan_complete: {type: boolean, description: Whether scanning reached the end of the requested scope. See failed_count for individual failures.}
-        scanned_videos: {type: integer, format: int64, minimum: 0}
-        candidate_count: {type: integer, format: int64, minimum: 0}
+        mode: {type: string, enum: [sample]}
+        stop_reason: {type: string, enum: [scope_complete, directory_limit, request_limit, time_limit, sample_limit, source_error]}
+        scan_complete: {type: boolean, description: True only when the requested scope was exhausted with no unread or failed directories. Invalid individual source entries remain in failed_count.}
+        scanned_videos: {type: integer, format: int64, minimum: 0, description: Deduplicated videos observed in validated sample pages; not a library total.}
+        candidate_count: {type: integer, format: int64, minimum: 0, description: Valid candidates observed in the sample; not a library total.}
         failed_count: {type: integer, format: int64, minimum: 0, description: Count of invalid source entries and failed subdirectories.}
         samples:
           type: array

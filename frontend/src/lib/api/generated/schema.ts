@@ -241,8 +241,8 @@ export interface paths {
       cookie?: never;
     };
     /**
-     * Scan the saved 115 source and inspect the configured STRM output directory
-     * @description Read-only. Samples are bounded. When the preview deadline expires, counts include only the portion already scanned. Confirmation scans again with the current saved configuration.
+     * Sample the saved 115 source and inspect the configured STRM output directory
+     * @description Read-only breadth-first sampling of at most 3 directories including the root, 5 actual directory requests including retries, 15 seconds, and 20 samples, with at most 200 entries per page. Stops at the first limit and never performs recursive fast enumeration. Counts describe only validated pages and are not estimates of library totals. Confirmation performs a fresh full scan.
      */
     get: operations["previewLibraryFullSync"];
     put?: never;
@@ -617,11 +617,27 @@ export interface components {
     FullSyncPreview: {
       /** Format: int64 */
       revision: number;
-      /** @description Whether scanning reached the end of the requested scope. See failed_count for individual failures. */
+      /** @enum {string} */
+      mode: "sample";
+      /** @enum {string} */
+      stop_reason:
+        | "scope_complete"
+        | "directory_limit"
+        | "request_limit"
+        | "time_limit"
+        | "sample_limit"
+        | "source_error";
+      /** @description True only when the requested scope was exhausted with no unread or failed directories. Invalid individual source entries remain in failed_count. */
       scan_complete: boolean;
-      /** Format: int64 */
+      /**
+       * Format: int64
+       * @description Deduplicated videos observed in validated sample pages; not a library total.
+       */
       scanned_videos: number;
-      /** Format: int64 */
+      /**
+       * Format: int64
+       * @description Valid candidates observed in the sample; not a library total.
+       */
       candidate_count: number;
       /**
        * Format: int64

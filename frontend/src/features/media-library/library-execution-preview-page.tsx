@@ -79,7 +79,7 @@ export function LibraryExecutionPreviewPage() {
     <div className="space-y-4">
       <SyncPageHeader
         title="执行预览"
-        description="预先扫描 115 媒体源并检查输出目录，核对结果后启动同步。"
+        description="抽样读取少量 115 目录并检查输出目录，核对结果后启动同步。"
         icon={Play}
         backToFullSync
       />
@@ -117,7 +117,7 @@ export function LibraryExecutionPreviewPage() {
       </div>
       {canScan && (
         <SyncSection
-          title="扫描结果"
+          title="抽样结果"
           icon={ScanSearch}
           action={
             currentPreview && (
@@ -129,7 +129,7 @@ export function LibraryExecutionPreviewPage() {
                 }
                 onPress={() => void preview.refetch()}
               >
-                重新扫描
+                刷新抽样
               </Button>
             )
           }
@@ -141,12 +141,12 @@ export function LibraryExecutionPreviewPage() {
                 className="flex items-center gap-2 text-sm text-muted"
               >
                 <Spinner aria-hidden="true" size="sm" />
-                正在扫描 115 媒体源并检查输出目录…
+                正在抽样读取 115 目录并检查输出目录…
               </p>
             )}
             {preview.isPaused && (
               <p role="status" className="text-sm text-muted">
-                等待网络连接以继续扫描…
+                等待网络连接以进行抽样…
               </p>
             )}
             <TaskError
@@ -197,7 +197,7 @@ export function LibraryExecutionPreviewPage() {
                 aria-hidden="true"
                 className="mt-0.5 size-4 shrink-0 text-accent"
               />
-              确认后，任务会重新扫描当前媒体源，处理数量可能随源文件变化。
+              确认后，任务会完整扫描当前媒体源，处理数量可能随源文件变化。
             </p>
             <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
               {mutation.isPending ? (

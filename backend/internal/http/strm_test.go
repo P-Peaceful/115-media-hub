@@ -128,7 +128,7 @@ func TestSTRMGenerationRegistryAndPlaybackBoundary(t *testing.T) {
 	target := createLibrary(config)
 	previewURL := "/api/v1/libraries/" + target.Id + "/full-sync-preview"
 	preview := taskJSON[generated.FullSyncPreview](t, browser.request(t, http.MethodGet, previewURL, "", nil), http.StatusOK)
-	if !preview.ScanComplete || preview.Revision != target.Revision || preview.Output.Status != generated.FullSyncOutputCheckStatusWillCreate ||
+	if preview.Mode != generated.Sample || preview.StopReason != generated.ScopeComplete || !preview.ScanComplete || preview.Revision != target.Revision || preview.Output.Status != generated.FullSyncOutputCheckStatusWillCreate ||
 		preview.ScannedVideos != 1 || preview.CandidateCount != 1 || preview.FailedCount != 0 ||
 		!slices.Equal(preview.Samples, []generated.FullSyncPreviewSample{{SourcePath: "/电影/示例影片.mp4", RelativePath: "示例影片.strm"}}) {
 		t.Fatalf("unexpected full-sync preview: %+v", preview)

@@ -3,7 +3,7 @@
   "name": "provider115-sdk-upgrade",
   "title": "参考 115-station 改造 115 客户端底层能力",
   "description": "按已选方案 A 改造自有 115 Cookie 请求底层、限速冷却重试、错误分类、快速扫描与受控标准降级，保持现有公共合同。",
-  "status": "planning",
+  "status": "in_progress",
   "dev_type": "backend",
   "scope": "backend",
   "package": null,

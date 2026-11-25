@@ -612,8 +612,7 @@ it("详情展示真实配置、同步历史与系统信息", async () => {
   expect(screen.queryByText("运行中")).not.toBeInTheDocument();
 });
 
-it("系统信息失败保留配置与同步历史，启停失败提供反馈", async () => {
-  const user = userEvent.setup();
+it("系统信息失败仍保留配置、同步历史与当前启用状态", async () => {
   server.use(
     http.get("/api/v1/libraries/1", () => HttpResponse.json(library)),
     http.get("/api/v1/tasks", () =>
@@ -635,12 +634,6 @@ it("系统信息失败保留配置与同步历史，启停失败提供反馈", a
         { status: 503 },
       ),
     ),
-    http.patch("/api/v1/libraries/1/enabled", () =>
-      HttpResponse.json(
-        { error: { code: "unavailable", message: "暂时无法暂停媒体库" } },
-        { status: 503 },
-      ),
-    ),
   );
   render(
     <QueryClientProvider client={new QueryClient()}>
@@ -656,10 +649,6 @@ it("系统信息失败保留配置与同步历史，启停失败提供反馈", a
   expect(await screen.findByText("无法获取系统信息。")).toBeVisible();
   expect(screen.getByText(library.output_path)).toBeVisible();
   expect(await screen.findAllByText("暂无全量同步记录。")).toHaveLength(2);
-  await user.click(screen.getByRole("button", { name: "暂停媒体库" }));
-  expect(await screen.findByRole("alert")).toHaveTextContent(
-    "请求未能完成，请稍后重试。",
-  );
   expect(screen.getAllByText("已启用", { exact: true })[0]).toBeVisible();
 });
 

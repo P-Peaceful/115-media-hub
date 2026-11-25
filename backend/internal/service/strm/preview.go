@@ -1,4 +1,4 @@
-// preview.go：负责全量同步资格与只读预检，汇总已完整扫描目录的候选数量、样例和输出目录状态。
+// preview.go：负责全量同步资格与只读预检，汇总有界抽样页面的候选数量、样例和输出目录状态。
 
 package strm
 
@@ -6,7 +6,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"path/filepath"
 	"time"
 
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
@@ -18,9 +17,11 @@ const fullSyncPreviewSampleLimit = 20
 // ErrFullSyncUnavailable 表示媒体库的保存配置不满足全量同步要求。
 var ErrFullSyncUnavailable = errors.New("当前媒体库的配置无法执行全量同步")
 
-// FullSyncPreview 汇总已扫描的源文件和输出目录检查结果。
+// FullSyncPreview 汇总抽样已见源文件和输出目录检查结果，不推算全库数量。
 type FullSyncPreview struct {
 	Revision       int64
+	Mode           string
+	StopReason     string
 	ScanComplete   bool
 	ScannedVideos  int64
 	CandidateCount int64
@@ -41,9 +42,11 @@ func FullSyncEligible(target library.Library) bool {
 	return target.Enabled && target.GenerateSTRM && target.LinkType == "proxy" && valid && origin != ""
 }
 
-// PreviewFullSync 扫描已保存的媒体库配置，返回只读的预检结果。
+// PreviewFullSync 按保存的媒体库配置做有界抽样，返回只读预检；确认后的正式任务重新完整扫描。
 func (s *Service) PreviewFullSync(ctx context.Context, target library.Library, requestID string) (result FullSyncPreview, resultErr error) {
 	started := time.Now()
+	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
 	logger := s.logger.With("operation", "full_sync_preview", "library_id", target.ID)
 	if requestID != "" {
 		logger = logger.With("request_id", requestID)
@@ -56,20 +59,10 @@ func (s *Service) PreviewFullSync(ctx context.Context, target library.Library, r
 	}
 	result.Revision = target.Revision
 	result.Output = inspectOutputRoot(target.OutputPath)
-	files, summary, err := s.scan(ctx, target, requestID, nil, nil)
-	// 到达预览时限时保留已完整读取的目录。正式任务有独立生命周期，会重新扫描。
-	if err != nil && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return result, err
-	}
-	result.ScanComplete = err == nil
-	result.ScannedVideos = int64(summary.scannedVideos)
-	result.CandidateCount = int64(summary.candidateFiles)
-	result.FailedCount = int64(summary.failedDirectories + summary.invalidSourceEntries)
+	result.Mode = "sample"
 	result.Samples = make([]PreviewSample, 0, fullSyncPreviewSampleLimit)
-	for _, file := range files {
-		if file.err == nil && len(result.Samples) < fullSyncPreviewSampleLimit {
-			result.Samples = append(result.Samples, PreviewSample{SourcePath: file.path, RelativePath: filepath.ToSlash(file.relative)})
-		}
+	if err := s.previewScan(ctx, target, requestID, &result); err != nil {
+		return result, err
 	}
 	return result, nil
 }
@@ -88,14 +81,15 @@ func logPreviewResult(ctx context.Context, logger *slog.Logger, started time.Tim
 			code = "full_sync_preview_unavailable"
 		}
 		level, outcome = slog.LevelWarn, "failed"
-	case !result.ScanComplete:
-		level, outcome, code = slog.LevelWarn, "failed", "full_sync_preview_timeout"
+	case result.StopReason == "source_error":
+		level, outcome, code = slog.LevelWarn, "failed", "full_sync_preview_"+result.StopReason
 	case result.Output.Status != "ready" && result.Output.Status != "will_create":
 		level, outcome, code = slog.LevelWarn, "failed", "strm_output_"+result.Output.Status
 	case result.FailedCount > 0:
 		level, outcome, code = slog.LevelWarn, "failed", "strm_source_scan_incomplete"
 	}
 	attrs := []any{
+		"mode", result.Mode, "stop_reason", result.StopReason,
 		"duration_ms", time.Since(started).Milliseconds(), "outcome", outcome, "scan_complete", result.ScanComplete,
 		"scanned_videos", result.ScannedVideos, "candidate_count", result.CandidateCount, "failed_count", result.FailedCount,
 		"output_status", result.Output.Status,

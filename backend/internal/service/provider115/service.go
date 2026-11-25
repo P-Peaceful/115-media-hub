@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	adapter "github.com/wenzhengcheng/115-media-hub/backend/internal/adapter/provider115"
 )
 
 // ErrNotFound 表示二维码不存在、已结束或不属于当前会话。
@@ -58,25 +60,41 @@ type pending struct {
 
 // Service 管理单账号授权及上游客户端；互斥锁保护临时二维码和授权代次。
 type Service struct {
-	repo          Repository
-	client        *http.Client
-	logger        *slog.Logger
-	mu            sync.Mutex
-	active        *pending
-	generation    uint64
-	startingOwner string
-	expiryTimer   *time.Timer
-	baseURL       string
-	navURL        string
-	spaceURL      string
-	filesURL      string
-	playbackURL   string
-	now           func() time.Time
+	repo            Repository
+	client          *http.Client
+	logger          *slog.Logger
+	mu              sync.Mutex
+	active          *pending
+	generation      uint64
+	startingOwner   string
+	expiryTimer     *time.Timer
+	baseURL         string
+	navURL          string
+	spaceURL        string
+	filesURL        string
+	playbackURL     string
+	adapterOnce     sync.Once
+	adapterClient   *adapter.Client
+	adapterErr      error
+	requestInterval time.Duration
+	fastScan        bool
+	categoryURL     string
+	directoriesURL  string
+	now             func() time.Time
 }
 
-// New 构造带上游地址、HTTP 超时和模块日志的单账号服务。
+// New 构造使用默认账号节流和快速扫描策略的单账号服务。
 func New(repo Repository, logger *slog.Logger) *Service {
+	return NewWithConfig(repo, logger, time.Second, true)
+}
+
+// NewWithConfig 注入账号读取间隔和正式扫描模式；客户端在首次调用时固定，整个服务共享冷却。
+func NewWithConfig(repo Repository, logger *slog.Logger, interval time.Duration, fastScan bool) *Service {
+	if interval == 0 {
+		interval = time.Second
+	}
 	return &Service{
+		requestInterval: interval, fastScan: fastScan, categoryURL: "https://webapi.115.com/category/get", directoriesURL: "https://proapi.115.com/app/chrome/downfolders",
 		repo: repo, logger: logger.With("module", "provider_115"), client: &http.Client{Timeout: 65 * time.Second},
 		baseURL: "https://qrcodeapi.115.com", navURL: "https://my.115.com/?ct=ajax&ac=nav",
 		spaceURL: "https://webapi.115.com/files/index_info", filesURL: "https://webapi.115.com/files",
@@ -84,14 +102,27 @@ func New(repo Repository, logger *slog.Logger) *Service {
 	}
 }
 
-// log 记录操作结果和耗时；目录成功分页只记录 DEBUG，避免扫描日志洪泛。
+// log 记录操作的真实结果与稳定错误分类；目录成功分页及客户端取消只记录 DEBUG，避免扫描日志洪泛。
 func (s *Service) log(ctx context.Context, operation, requestID string, start time.Time, err error) {
 	level := slog.LevelInfo
 	outcome := "succeeded"
 	attrs := []any{"operation", operation, "request_id", requestID, "duration_ms", time.Since(start).Milliseconds()}
 	if err != nil {
-		outcome = "failed"
-		attrs = append(attrs, "error_code", "provider_115_failed")
+		level, outcome = slog.LevelWarn, "failed"
+		code := "provider_115_failed"
+		switch {
+		case errors.Is(err, context.Canceled):
+			level, outcome, code = slog.LevelDebug, "canceled", "request_canceled"
+		case errors.Is(err, context.DeadlineExceeded):
+			code = "provider_timeout"
+		case errors.Is(err, ErrCredentialChanged):
+			code = "provider_credential_changed"
+		case errors.Is(err, ErrInvalidAuthorization):
+			code = "provider_auth_invalid"
+		case errors.Is(err, errPlaybackThrottled):
+			code = "provider_throttled"
+		}
+		attrs = append(attrs, "error_code", code)
 	} else if operation == "list_files" {
 		// 批量扫描由 STRM 汇总进度，逐页成功记录只用于调试。
 		level = slog.LevelDebug
@@ -130,11 +161,11 @@ func (s *Service) Start(ctx context.Context, owner, requestID string) (result QR
 	}
 	data, err := s.request(ctx, http.MethodGet, "/api/1.0/web/1.0/token/", nil)
 	if err != nil || json.Unmarshal(data, &token) != nil || !bool(token.State) || token.Data.UID == "" || token.Data.Sign == "" {
-		return QR{}, ErrUpstream
+		return QR{}, errors.Join(ErrUpstream, err)
 	}
 	image, err := s.request(ctx, http.MethodGet, "/api/1.0/mac/1.0/qrcode?"+url.Values{"uid": {token.Data.UID}}.Encode(), nil)
 	if err != nil || len(image) == 0 {
-		return QR{}, ErrUpstream
+		return QR{}, errors.Join(ErrUpstream, err)
 	}
 	id := rand.Text()
 	result = QR{ID: id, QRURL: "data:image/png;base64," + base64.StdEncoding.EncodeToString(image), Status: "waiting", ExpiresAt: s.now().UTC().Add(2 * time.Minute)}
@@ -187,7 +218,7 @@ func (s *Service) Poll(ctx context.Context, owner, id, actor, requestID string) 
 	}
 	if err != nil {
 		s.log(ctx, "poll_qr", requestID, start, err)
-		return QR{}, ErrUpstream
+		return QR{}, errors.Join(ErrUpstream, err)
 	}
 	var status struct {
 		State upstreamState `json:"state"`
@@ -226,7 +257,7 @@ func (s *Service) Poll(ctx context.Context, owner, id, actor, requestID string) 
 		}
 		if err != nil {
 			s.log(ctx, "authorize", requestID, start, err)
-			return QR{}, ErrUpstream
+			return QR{}, errors.Join(ErrUpstream, err)
 		}
 		var login struct {
 			State upstreamState `json:"state"`
@@ -311,30 +342,21 @@ func (s *Service) InvalidateSession(owner string) {
 	}
 }
 
-// request 发送二维码协议请求，限制响应读取为 1 MiB 并关闭响应体；非 200 状态视为上游失败。
+// request 将二维码协议交给受控传输，保持扫码不占账号配额、登录交换单次发送及取消身份。
 func (s *Service) request(ctx context.Context, method, path string, body io.Reader) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, method, s.baseURL+path, body)
-	if err != nil {
-		return nil, err
+	var data []byte
+	if body != nil {
+		var err error
+		data, err = io.ReadAll(io.LimitReader(body, (1<<20)+1))
+		if err != nil || len(data) > 1<<20 {
+			return nil, ErrUpstream
+		}
 	}
-	req.Header.Set("User-Agent", "Mozilla/5.0 115Browser/36.0.0")
-	req.Header.Set("Referer", "https://115.com/")
+	operation := adapter.QR
 	if method == http.MethodPost {
-		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		operation = adapter.Login
 	}
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	data, readErr := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	closeErr := resp.Body.Close()
-	if readErr != nil || closeErr != nil {
-		return nil, errors.Join(readErr, closeErr)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, ErrUpstream
-	}
-	return data, nil
+	return s.doRequest(ctx, adapter.Request{Operation: operation, Method: method, URL: s.baseURL + path, Body: data, Header: requestHeaders("", "Mozilla/5.0 115Browser/36.0.0"), MaxBytes: 1 << 20})
 }
 
 // upstreamState 兼容上游布尔值和 0、1 数字状态编码。
