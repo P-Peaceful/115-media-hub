@@ -1,3 +1,5 @@
+// limiter.go：控制认证昂贵计算的并发数、每分钟全局和来源尝试数，并限制保留的来源状态。
+
 package auth
 
 import (
@@ -5,13 +7,13 @@ import (
 	"time"
 )
 
+// attemptWindow 记录单个固定时间窗内的尝试次数和到期时刻。
 type attemptWindow struct {
 	count   int
 	expires time.Time
 }
 
-// attemptLimiter bounds expensive work, aggregate attempts and retained peer state.
-// It deliberately uses the transport's trusted peer address, never usernames or forwarded headers.
+// attemptLimiter 通过互斥锁限制并发、全局及来源次数和内存状态；来源仅使用传输层可信对端地址。
 type attemptLimiter struct {
 	mu     sync.Mutex
 	peers  map[string]attemptWindow
@@ -19,6 +21,7 @@ type attemptLimiter struct {
 	active int
 }
 
+// admit 清理过期窗口并申请认证计算额度；成功返回的释放函数必须且仅能调用一次。
 func (l *attemptLimiter) admit(peer string, now time.Time) (func(), error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()

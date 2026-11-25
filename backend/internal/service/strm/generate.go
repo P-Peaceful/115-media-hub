@@ -1,3 +1,5 @@
+// generate.go：负责串联输出准备、写入恢复、源扫描和 STRM 生成，并向任务中心报告进度及结果。
+
 // Package strm 生成、登记并查询应用管理的 STRM 产物。
 package strm
 
@@ -35,6 +37,7 @@ type Service struct {
 	outputMu sync.Mutex
 }
 
+// New 构造 STRM 服务并绑定模块日志，发布与恢复共享同一输出互斥锁。
 func New(repo Repository, provider Provider, logger *slog.Logger) *Service {
 	return &Service{repo: repo, provider: provider, logger: logger.With("module", "strm")}
 }
@@ -47,10 +50,12 @@ func (s *Service) Module() jobs.Module {
 	}
 }
 
+// generationCounts 汇总生成、失败、跳过及其中的冲突数量。
 type generationCounts struct {
 	generated, failed, skipped, conflicts int
 }
 
+// generate 使用任务配置快照完成输出准备、意图恢复、全量扫描和文件生成；阶段终态统一记录。
 func (s *Service) generate(ctx context.Context, execution jobs.Execution) (resultErr error) {
 	started := time.Now()
 	logger := s.jobLogger(execution, "generate")
@@ -97,6 +102,7 @@ func (s *Service) generate(ctx context.Context, execution jobs.Execution) (resul
 	return s.generateFiles(ctx, execution, origin, root, canonical, files, logger.With("phase", phase, "total_items", total), &counts, &failures)
 }
 
+// scanForGeneration 扫描来源并按目录上报任务进度，聚合完整性与失败统计，限制周期性日志频率。
 func (s *Service) scanForGeneration(ctx context.Context, execution jobs.Execution, logger *slog.Logger, failures *generationFailures) ([]sourceFile, error) {
 	started := time.Now()
 	startAttrs := []any{"include_subdirectories", execution.Library.IncludeSubdirectories}
@@ -123,6 +129,7 @@ func (s *Service) scanForGeneration(ctx context.Context, execution jobs.Executio
 	return files, err
 }
 
+// generateFiles 逐项生成并持久化结果、推进进度；尊重取消，所有条目均失败时返回批次错误。
 func (s *Service) generateFiles(ctx context.Context, execution jobs.Execution, origin string, root *os.Root, canonical string, files []sourceFile, logger *slog.Logger, counts *generationCounts, failures *generationFailures) error {
 	started := time.Now()
 	logger.InfoContext(ctx, "STRM file generation started")
@@ -188,6 +195,7 @@ func (s *Service) generateFiles(ctx context.Context, execution jobs.Execution, o
 	return nil
 }
 
+// jobLogger 绑定任务、媒体库、尝试次数及存在的请求关联标识。
 func (s *Service) jobLogger(execution jobs.Execution, operation string) *slog.Logger {
 	job := execution.Job
 	logger := s.logger.With("operation", operation, "library_id", execution.Library.ID, "job_id", job.ID, "attempt", job.Attempt)
@@ -197,6 +205,7 @@ func (s *Service) jobLogger(execution jobs.Execution, operation string) *slog.Lo
 	return logger
 }
 
+// reportGenerationError 将安全错误说明写入任务日志；取消时优先返回上下文错误。
 func reportGenerationError(ctx context.Context, execution jobs.Execution, err error) error {
 	if ctx.Err() != nil {
 		return ctx.Err()
@@ -208,6 +217,7 @@ func reportGenerationError(ctx context.Context, execution jobs.Execution, err er
 	return err
 }
 
+// generationError 把内部及上游错误归类为稳定错误码与管理员可见消息，不暴露原始错误正文。
 func generationError(err error) (code, message string) {
 	var outputErr *outputRootError
 	switch {

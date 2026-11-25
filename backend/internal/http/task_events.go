@@ -1,3 +1,5 @@
+// task_events.go：将任务中心变更转发为 SSE 通知，维护连接内序号、会话复核、心跳及有界写入，退出时释放订阅。
+
 package http
 
 import (
@@ -13,14 +15,20 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
 )
 
+// taskEventHeartbeat 控制空闲连接保活及会话有效性复核的间隔。
 const taskEventHeartbeat = 15 * time.Second
+
+// taskEventWriteTimeout 限制单帧发送时间，避免慢客户端持续占用连接。
 const taskEventWriteTimeout = 5 * time.Second
 
+// taskEventPayload 只传资源失效提示和可选结果通知，客户端须重读持久状态。
 type taskEventPayload struct {
 	ID           string                 `json:"id"`
 	Notification *generated.TaskOutcome `json:"notification,omitempty"`
 }
 
+// events 为已认证请求订阅变更并发送 SSE；每次通知或心跳前复核会话，取消、撤销或写入失败即退出。
+// 事件序号只在本连接内递增，不根据 Last-Event-ID 重放持久历史。
 func (h *taskHandler) events(c *gin.Context) {
 	events, unsubscribe := h.service.Subscribe()
 	if events == nil {
@@ -33,8 +41,7 @@ func (h *taskHandler) events(c *gin.Context) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-store, no-transform")
 	c.Header("X-Accel-Buffering", "no")
-	// Gin's writer commits response headers, but its Flush method drops errors
-	// from the underlying connection. Flush through the server writer instead.
+	// Gin 的 Flush 不返回底层错误，因此解包后由服务器写入器刷新并检查连接状态。
 	writer := http.ResponseWriter(c.Writer)
 	if wrapper, ok := writer.(interface{ Unwrap() http.ResponseWriter }); ok {
 		writer = wrapper.Unwrap()
@@ -74,7 +81,7 @@ func (h *taskHandler) events(c *gin.Context) {
 			sequence++
 			frame = fmt.Sprintf("id: %d\nevent: %s\ndata: %s\n\n", sequence, name, payload)
 		}
-		// Session validity can change while the stream is open, including on logout.
+		// 流打开期间会话仍可能因注销等操作失效，发送前必须重新校验。
 		if _, err := h.auth.Authenticate(ctx, token); err != nil {
 			if !errors.Is(err, auth.ErrUnauthenticated) && ctx.Err() == nil {
 				h.logger.WarnContext(ctx, "task event authorization failed", "module", "jobs", "operation", "authorize_subscription", "request_id", c.GetString("request_id"), "error_code", "authentication_unavailable")
@@ -87,8 +94,9 @@ func (h *taskHandler) events(c *gin.Context) {
 	}
 }
 
+// writeTaskEvent 在单帧写入期限内写出并刷新 SSE，完成后清除写入期限；不支持期限控制的写入器仍可使用。
 func writeTaskEvent(w http.ResponseWriter, controller *http.ResponseController, frame string) bool {
-	// Bound each flush without applying the server's one-shot timeout to the stream.
+	// 每帧单独设置期限，避免将服务器的一次性写超时套用于整个长连接。
 	if err := controller.SetWriteDeadline(time.Now().Add(taskEventWriteTimeout)); err != nil && !errors.Is(err, http.ErrNotSupported) {
 		return false
 	}

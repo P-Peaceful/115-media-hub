@@ -1,3 +1,5 @@
+// auth_test.go：使用真实 SQLite 验证认证事务、会话跨重启、恢复并发竞态和安全设置的原子性。
+
 package sqlite
 
 import (
@@ -21,6 +23,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/migrations"
 )
 
+// testAuthDatabase 创建迁移完备的临时认证数据库并注册关闭清理，同时返回可重新打开的路径。
 func testAuthDatabase(t *testing.T) (*Database, string) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "auth.db")
@@ -36,6 +39,7 @@ func testAuthDatabase(t *testing.T) (*Database, string) {
 	return db, path
 }
 
+// testAuthService 以低成本密码哈希和可控时钟构造测试服务，日志写入丢弃目标。
 func testAuthService(t *testing.T, repo auth.Repository, now func() time.Time) *auth.Service {
 	t.Helper()
 	service, err := auth.New(repo, slog.New(slog.NewJSONHandler(io.Discard, nil)), auth.Options{PasswordCost: bcrypt.MinCost, Now: now})
@@ -45,10 +49,12 @@ func testAuthService(t *testing.T, repo auth.Repository, now func() time.Time) *
 	return service
 }
 
+// authSettings 提供测试共用的有效服务地址、输出目录及固定会话期限。
 func authSettings() domain.Settings {
 	return domain.Settings{ServiceURL: "https://media.example.com", OutputDirectory: "/media", SessionLifetimeDays: 7}
 }
 
+// TestConcurrentInitializeAndPersistedSession 验证并发初始化只有一个胜者，凭证以摘要存储且重启后仍可校验会话和 CSRF。
 func TestConcurrentInitializeAndPersistedSession(t *testing.T) {
 	db, path := testAuthDatabase(t)
 	service := testAuthService(t, db, nil)
@@ -105,6 +111,7 @@ func TestConcurrentInitializeAndPersistedSession(t *testing.T) {
 	}
 }
 
+// TestRequiredAuditFailureRollsBackSecurityMutations 通过拒绝审计的触发器验证初始化、登录、注销和恢复均无部分安全变更。
 func TestRequiredAuditFailureRollsBackSecurityMutations(t *testing.T) {
 	db, _ := testAuthDatabase(t)
 	service := testAuthService(t, db, nil)
@@ -158,6 +165,7 @@ func TestRequiredAuditFailureRollsBackSecurityMutations(t *testing.T) {
 	}
 }
 
+// TestRecoveryRevokesAllSessionsAndPreservesSettings 验证恢复只修改已有管理员，撤销全部会话并保留设置及审计。
 func TestRecoveryRevokesAllSessionsAndPreservesSettings(t *testing.T) {
 	db, _ := testAuthDatabase(t)
 	service := testAuthService(t, db, nil)
@@ -196,18 +204,21 @@ func TestRecoveryRevokesAllSessionsAndPreservesSettings(t *testing.T) {
 	}
 }
 
+// delayedSessionRepository 在密码比较后阻塞会话写入，精确制造旧密码登录与重置的竞争。
 type delayedSessionRepository struct {
 	*Database
 	compared chan struct{}
 	proceed  chan struct{}
 }
 
+// CreateSession 通知测试密码已比较并等待放行，再委托真实仓储校验密码代次。
 func (r delayedSessionRepository) CreateSession(ctx context.Context, session domain.Session, oldHash, expected string, audit domain.Audit) error {
 	close(r.compared)
 	<-r.proceed
 	return r.Database.CreateSession(ctx, session, oldHash, expected, audit)
 }
 
+// TestResetPreventsInFlightOldPasswordLogin 验证密码重置后，已完成旧密码比较的登录仍不能提交会话或成功审计。
 func TestResetPreventsInFlightOldPasswordLogin(t *testing.T) {
 	db, _ := testAuthDatabase(t)
 	initial := testAuthService(t, db, nil)
@@ -241,6 +252,7 @@ func TestResetPreventsInFlightOldPasswordLogin(t *testing.T) {
 	}
 }
 
+// TestMigrationUpgradeFromApplicationOnly 验证从仅应用基础表升级后具有管理员单例约束并保持未初始化状态。
 func TestMigrationUpgradeFromApplicationOnly(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "old.db")
 	pool, err := sql.Open("sqlite3", path)
@@ -279,6 +291,7 @@ func TestMigrationUpgradeFromApplicationOnly(t *testing.T) {
 	}
 }
 
+// TestSecuritySettingsPreserveCurrentSessionAndRevokeOthers 验证凭据变更保留当前会话并撤销其他会话，新期限只用于新建会话。
 func TestSecuritySettingsPreserveCurrentSessionAndRevokeOthers(t *testing.T) {
 	db, _ := testAuthDatabase(t)
 	service := testAuthService(t, db, nil)

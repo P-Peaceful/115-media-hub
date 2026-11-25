@@ -26,6 +26,7 @@
     "planning_review": "approved_for_implementation_2026-11-25",
     "existing_file_policy": "skip",
     "image_policy": "all_supported_images_only_in_strm_eligible_directories",
-    "sidecar_prerequisite": "same_source_directory_video_with_generated_or_verified_same_source_strm"
+    "sidecar_prerequisite": "same_source_directory_video_with_generated_or_verified_same_source_strm",
+    "user_requested_delay": "4 hours from 2026-11-25 05:31 Asia/Shanghai"
   }
 }

@@ -26,6 +26,7 @@
     "planning_review": "approved_for_implementation_2026-11-25",
     "sdk_scope": "A_cookie_transport_and_fast_scan",
     "preview_scope": "bounded_directory_sampling_then_full_execution",
-    "preview_limits": "confirmed_3_directories_5_requests_15_seconds_20_samples"
+    "preview_limits": "confirmed_3_directories_5_requests_15_seconds_20_samples",
+    "user_requested_delay": "4 hours from 2026-11-25 05:31 Asia/Shanghai"
   }
 }

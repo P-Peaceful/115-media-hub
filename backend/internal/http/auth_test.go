@@ -1,3 +1,5 @@
+// auth_test.go：验证认证 HTTP 全流程、默认管理边界、CSRF 与 Cookie 策略，以及状态读取取消和日志脱敏回归。
+
 package http
 
 import (
@@ -22,6 +24,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
 )
 
+// authBrowser 在测试内维护 Cookie、CSRF 与连接对端，模拟浏览器会话而不依赖真实浏览器。
 type authBrowser struct {
 	handler http.Handler
 	cookies map[string]*http.Cookie
@@ -29,6 +32,7 @@ type authBrowser struct {
 	peer    string
 }
 
+// newAuthBrowser 建立临时 SQLite 与可控认证服务，返回模拟浏览器；数据库由测试清理关闭。
 func newAuthBrowser(t *testing.T, secure bool, now func() time.Time) (*authBrowser, *auth.Service, *sqlite.Database) {
 	t.Helper()
 	db, err := sqlite.Open(t.Context(), filepath.Join(t.TempDir(), "auth.db"))
@@ -51,6 +55,8 @@ func newAuthBrowser(t *testing.T, secure bool, now func() time.Time) (*authBrows
 	}
 	return &authBrowser{handler: handler, cookies: map[string]*http.Cookie{}, peer: "192.0.2.1:1234"}, service, db
 }
+
+// request 模拟携带 Cookie 与 CSRF 的请求，应用自定义请求头并保存响应中的 Cookie 变化。
 func (b *authBrowser) request(t *testing.T, method, path, body string, headers map[string]string) *httptest.ResponseRecorder {
 	t.Helper()
 	request := httptest.NewRequest(method, "http://media.test"+path, strings.NewReader(body))
@@ -78,6 +84,8 @@ func (b *authBrowser) request(t *testing.T, method, path, body string, headers m
 	}
 	return response
 }
+
+// bootstrap 读取引导状态并更新浏览器持有的 CSRF 证明。
 func (b *authBrowser) bootstrap(t *testing.T) generated.AuthBootstrap {
 	t.Helper()
 	response := b.request(t, "GET", "/api/v1/auth/bootstrap", "", nil)
@@ -95,6 +103,7 @@ func (b *authBrowser) bootstrap(t *testing.T) generated.AuthBootstrap {
 const setupJSON = `{"username":"admin","password":"ValidPass123!","service_url":"https://media.example.com","output_directory":"/app/media","session_lifetime_days":7}`
 const loginJSON = `{"username":"admin","password":"ValidPass123!","remember_login":false}`
 
+// setup 完成引导及首次管理员初始化，保存新会话的 CSRF 证明。
 func (b *authBrowser) setup(t *testing.T) generated.AuthSession {
 	t.Helper()
 	b.bootstrap(t)
@@ -109,6 +118,8 @@ func (b *authBrowser) setup(t *testing.T) generated.AuthSession {
 	b.csrf = session.CsrfToken
 	return session
 }
+
+// assertAuthError 检查错误状态、稳定错误码和非空请求关联标识。
 func assertAuthError(t *testing.T, response *httptest.ResponseRecorder, status int, code generated.APIErrorCode) {
 	t.Helper()
 	var body generated.ErrorResponse
@@ -120,6 +131,7 @@ func assertAuthError(t *testing.T, response *httptest.ResponseRecorder, status i
 	}
 }
 
+// TestAuthHTTPFlowCSRFAndCookieRotation 验证初始化、重复登录和注销中的同源 CSRF、Cookie 安全属性及会话轮换。
 func TestAuthHTTPFlowCSRFAndCookieRotation(t *testing.T) {
 	browser, service, _ := newAuthBrowser(t, false, nil)
 	state := browser.bootstrap(t)
@@ -148,7 +160,7 @@ func TestAuthHTTPFlowCSRFAndCookieRotation(t *testing.T) {
 	}
 	firstCookie := cookie.Value
 	assertAuthError(t, browser.request(t, "POST", "/api/v1/auth/logout", "", map[string]string{"X-CSRF-Token": oldCSRF}), 403, generated.CsrfInvalid)
-	// Logging in again invalidates the old session and establishes a browser-session cookie.
+	// 再次登录应撤销旧会话，并按未记住登录的选项签发浏览器会话 Cookie。
 	response := browser.request(t, "POST", "/api/v1/auth/login", loginJSON, map[string]string{"Origin": "http://media.test"})
 	if response.Code != 200 {
 		t.Fatalf("login %d: %s", response.Code, response.Body)
@@ -175,6 +187,7 @@ func TestAuthHTTPFlowCSRFAndCookieRotation(t *testing.T) {
 	}
 }
 
+// TestManagementRoutesDefaultProtectedAndUnknownAPI404 验证新增管理路由默认要求认证与变更 CSRF，健康和未知 API 保持各自合同。
 func TestManagementRoutesDefaultProtectedAndUnknownAPI404(t *testing.T) {
 	browser, _, _ := newAuthBrowser(t, false, nil)
 	browser.handler.(*gin.Engine).GET("/api/v1/future", func(c *gin.Context) { c.JSON(200, gin.H{"protected": true}) })
@@ -194,6 +207,7 @@ func TestManagementRoutesDefaultProtectedAndUnknownAPI404(t *testing.T) {
 	}
 }
 
+// TestAuthValidationBoundsAndCredentialErrors 验证请求大小、必填和未知字段，以及初始化状态和错误凭据的安全错误映射。
 func TestAuthValidationBoundsAndCredentialErrors(t *testing.T) {
 	browser, _, _ := newAuthBrowser(t, false, nil)
 	browser.bootstrap(t)
@@ -213,6 +227,7 @@ func TestAuthValidationBoundsAndCredentialErrors(t *testing.T) {
 	assertAuthError(t, browser.request(t, "POST", "/api/v1/auth/login", `{"username":"admin","password":"ValidPass123!"}`, nil), 400, generated.ValidationFailed)
 }
 
+// TestSecureCookieExpiryAndUntrustedPeerHeaders 验证显式 HTTPS Cookie、Origin 校验与会话过期，伪造转发来源不能绕过登录限流。
 func TestSecureCookieExpiryAndUntrustedPeerHeaders(t *testing.T) {
 	now := time.Now().UTC()
 	browser, _, _ := newAuthBrowser(t, true, func() time.Time { return now })
@@ -241,6 +256,7 @@ func TestSecureCookieExpiryAndUntrustedPeerHeaders(t *testing.T) {
 	}
 }
 
+// TestAuthHTTPSecretRedaction 验证 HTTP 和业务日志不包含密码、会话 Cookie 或 CSRF 令牌。
 func TestAuthHTTPSecretRedaction(t *testing.T) {
 	browser, _, db := newAuthBrowser(t, false, nil)
 	var logs bytes.Buffer
@@ -262,6 +278,7 @@ func TestAuthHTTPSecretRedaction(t *testing.T) {
 	}
 }
 
+// TestDirectTLSAlwaysSetsSecureCookie 验证直接 TLS 请求在未显式配置时也启用 Secure Cookie。
 func TestDirectTLSAlwaysSetsSecureCookie(t *testing.T) {
 	browser, _, _ := newAuthBrowser(t, false, nil)
 	request := httptest.NewRequest("GET", "https://media.test/api/v1/auth/bootstrap", nil)
@@ -273,6 +290,7 @@ func TestDirectTLSAlwaysSetsSecureCookie(t *testing.T) {
 	}
 }
 
+// TestAnonymousBootstrapRefetchReusesBinding 验证重复引导复用有效匿名绑定，旧证明仍能完成首次初始化。
 func TestAnonymousBootstrapRefetchReusesBinding(t *testing.T) {
 	browser, _, _ := newAuthBrowser(t, false, nil)
 	first := browser.bootstrap(t)
@@ -286,6 +304,7 @@ func TestAnonymousBootstrapRefetchReusesBinding(t *testing.T) {
 	}
 }
 
+// TestBootstrapStorageFailureHasRedactedOperationalDiagnostic 验证引导存储故障输出可关联诊断，且不泄露原始驱动错误。
 func TestBootstrapStorageFailureHasRedactedOperationalDiagnostic(t *testing.T) {
 	browser, _, db := newAuthBrowser(t, false, nil)
 	var logs bytes.Buffer
@@ -316,6 +335,7 @@ func TestBootstrapStorageFailureHasRedactedOperationalDiagnostic(t *testing.T) {
 	}
 }
 
+// TestCanceledBootstrapDoesNotFabricateServiceFailure 验证已取消引导不向离线客户端虚构 503，日志归类为取消而非服务故障。
 func TestCanceledBootstrapDoesNotFabricateServiceFailure(t *testing.T) {
 	browser, _, db := newAuthBrowser(t, false, nil)
 	var logs bytes.Buffer
@@ -342,6 +362,7 @@ func TestCanceledBootstrapDoesNotFabricateServiceFailure(t *testing.T) {
 	}
 }
 
+// authJSONWithPassword 以 JSON 编解码替换测试密码，确保标点和控制字符按请求格式正确转义。
 func authJSONWithPassword(t *testing.T, template, password string) string {
 	t.Helper()
 	var body map[string]any
@@ -356,6 +377,7 @@ func authJSONWithPassword(t *testing.T, template, password string) string {
 	return string(encoded)
 }
 
+// TestHTTPPasswordPolicyRejectsInvalidSetupAndLogin 验证初始化和登录拒绝超长、非 ASCII、空格及控制字符密码，非法初始化不创建管理员。
 func TestHTTPPasswordPolicyRejectsInvalidSetupAndLogin(t *testing.T) {
 	for _, password := range []string{strings.Repeat("A", 33), "密码Password123", "Valid Pass123!", " ValidPass123!", "ValidPass123! ", "ValidPass123!\n", "ValidPass123!\t", "ValidPass123!\x7f"} {
 		t.Run(password, func(t *testing.T) {
@@ -380,6 +402,7 @@ func TestHTTPPasswordPolicyRejectsInvalidSetupAndLogin(t *testing.T) {
 	}
 }
 
+// TestHTTPPasswordPolicyAcceptsMaximumLengthAndASCIIPunctuation 验证最大长度和 ASCII 标点密码可用于初始化及登录。
 func TestHTTPPasswordPolicyAcceptsMaximumLengthAndASCIIPunctuation(t *testing.T) {
 	for _, password := range []string{strings.Repeat("A", 32), "!@#$%^&*()_+-=[]{};:,.<>/?\\|`~\"'"} {
 		t.Run(password, func(t *testing.T) {
@@ -398,6 +421,7 @@ func TestHTTPPasswordPolicyAcceptsMaximumLengthAndASCIIPunctuation(t *testing.T)
 	}
 }
 
+// TestSystemStatusRequiresSession 验证系统状态须已登录，且响应版本、运行时长和禁用缓存字段符合合同。
 func TestSystemStatusRequiresSession(t *testing.T) {
 	browser, _, _ := newAuthBrowser(t, false, time.Now)
 	anonymous := browser.request(t, "GET", "/api/v1/system/status", "", nil)

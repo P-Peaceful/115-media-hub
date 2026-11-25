@@ -1,3 +1,5 @@
+// output.go：负责输出目录的只读可用性预检和执行期逐层创建，核对有效权限与目录句柄身份。
+
 package strm
 
 import (
@@ -18,14 +20,19 @@ type OutputPreview struct {
 	Message string
 }
 
+// outputRootError 携带管理员可见的输出目录状态，并保留底层错误供分类。
 type outputRootError struct {
 	preview OutputPreview
 	cause   error
 }
 
+// Error 返回可安全展示的输出目录说明。
 func (e *outputRootError) Error() string { return e.preview.Message }
+
+// Unwrap 暴露底层原因供 errors.Is 和 errors.As 判断。
 func (e *outputRootError) Unwrap() error { return e.cause }
 
+// classifyOutputError 将目录缺失、类型冲突和有效权限问题转换为预检状态。
 func classifyOutputError(err error) *outputRootError {
 	preview := OutputPreview{Status: "unavailable", Message: "无法访问 STRM 输出目录，请检查路径、符号链接及挂载状态"}
 	switch {
@@ -39,6 +46,7 @@ func classifyOutputError(err error) *outputRootError {
 	return &outputRootError{preview: preview, cause: err}
 }
 
+// inspectOutputRoot 只读检查输出路径或最近已存在父目录，不创建探测文件或缺失目录。
 func inspectOutputRoot(path string) OutputPreview {
 	root, _, missing, err := findOutputAncestor(path)
 	if err != nil {
@@ -53,6 +61,7 @@ func inspectOutputRoot(path string) OutputPreview {
 	return OutputPreview{Status: "ready", Message: "输出目录可用"}
 }
 
+// prepareOutputRoot 从已核验父目录逐层创建输出路径，响应取消并复核路径绑定；成功句柄由调用者关闭。
 func prepareOutputRoot(ctx context.Context, path string) (*os.Root, string, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, "", err
@@ -88,6 +97,7 @@ func prepareOutputRoot(ctx context.Context, path string) (*os.Root, string, erro
 	return root, canonical, nil
 }
 
+// findOutputAncestor 寻找并打开最近已存在且可写的父目录，返回规范路径和待创建片段；拒绝断链及不安全穿越。
 func findOutputAncestor(path string) (*os.Root, string, []string, error) {
 	if !filepath.IsAbs(path) {
 		return nil, "", nil, ErrConflict
@@ -140,6 +150,7 @@ func findOutputAncestor(path string) (*os.Root, string, []string, error) {
 	return root, canonical, missing, nil
 }
 
+// checkOutputAccess 按服务进程有效身份检查目录写入与遍历权限，不进行测试写入。
 func checkOutputAccess(root *os.Root) error {
 	// 使用服务进程的有效身份检查目录，预览不创建探测文件。执行时仍以实际写入结果为准。
 	handle, err := root.Open(".")
@@ -149,6 +160,7 @@ func checkOutputAccess(root *os.Root) error {
 	return errors.Join(unix.Faccessat(int(handle.Fd()), ".", unix.W_OK|unix.X_OK, unix.AT_EACCESS), handle.Close())
 }
 
+// verifyOutputBinding 核验当前路径仍指向已打开的同一目录，允许已经确认的根路径别名。
 func verifyOutputBinding(root *os.Root, path string) error {
 	info, err := os.Stat(path)
 	if err != nil {

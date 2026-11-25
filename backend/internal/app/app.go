@@ -1,3 +1,5 @@
+// app.go：构建数据库、业务服务和 HTTP 依赖，管理任务中心与服务器的启动、取消及有界关闭。
+
 package app
 
 import (
@@ -20,7 +22,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/strm"
 )
 
-// App owns constructed dependencies and the HTTP server.
+// App 持有数据库、任务中心和 HTTP 服务的生命周期依赖；数据库须在服务停止后释放。
 type App struct {
 	database        *sqlite.Database
 	server          *http.Server
@@ -29,7 +31,7 @@ type App struct {
 	shutdownTimeout time.Duration
 }
 
-// New opens and migrates SQLite before constructing the HTTP transport.
+// New 打开并迁移 SQLite，装配认证、媒体库、115、STRM 和任务中心；构造失败时关闭数据库。
 func New(ctx context.Context, config Config, logger *slog.Logger, assets fs.FS) (*App, error) {
 	started := time.Now()
 	database, err := sqlite.Open(ctx, config.DatabasePath)
@@ -55,8 +57,8 @@ func New(ctx context.Context, config Config, logger *slog.Logger, assets fs.FS) 
 	return &App{database: database, jobs: tasks, logger: logger, shutdownTimeout: config.ShutdownTimeout, server: &http.Server{Addr: config.HTTPAddr, Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 75 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 1 << 20}}, nil
 }
 
-// Serve serves the supplied listener until failure or cancellation, draining admitted requests.
-// The caller owns closing the App after Serve returns.
+// Serve 启动任务中心并接管监听器，直到服务失败或上下文取消，再在关闭期限内停止请求和任务。
+// 调用方应在返回后调用 Close 释放数据库。
 func (a *App) Serve(ctx context.Context, listener net.Listener) error {
 	if err := a.jobs.Start(ctx); err != nil {
 		return errors.Join(fmt.Errorf("start task center: %w", err), listener.Close())
@@ -96,5 +98,5 @@ func (a *App) Serve(ctx context.Context, listener net.Listener) error {
 	return nil
 }
 
-// Close releases database resources; call it after Serve returns.
+// Close 释放数据库连接；应在 Serve 完成任务与请求停止之后调用。
 func (a *App) Close() error { return a.database.Close() }

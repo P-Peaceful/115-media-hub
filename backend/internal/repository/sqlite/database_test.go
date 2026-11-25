@@ -1,3 +1,5 @@
+// database_test.go：使用真实临时 SQLite 验证连接参数、迁移重入、不可逆降级拒绝及启动取消。
+
 package sqlite
 
 import (
@@ -10,6 +12,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/migrations"
 )
 
+// TestDatabaseConfigurationAndMigrations 验证 WAL、外键、忙等待和单连接池，替换连接仍保留配置并拒绝破坏性降级。
 func TestDatabaseConfigurationAndMigrations(t *testing.T) {
 	ctx := t.Context()
 	path := filepath.Join(t.TempDir(), "nested", "app.db")
@@ -34,7 +37,7 @@ func TestDatabaseConfigurationAndMigrations(t *testing.T) {
 			t.Errorf("%s = %s, want %s", setting.name, got, setting.want)
 		}
 	}
-	// Force a replacement connection and verify connection-scoped foreign keys survive.
+	// 强制替换底层连接，验证连接级外键配置仍然生效。
 	database.sql.SetMaxIdleConns(0)
 	var foreignKeys int
 	if err := database.sql.QueryRowContext(ctx, "PRAGMA foreign_keys").Scan(&foreignKeys); err != nil || foreignKeys != 1 {
@@ -66,6 +69,7 @@ func TestDatabaseConfigurationAndMigrations(t *testing.T) {
 	}
 }
 
+// TestDatabaseCancelledStartup 验证已取消上下文不能成功启动数据库，意外建立的资源也会关闭。
 func TestDatabaseCancelledStartup(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()

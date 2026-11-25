@@ -1,3 +1,5 @@
+// service_test.go：验证扫码授权状态流转、会话归属隔离、日志脱敏及轮询期间取消的竞态。
+
 package provider115
 
 import (
@@ -12,15 +14,19 @@ import (
 	"time"
 )
 
+// testRepository 在内存中模拟账号保存、删除及存储失败。
 type testRepository struct {
 	cookie string
 	name   string
 	fail   bool
 }
 
+// ProviderAccount 返回测试仓储当前是否保存 Cookie。
 func (r *testRepository) ProviderAccount(context.Context) (Account, error) {
 	return Account{Connected: r.cookie != ""}, nil
 }
+
+// SaveProviderAccount 保存测试账号或按场景注入存储错误。
 func (r *testRepository) SaveProviderAccount(_ context.Context, name, cookie string, _ time.Time, _, _, _ string) error {
 	if r.fail {
 		return errors.New("storage")
@@ -29,10 +35,14 @@ func (r *testRepository) SaveProviderAccount(_ context.Context, name, cookie str
 	r.cookie = cookie
 	return nil
 }
+
+// DeleteProviderAccount 清空测试账号凭据以模拟解除授权。
 func (r *testRepository) DeleteProviderAccount(context.Context, string, string, time.Time) error {
 	r.cookie = ""
 	return nil
 }
+
+// TestQRWorkflow 验证扫码状态推进、会话隔离、退出失效及错误授权不覆盖旧凭据，并检查日志脱敏。
 func TestQRWorkflow(t *testing.T) {
 	status := 0
 	login := `{"state":1,"data":{"user_name":"Alice","cookie":{"UID":"u","CID":"c","SEID":"s"}}}`
@@ -91,6 +101,7 @@ func TestQRWorkflow(t *testing.T) {
 	}
 }
 
+// TestCancelDuringPollingPreventsAuthorization 阻塞上游轮询后取消二维码，验证在途响应不能再交换或保存授权。
 func TestCancelDuringPollingPreventsAuthorization(t *testing.T) {
 	entered := make(chan struct{})
 	release := make(chan struct{})

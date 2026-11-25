@@ -1,3 +1,5 @@
+// config_test.go：验证启动环境配置拒绝非法端口、日志级别、数据库路径及关闭期限，并正确解析有效设置。
+
 package app
 
 import (
@@ -5,6 +7,7 @@ import (
 	"time"
 )
 
+// TestConfigValidation 验证非法环境变量被拒绝，合法日志级别、监听地址和关闭期限能被读取。
 func TestConfigValidation(t *testing.T) {
 	for _, test := range []struct {
 		name  string

@@ -1,4 +1,6 @@
-// Package app constructs application dependencies and owns process lifecycle.
+// config.go：读取并校验环境变量中的启动配置，提供监听地址、数据库、日志和关闭期限的默认值。
+
+// Package app 负责应用依赖构建与进程生命周期。
 package app
 
 import (
@@ -11,7 +13,7 @@ import (
 	"time"
 )
 
-// Config holds startup-only settings; business settings will live in SQLite.
+// Config 保存进程启动设置；媒体库、账号等业务设置由 SQLite 管理。
 type Config struct {
 	HTTPAddr        string
 	DatabasePath    string
@@ -21,7 +23,7 @@ type Config struct {
 	CookieSecure    bool
 }
 
-// LoadConfig reads environment variables, rejecting invalid startup settings.
+// LoadConfig 读取环境配置并校验监听端口、日志级别、关闭期限及 Cookie 设置；无效值直接返回错误。
 func LoadConfig() (Config, error) {
 	config := Config{HTTPAddr: env("MEDIAHUB_HTTP_ADDR", ":8080"), DatabasePath: env("MEDIAHUB_DATABASE_PATH", "./data/mediahub.db"), LogFile: os.Getenv("MEDIAHUB_LOG_FILE"), ShutdownTimeout: 10 * time.Second}
 	if err := config.LogLevel.UnmarshalText([]byte(env("MEDIAHUB_LOG_LEVEL", "INFO"))); err != nil {
@@ -55,6 +57,7 @@ func LoadConfig() (Config, error) {
 	return config, nil
 }
 
+// env 读取已设置的环境变量，包括显式空值；未设置时返回默认值。
 func env(name, fallback string) string {
 	if value, ok := os.LookupEnv(name); ok {
 		return value

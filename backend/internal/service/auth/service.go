@@ -1,4 +1,6 @@
-// Package auth owns authentication policy and atomic security use cases.
+// service.go：编排管理员初始化、登录、会话校验和密码恢复，统一认证策略与操作结果日志。
+
+// Package auth 管理管理员认证策略与原子安全用例。
 package auth
 
 import (
@@ -14,7 +16,7 @@ import (
 	domain "github.com/wenzhengcheng/115-media-hub/backend/internal/domain/auth"
 )
 
-// Repository owns storage mechanics; mutations include their required audit in the same transaction.
+// Repository 封装认证持久化；安全变更必须与对应审计在同一事务提交。
 type Repository interface {
 	Administrator(context.Context) (domain.Administrator, error)
 	Settings(context.Context) (domain.Settings, error)
@@ -26,13 +28,13 @@ type Repository interface {
 	RecordAudit(context.Context, domain.Audit) error
 }
 
-// Options provides a controllable clock/cost for tests; production uses cost 12.
+// Options 提供可替换的时钟和密码哈希成本；生产默认使用成本 12。
 type Options struct {
 	Now          func() time.Time
 	PasswordCost int
 }
 
-// Service contains no HTTP or SQL dependencies.
+// Service 持有认证策略、匿名签名密钥与尝试限额，不依赖 HTTP 或 SQL 类型。
 type Service struct {
 	repo         Repository
 	logger       *slog.Logger
@@ -43,7 +45,7 @@ type Service struct {
 	limiter      attemptLimiter
 }
 
-// New constructs authentication policy and a restart-local anonymous-cookie signing key.
+// New 构造认证服务，准备密码比较占位哈希和仅本次进程有效的匿名 Cookie 签名密钥。
 func New(repo Repository, logger *slog.Logger, options Options) (*Service, error) {
 	if options.Now == nil {
 		options.Now = time.Now
@@ -65,14 +67,14 @@ func New(repo Repository, logger *slog.Logger, options Options) (*Service, error
 	return &Service{repo: repo, logger: logger.With("module", "auth"), now: options.Now, cost: options.PasswordCost, anonymousKey: key, dummyHash: dummyHash}, nil
 }
 
-// SessionResult contains the raw cookie solely for transport; it is never logged or persisted.
+// SessionResult 承载会话身份及供传输层下发的原始凭证；原始 Token 和 CSRF 值不持久化或记录日志。
 type SessionResult struct {
 	Identity  domain.Identity
 	Token     string
 	CSRFToken string
 }
 
-// Initialized reveals only whether the singleton administrator exists.
+// Initialized 仅查询管理员是否存在，将首次启动的缺失状态转换为 false。
 func (s *Service) Initialized(ctx context.Context) (bool, error) {
 	_, err := s.repo.Administrator(ctx)
 	if errors.Is(err, ErrSetupRequired) {
@@ -81,7 +83,7 @@ func (s *Service) Initialized(ctx context.Context) (bool, error) {
 	return err == nil, unavailable(err)
 }
 
-// Authenticate looks up an opaque credential and enforces fixed expiry.
+// Authenticate 按令牌摘要查询未过期会话；非法格式或失效凭证返回未认证错误。
 func (s *Service) Authenticate(ctx context.Context, token string) (domain.Identity, error) {
 	if !validSessionToken(token) {
 		return domain.Identity{}, ErrUnauthenticated
@@ -93,15 +95,15 @@ func (s *Service) Authenticate(ctx context.Context, token string) (domain.Identi
 	return identity, unavailable(err)
 }
 
-// CSRFForSession reproduces a proof bound to the secret cookie without storing the raw proof.
+// CSRFForSession 从会话 Cookie 重建绑定的 CSRF 证明，不存储原始证明。
 func (s *Service) CSRFForSession(token string) string { return csrfToken(token) }
 
-// ValidateSessionCSRF compares both the submitted proof and its persisted binding in constant time.
+// ValidateSessionCSRF 以常量时间比较提交证明及其持久化摘要，验证与当前会话的绑定。
 func (s *Service) ValidateSessionCSRF(identity domain.Identity, token, proof string) bool {
 	return tokenEqual(proof, csrfToken(token)) && tokenEqual(tokenHash(proof), identity.Session.CSRFHash)
 }
 
-// Initialize creates the singleton settings, administrator and first persistent session.
+// Initialize 校验首次配置并限制密码哈希开销，原子创建管理员、设置、首个会话和审计。
 func (s *Service) Initialize(ctx context.Context, username, password string, settings domain.Settings, peer, correlation string) (result SessionResult, resultErr error) {
 	started := time.Now()
 	defer func() { s.logOutcome(ctx, "initialize", correlation, started, resultErr) }()
@@ -140,7 +142,7 @@ func (s *Service) Initialize(ctx context.Context, username, password string, set
 	return result, nil
 }
 
-// Login uses one safe credential error and rotates any supplied old session on success.
+// Login 统一用户名或密码错误的外部结果；成功时轮换旧会话，并由仓储复核密码代次。
 func (s *Service) Login(ctx context.Context, username, password, oldToken, peer, correlation string) (result SessionResult, resultErr error) {
 	started := time.Now()
 	defer func() { s.logOutcome(ctx, "login", correlation, started, resultErr) }()
@@ -189,14 +191,14 @@ func (s *Service) Login(ctx context.Context, username, password, oldToken, peer,
 	return result, nil
 }
 
-// Logout atomically revokes the session and records a required audit.
+// Logout 原子撤销当前会话并保存必须成功的安全审计。
 func (s *Service) Logout(ctx context.Context, identity domain.Identity, correlation string) (resultErr error) {
 	started := time.Now()
 	defer func() { s.logOutcome(ctx, "logout", correlation, started, resultErr) }()
 	return unavailable(s.repo.RevokeSession(ctx, identity.Session.TokenHash, s.audit(identity.Administrator.ID, "logout", identity.Administrator.ID, "succeeded", correlation)))
 }
 
-// ResetPassword changes only an existing administrator and revokes every session atomically.
+// ResetPassword 仅修改已存在管理员的密码，原子撤销全部会话并保留业务设置。
 func (s *Service) ResetPassword(ctx context.Context, password, correlation string) (resultErr error) {
 	started := time.Now()
 	defer func() { s.logOutcome(ctx, "reset_password", correlation, started, resultErr) }()
@@ -217,6 +219,7 @@ func (s *Service) ResetPassword(ctx context.Context, password, correlation strin
 	return unavailable(s.repo.ResetPassword(ctx, string(hash), s.audit("local_maintenance", "reset_password", administrator.ID, "succeeded", correlation)))
 }
 
+// newSession 生成固定期限会话与 CSRF 证明，存储摘要并从返回身份中移除密码哈希。
 func (s *Service) newSession(administrator domain.Administrator, settings domain.Settings, now time.Time) SessionResult {
 	token := randomToken()
 	csrf := csrfToken(token)
@@ -225,10 +228,12 @@ func (s *Service) newSession(administrator domain.Administrator, settings domain
 	return SessionResult{Identity: domain.Identity{Session: session, Administrator: administrator}, Token: token, CSRFToken: csrf}
 }
 
+// audit 组装使用注入时钟和调用关联标识的安全审计记录。
 func (s *Service) audit(actor, action, target, outcome, correlation string) domain.Audit {
 	return domain.Audit{ActorID: actor, Action: action, TargetID: target, Outcome: outcome, CorrelationID: correlation, OccurredAt: s.now().UTC()}
 }
 
+// unavailable 保留预期认证错误的身份，为其余失败附加服务不可用分类。
 func unavailable(err error) error {
 	if err == nil {
 		return nil

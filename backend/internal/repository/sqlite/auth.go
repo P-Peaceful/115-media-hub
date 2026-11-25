@@ -1,3 +1,5 @@
+// auth.go：持久化管理员、系统设置、会话和安全审计，使用事务保护凭据代次及安全变更。
+
 package sqlite
 
 import (
@@ -13,6 +15,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
 )
 
+// administratorModel 映射唯一管理员及其密码哈希，Singleton 由数据库约束为 1。
 type administratorModel struct {
 	Singleton    int
 	ID           string
@@ -22,8 +25,10 @@ type administratorModel struct {
 	UpdatedAt    time.Time
 }
 
+// TableName 指定持久化表名 administrators，避免依赖 ORM 自动命名。
 func (administratorModel) TableName() string { return "administrators" }
 
+// settingsModel 映射首次设置和会话期限，与管理员同为单例配置。
 type settingsModel struct {
 	Singleton           int
 	ServiceURL          string
@@ -33,8 +38,10 @@ type settingsModel struct {
 	UpdatedAt           time.Time
 }
 
+// TableName 指定持久化表名 system_settings，避免依赖 ORM 自动命名。
 func (settingsModel) TableName() string { return "system_settings" }
 
+// sessionModel 仅存储会话及 CSRF 摘要和固定到期时间，不保存原始凭证。
 type sessionModel struct {
 	TokenHash       string `gorm:"primaryKey"`
 	AdministratorID string
@@ -43,8 +50,10 @@ type sessionModel struct {
 	ExpiresAt       time.Time
 }
 
+// TableName 指定持久化表名 admin_sessions，避免依赖 ORM 自动命名。
 func (sessionModel) TableName() string { return "admin_sessions" }
 
+// auditModel 映射安全事件及关联标识，参与需要审计的安全变更事务。
 type auditModel struct {
 	ActorID       string
 	Action        string
@@ -54,9 +63,10 @@ type auditModel struct {
 	OccurredAt    time.Time
 }
 
+// TableName 指定持久化表名 audit_records，避免依赖 ORM 自动命名。
 func (auditModel) TableName() string { return "audit_records" }
 
-// Administrator loads the one local administrator, distinguishing first-run state.
+// Administrator 读取唯一管理员，缺失时返回首次初始化状态。
 func (d *Database) Administrator(ctx context.Context) (domain.Administrator, error) {
 	var model administratorModel
 	if err := d.orm.WithContext(ctx).Where("singleton = ?", 1).Take(&model).Error; err != nil {
@@ -68,7 +78,7 @@ func (d *Database) Administrator(ctx context.Context) (domain.Administrator, err
 	return domain.Administrator{ID: model.ID, Username: model.Username, PasswordHash: model.PasswordHash, CreatedAt: model.CreatedAt}, nil
 }
 
-// Settings loads the first-run business settings independently of transport.
+// Settings 读取单例业务设置，将存储失败包装为安全的操作诊断。
 func (d *Database) Settings(ctx context.Context) (domain.Settings, error) {
 	var model settingsModel
 	if err := d.orm.WithContext(ctx).Where("singleton = ?", 1).Take(&model).Error; err != nil {
@@ -77,7 +87,7 @@ func (d *Database) Settings(ctx context.Context) (domain.Settings, error) {
 	return domain.Settings{ServiceURL: model.ServiceURL, OutputDirectory: model.OutputDirectory, SessionLifetimeDays: model.SessionLifetimeDays}, nil
 }
 
-// FindSession returns an unexpired session and a public administrator identity.
+// FindSession 读取未过期会话及公开管理员身份，不返回密码哈希。
 func (d *Database) FindSession(ctx context.Context, hash string, now time.Time) (domain.Identity, error) {
 	var model sessionModel
 	if err := d.orm.WithContext(ctx).Where("token_hash = ? AND expires_at > ?", hash, now).Take(&model).Error; err != nil {
@@ -93,7 +103,7 @@ func (d *Database) FindSession(ctx context.Context, hash string, now time.Time) 
 	return domain.Identity{Session: domain.Session{TokenHash: model.TokenHash, AdministratorID: model.AdministratorID, CSRFHash: model.CSRFHash, CreatedAt: model.CreatedAt, ExpiresAt: model.ExpiresAt}, Administrator: domain.Administrator{ID: administrator.ID, Username: administrator.Username}}, nil
 }
 
-// Initialize atomically persists credentials, settings, first session and mandatory audit.
+// Initialize 原子保存凭据、设置、首个会话与审计，单例约束冲突返回已初始化错误。
 func (d *Database) Initialize(ctx context.Context, administrator domain.Administrator, settings domain.Settings, session domain.Session, audit domain.Audit) error {
 	err := d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		model := administratorModel{Singleton: 1, ID: administrator.ID, Username: administrator.Username, PasswordHash: administrator.PasswordHash, CreatedAt: administrator.CreatedAt, UpdatedAt: administrator.CreatedAt}
@@ -119,11 +129,11 @@ func (d *Database) Initialize(ctx context.Context, administrator domain.Administ
 	return nil
 }
 
-// CreateSession includes old-session rotation, bounded expiry cleanup and success audit.
+// CreateSession 在事务内复核已验证的密码代次，再轮换旧会话、有界清理过期会话并保存审计。
 func (d *Database) CreateSession(ctx context.Context, session domain.Session, oldHash, expectedPasswordHash string, audit domain.Audit) error {
 	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		// A password reset may finish after comparison and before session creation.
-		// Recheck the credential inside this write transaction to prevent resurrecting an old login.
+		// 密码重置可能发生在比较成功后、创建会话前；在写事务中复核
+		// 已验证的密码代次，避免旧密码登录重新产生有效会话。
 		var administrator administratorModel
 		if err := tx.Where("id = ? AND password_hash = ?", session.AdministratorID, expectedPasswordHash).Take(&administrator).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -137,7 +147,7 @@ func (d *Database) CreateSession(ctx context.Context, session domain.Session, ol
 				return fmt.Errorf("rotate session: %w", err)
 			}
 		}
-		// Never scan/delete an unbounded set during authentication.
+		// 认证请求只清理有界数量的过期会话，避免无界扫描和删除。
 		if err := tx.Exec("DELETE FROM admin_sessions WHERE token_hash IN (SELECT token_hash FROM admin_sessions WHERE expires_at <= ? LIMIT 100)", session.CreatedAt).Error; err != nil {
 			return fmt.Errorf("clean expired sessions: %w", err)
 		}
@@ -148,7 +158,7 @@ func (d *Database) CreateSession(ctx context.Context, session domain.Session, ol
 	})
 }
 
-// RevokeSession rolls back revocation if its required security audit cannot be stored.
+// RevokeSession 撤销指定会话；审计保存失败时回滚撤销操作。
 func (d *Database) RevokeSession(ctx context.Context, hash string, audit domain.Audit) error {
 	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Where("token_hash = ?", hash).Delete(&sessionModel{})
@@ -162,7 +172,7 @@ func (d *Database) RevokeSession(ctx context.Context, hash string, audit domain.
 	})
 }
 
-// ResetPassword preserves settings and atomically invalidates every prior session.
+// ResetPassword 更新现有管理员密码并撤销全部会话，与审计原子提交且保留设置。
 func (d *Database) ResetPassword(ctx context.Context, hash string, audit domain.Audit) error {
 	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&administratorModel{}).Where("singleton = ?", 1).Updates(map[string]any{"password_hash": hash, "updated_at": audit.OccurredAt})
@@ -179,11 +189,12 @@ func (d *Database) ResetPassword(ctx context.Context, hash string, audit domain.
 	})
 }
 
-// RecordAudit stores a failed-login outcome; errors must be handled by the service.
+// RecordAudit 保存独立的失败登录审计，失败必须由服务处理。
 func (d *Database) RecordAudit(ctx context.Context, audit domain.Audit) error {
 	return insertAudit(d.orm.WithContext(ctx), audit)
 }
 
+// insertSession 使用传入事务保存令牌摘要、CSRF 摘要和固定期限。
 func insertSession(tx *gorm.DB, session domain.Session) error {
 	model := sessionModel{TokenHash: session.TokenHash, AdministratorID: session.AdministratorID, CSRFHash: session.CSRFHash, CreatedAt: session.CreatedAt, ExpiresAt: session.ExpiresAt}
 	if err := tx.Create(&model).Error; err != nil {
@@ -192,6 +203,7 @@ func insertSession(tx *gorm.DB, session domain.Session) error {
 	return nil
 }
 
+// insertAudit 使用传入事务保存安全审计，失败时附加必须审计不可用的错误分类。
 func insertAudit(tx *gorm.DB, audit domain.Audit) error {
 	model := auditModel{ActorID: audit.ActorID, Action: audit.Action, TargetID: audit.TargetID, Outcome: audit.Outcome, CorrelationID: audit.CorrelationID, OccurredAt: audit.OccurredAt}
 	if err := tx.Create(&model).Error; err != nil {
@@ -200,7 +212,7 @@ func insertAudit(tx *gorm.DB, audit domain.Audit) error {
 	return nil
 }
 
-// UpdateCredentials checks the verified password generation atomically with session revocation and audit.
+// UpdateCredentials 事务内验证当前会话和密码代次，更新凭据、撤销其他会话并记录审计。
 func (d *Database) UpdateCredentials(ctx context.Context, username, hash, expectedHash, currentSession string, audit domain.Audit) error {
 	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var session sessionModel
@@ -224,7 +236,7 @@ func (d *Database) UpdateCredentials(ctx context.Context, username, hash, expect
 	})
 }
 
-// UpdateSessionLifetime persists the setting and audit atomically.
+// UpdateSessionLifetime 原子更新单例会话期限与审计；尚未初始化时不创建设置。
 func (d *Database) UpdateSessionLifetime(ctx context.Context, days int, audit domain.Audit) error {
 	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&settingsModel{}).Where("singleton = ?", 1).Updates(map[string]any{"session_lifetime_days": days, "updated_at": audit.OccurredAt})

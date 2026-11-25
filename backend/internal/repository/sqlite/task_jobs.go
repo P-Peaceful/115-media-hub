@@ -1,3 +1,5 @@
+// task_jobs.go：实现任务查询、条件抢占和状态迁移，并按执行次数隔离进度、明细与日志写入。
+
 package sqlite
 
 import (
@@ -13,6 +15,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/domain/jobs"
 )
 
+// taskJobModel 映射任务执行状态及计数；Attempt 用于拒绝旧执行轮次的写入。
 type taskJobModel struct {
 	ID                  string `gorm:"primaryKey"`
 	Type                jobs.Type
@@ -42,8 +45,10 @@ type taskJobModel struct {
 	NotifyOn            []jobs.Outcome `gorm:"serializer:json"`
 }
 
+// TableName 指定持久化表名 task_jobs，避免依赖 ORM 自动命名。
 func (taskJobModel) TableName() string { return "task_jobs" }
 
+// domain 将持久化记录映射为任务领域值，不补充服务层计算的可用操作。
 func (m taskJobModel) domain() jobs.Job {
 	return jobs.Job{
 		ID: m.ID, Type: m.Type, LibraryID: m.LibraryID, LibraryName: m.LibraryName, Source: m.Source,
@@ -56,6 +61,7 @@ func (m taskJobModel) domain() jobs.Job {
 	}
 }
 
+// newTaskJobModel 将新排队任务映射为存储模型，复制通知配置并保留提交来源。
 func newTaskJobModel(job jobs.Job) taskJobModel {
 	return taskJobModel{
 		ID: job.ID, Type: job.Type, LibraryID: job.LibraryID, LibraryName: job.LibraryName, Source: job.Source,
@@ -65,6 +71,7 @@ func newTaskJobModel(job jobs.Job) taskJobModel {
 	}
 }
 
+// QueryJobs 在同一快照查询倒序任务和筛选计数；类型及状态分组分别忽略自身维度筛选。
 func (d *Database) QueryJobs(ctx context.Context, filter jobs.JobFilter) (jobs.JobPage, error) {
 	result := jobs.JobPage{Items: []jobs.Job{}, ByType: map[jobs.Type]int64{}, ByStatus: map[jobs.Status]int64{}}
 	for _, kind := range jobs.Types() {
@@ -126,6 +133,7 @@ func (d *Database) QueryJobs(ctx context.Context, filter jobs.JobFilter) (jobs.J
 	return result, err
 }
 
+// taskJobQuery 只使用固定列构造媒体库、类型和状态过滤条件。
 func taskJobQuery(db *gorm.DB, libraryID string, kind jobs.Type, status jobs.Status) *gorm.DB {
 	query := db.Model(&taskJobModel{})
 	if libraryID != "" {
@@ -140,6 +148,7 @@ func taskJobQuery(db *gorm.DB, libraryID string, kind jobs.Type, status jobs.Sta
 	return query
 }
 
+// readTaskJob 使用给定连接或事务读取任务，将记录缺失映射为业务错误。
 func readTaskJob(db *gorm.DB, id string) (taskJobModel, error) {
 	var model taskJobModel
 	err := db.Where("id = ?", id).Take(&model).Error
@@ -149,11 +158,13 @@ func readTaskJob(db *gorm.DB, id string) (taskJobModel, error) {
 	return model, err
 }
 
+// ReadJob 按 ID 读取任务持久化状态。
 func (d *Database) ReadJob(ctx context.Context, id string) (jobs.Job, error) {
 	model, err := readTaskJob(d.orm.WithContext(ctx), id)
 	return model.domain(), err
 }
 
+// InsertJob 原子插入排队任务及入队日志，将唯一约束冲突映射为任务冲突。
 func (d *Database) InsertJob(ctx context.Context, job jobs.Job) error {
 	err := d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		model := newTaskJobModel(job)
@@ -169,6 +180,7 @@ func (d *Database) InsertJob(ctx context.Context, job jobs.Job) error {
 	return err
 }
 
+// ClaimJob 按时间顺序条件抢占排队任务并递增执行次数，同一媒体库已有运行任务时跳过。
 func (d *Database) ClaimJob(ctx context.Context, now time.Time) (jobs.Job, error) {
 	var model taskJobModel
 	err := d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -196,6 +208,7 @@ func (d *Database) ClaimJob(ctx context.Context, now time.Time) (jobs.Job, error
 	return model.domain(), err
 }
 
+// RunningJobs 读取仍标记为运行中的任务，供启动恢复核验使用。
 func (d *Database) RunningJobs(ctx context.Context) ([]jobs.Job, error) {
 	var rows []taskJobModel
 	if err := d.orm.WithContext(ctx).Where("status = 'running'").Order("created_at, id").Find(&rows).Error; err != nil {
@@ -208,6 +221,7 @@ func (d *Database) RunningJobs(ctx context.Context) ([]jobs.Job, error) {
 	return runs, nil
 }
 
+// ChangeJobControl 按状态、待处理动作和执行次数条件保存控制命令，并原子记录任务日志。
 func (d *Database) ChangeJobControl(ctx context.Context, job jobs.Job, action jobs.Action, now time.Time) error {
 	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		updates := map[string]any{}
@@ -239,6 +253,7 @@ func (d *Database) ChangeJobControl(ctx context.Context, job jobs.Job, action jo
 	})
 }
 
+// FinishJob 复核活动执行快照后提交结束状态和日志；过期控制或执行次数返回冲突。
 func (d *Database) FinishJob(ctx context.Context, snapshot jobs.Job, status jobs.Status, code string, now time.Time) (jobs.Job, error) {
 	var model taskJobModel
 	err := d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -264,6 +279,7 @@ func (d *Database) FinishJob(ctx context.Context, snapshot jobs.Job, status jobs
 	return model.domain(), err
 }
 
+// terminalUpdates 根据终态与成功失败计数构造更新，区分全部失败和部分失败并清理运行态字段。
 func terminalUpdates(current taskJobModel, status jobs.Status, code string, now time.Time) (map[string]any, string, string) {
 	if status == jobs.Completed && current.FailedItems > 0 && current.SucceededItems == 0 && current.SkippedItems == 0 {
 		status = jobs.Failed
@@ -295,6 +311,7 @@ func terminalUpdates(current taskJobModel, status jobs.Status, code string, now 
 	return updates, level, message
 }
 
+// failureMessage 将内部失败代码映射为管理员可读的固定摘要，不展示底层错误。
 func failureMessage(code string) string {
 	switch code {
 	case "task_type_unavailable":
@@ -316,6 +333,7 @@ func failureMessage(code string) string {
 	}
 }
 
+// changedOne 要求条件变更恰好影响一行，否则返回原始错误或任务冲突。
 func changedOne(result *gorm.DB) error {
 	if result.Error != nil {
 		return result.Error
@@ -326,12 +344,14 @@ func changedOne(result *gorm.DB) error {
 	return nil
 }
 
+// UpdateJobProgress 只更新仍在运行且执行次数匹配的任务进度，拒绝旧回调。
 func (d *Database) UpdateJobProgress(ctx context.Context, id string, attempt int, progress jobs.Progress) error {
 	return changedOne(d.orm.WithContext(ctx).Model(&taskJobModel{}).Where("id = ? AND status = 'running' AND attempt = ?", id, attempt).
 		Updates(map[string]any{"progress_percent": progress.ProgressPercent, "speed_bytes_per_second": progress.SpeedBytesPerSecond,
 			"current_file": progress.CurrentFile, "total_items": progress.TotalItems}))
 }
 
+// taskItemModel 按任务和稳定条目键保存处理结果，用于恢复更新及失败条目重试。
 type taskItemModel struct {
 	ID      string `gorm:"primaryKey"`
 	JobID   string
@@ -341,8 +361,10 @@ type taskItemModel struct {
 	Status  jobs.ItemStatus
 }
 
+// TableName 指定持久化表名 task_items，避免依赖 ORM 自动命名。
 func (taskItemModel) TableName() string { return "task_items" }
 
+// UpsertJobItem 在活动执行事务内写入条目并修正聚合计数，同状态重复上报不会重复计数。
 func (d *Database) UpsertJobItem(ctx context.Context, id string, attempt int, item jobs.Item) error {
 	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		job, err := readTaskJob(tx, id)
@@ -377,6 +399,7 @@ func (d *Database) UpsertJobItem(ctx context.Context, id string, attempt int, it
 	})
 }
 
+// taskItemCountColumn 将条目状态映射到固定计数列，避免动态列来自外部输入。
 func taskItemCountColumn(status jobs.ItemStatus) string {
 	switch status {
 	case jobs.ItemSucceeded:
@@ -388,6 +411,7 @@ func taskItemCountColumn(status jobs.ItemStatus) string {
 	}
 }
 
+// QueryFailedItems 按条目 ID 游标分页读取指定任务的持久化失败结果。
 func (d *Database) QueryFailedItems(ctx context.Context, id string, page jobs.Page) (jobs.ItemPage, error) {
 	var rows []taskItemModel
 	err := d.orm.WithContext(ctx).Where("job_id = ? AND status = 'failed' AND id > ?", id, page.Cursor).
@@ -406,6 +430,7 @@ func (d *Database) QueryFailedItems(ctx context.Context, id string, page jobs.Pa
 	return result, nil
 }
 
+// taskLogModel 保存面向管理员的任务日志及创建时刻。
 type taskLogModel struct {
 	ID        string `gorm:"primaryKey"`
 	JobID     string
@@ -414,12 +439,15 @@ type taskLogModel struct {
 	CreatedAt time.Time
 }
 
+// TableName 指定持久化表名 task_logs，避免依赖 ORM 自动命名。
 func (taskLogModel) TableName() string { return "task_logs" }
 
+// addTaskLog 在调用方事务内追加生命周期日志，不受模块明细日志配额限制。
 func addTaskLog(tx *gorm.DB, id, level, message string, now time.Time) error {
 	return tx.Create(&taskLogModel{ID: rand.Text(), JobID: id, Level: level, Message: message, CreatedAt: now}).Error
 }
 
+// InsertJobLog 仅接收当前活动执行的日志；达到每任务 5000 条配额后忽略额外明细，旧回调仍报冲突。
 func (d *Database) InsertJobLog(ctx context.Context, id string, attempt int, item jobs.JobLog) error {
 	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Exec(`INSERT INTO task_logs (id, job_id, level, message, created_at)
@@ -428,8 +456,8 @@ func (d *Database) InsertJobLog(ctx context.Context, id string, attempt int, ite
 		if result.Error != nil || result.RowsAffected == 1 {
 			return result.Error
 		}
-		// A current attempt can exceed its optional detail-log quota. Lifecycle
-		// logs still use addTaskLog and remain outside that quota.
+		// 当前执行超过可选明细日志配额后忽略新增明细；生命周期日志
+		// 仍通过 addTaskLog 写入，不受此配额限制。
 		job, err := readTaskJob(tx, id)
 		if err != nil {
 			return err
@@ -441,6 +469,7 @@ func (d *Database) InsertJobLog(ctx context.Context, id string, attempt int, ite
 	})
 }
 
+// QueryJobLogs 按时间及 ID 升序读取日志，游标必须属于当前任务。
 func (d *Database) QueryJobLogs(ctx context.Context, id string, page jobs.Page) (jobs.LogPage, error) {
 	var rows []taskLogModel
 	db := d.orm.WithContext(ctx)

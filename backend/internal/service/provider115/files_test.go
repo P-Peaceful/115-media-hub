@@ -1,3 +1,5 @@
+// files_test.go：验证目录分页参数、游标绑定、上游完整性检查和授权更换时的结果隔离。
+
 package provider115
 
 import (
@@ -12,6 +14,7 @@ import (
 	"testing"
 )
 
+// TestFilesPaginationAndProviderFailures 验证游标条件绑定、分页映射、账号和定位码不外泄，以及授权和上游失败分类。
 func TestFilesPaginationAndProviderFailures(t *testing.T) {
 	response := `{"state":true,"cid":"123","count":2,"path":[{"cid":"0","name":"115网盘"},{"cid":"123","name":"Movies"}],"data":[{"fid":"999999999999999999","cid":"123","n":"movie.mp4","s":12345,"te":"1700000000","pc":"private-pickcode"}]}`
 	const cookie = "UID=4123456789_A1_private"
@@ -78,6 +81,7 @@ func TestFilesPaginationAndProviderFailures(t *testing.T) {
 	}
 }
 
+// TestFilesRejectsInvalidCount 验证缺失、非整数、负数或越界的目录总数均被拒绝。
 func TestFilesRejectsInvalidCount(t *testing.T) {
 	for _, count := range []string{"", `,"count":null`, `,"count":-1`, `,"count":1.5`, `,"count":"2"`, `,"count":9007199254740992`} {
 		t.Run(count, func(t *testing.T) {
@@ -95,6 +99,7 @@ func TestFilesRejectsInvalidCount(t *testing.T) {
 	}
 }
 
+// TestFilesAcceptsZeroCount 验证合法的空目录可以返回零总数且无后续游标。
 func TestFilesAcceptsZeroCount(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		_, _ = io.WriteString(w, `{"state":true,"cid":"0","count":0,"path":[{"cid":"0","name":"115网盘"}],"data":[]}`)
@@ -108,6 +113,7 @@ func TestFilesAcceptsZeroCount(t *testing.T) {
 	}
 }
 
+// TestFilesDirectPageAndShortPage 验证直接页码转换为正确偏移，并拒绝尚有后续数据时的短页。
 func TestFilesDirectPageAndShortPage(t *testing.T) {
 	short := false
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -137,6 +143,7 @@ func TestFilesDirectPageAndShortPage(t *testing.T) {
 	}
 }
 
+// TestFilesPagePastEndAfterDirectoryShrinks 验证实时目录缩小后，超过末页的查询返回合法空页。
 func TestFilesPagePastEndAfterDirectoryShrinks(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Query().Get("offset") != "150" {
@@ -153,6 +160,7 @@ func TestFilesPagePastEndAfterDirectoryShrinks(t *testing.T) {
 	}
 }
 
+// TestFilesRejectsAccountReplacement 在目录请求等待期间替换或删除凭据，验证旧账号分页结果被丢弃。
 func TestFilesRejectsAccountReplacement(t *testing.T) {
 	for _, replacement := range []string{"", "UID=new"} {
 		t.Run(replacement, func(t *testing.T) {

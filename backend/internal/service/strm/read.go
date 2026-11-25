@@ -1,3 +1,5 @@
+// read.go：负责校验 STRM 登记查询条件和读取详情，仅向客户端展示与登记身份匹配的本地内容。
+
 package strm
 
 import (
@@ -10,6 +12,7 @@ import (
 	"unicode/utf8"
 )
 
+// List 校验筛选、排序和分页范围后读取登记列表，失败时记录脱敏诊断。
 func (s *Service) List(ctx context.Context, filter ListFilter, requestID string) (ArtifactPage, error) {
 	switch {
 	case utf8.RuneCountInString(filter.LibraryID) > 128, utf8.RuneCountInString(filter.Query) > 256, strings.ContainsRune(filter.LibraryID+filter.Query, 0):
@@ -29,6 +32,7 @@ func (s *Service) List(ctx context.Context, filter ListFilter, requestID string)
 	return page, err
 }
 
+// Detail 读取登记并核对本地文件状态，内容缺失、变化或不可读时不返回预览。
 func (s *Service) Detail(ctx context.Context, id, requestID string) (Detail, error) {
 	started := time.Now()
 	artifact, err := s.repo.StrmArtifact(ctx, id)

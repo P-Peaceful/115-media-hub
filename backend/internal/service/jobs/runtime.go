@@ -1,3 +1,5 @@
+// runtime.go：管理有界工作池和调度循环，处理任务取消、重启核验及脱敏上报的生命周期。
+
 package jobs
 
 import (
@@ -19,9 +21,10 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
 )
 
+// pollInterval 控制调度与空闲工作协程的轮询间隔，显式唤醒可提前触发抢占。
 const pollInterval = time.Second
 
-// Start reconciles persisted running jobs before starting the scheduler and two workers.
+// Start 先核验遗留运行任务并推进停机期间的计划，再启动两个工作协程和一个调度协程。
 func (s *Service) Start(ctx context.Context) error {
 	s.runtimeMu.Lock()
 	defer s.runtimeMu.Unlock()
@@ -55,7 +58,7 @@ func (s *Service) Start(ctx context.Context) error {
 	return nil
 }
 
-// Stop cancels running work and waits until the workers release their resources.
+// Stop 关闭订阅并取消后台工作，在调用方期限内等待协程释放资源。
 func (s *Service) Stop(ctx context.Context) error {
 	s.runtimeMu.Lock()
 	done := s.done
@@ -75,6 +78,7 @@ func (s *Service) Stop(ctx context.Context) error {
 	}
 }
 
+// scheduler 按固定间隔处理到期计划，退出时释放定时器并停止产生新任务。
 func (s *Service) scheduler(ctx context.Context) {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
@@ -91,6 +95,7 @@ func (s *Service) scheduler(ctx context.Context) {
 	}
 }
 
+// worker 循环条件抢占任务并串行执行单个任务，空队列时等待轮询、唤醒或取消。
 func (s *Service) worker(ctx context.Context) {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
@@ -117,6 +122,7 @@ func (s *Service) worker(ctx context.Context) {
 	}
 }
 
+// wakeWorker 发送可合并的唤醒信号，不阻塞任务提交或状态迁移。
 func (s *Service) wakeWorker() {
 	select {
 	case s.wake <- struct{}{}:
@@ -124,11 +130,13 @@ func (s *Service) wakeWorker() {
 	}
 }
 
+// runAttempt 以任务 ID 和执行次数共同标识活动执行，隔离过期控制信号。
 type runAttempt struct {
 	jobID  string
 	number int
 }
 
+// signalControl 只取消与任务执行次数匹配的活动上下文，旧执行控制不能影响恢复后的任务。
 func (s *Service) signalControl(job domain.Job, action domain.Action) {
 	s.activeMu.Lock()
 	defer s.activeMu.Unlock()
@@ -137,6 +145,7 @@ func (s *Service) signalControl(job domain.Job, action domain.Action) {
 	}
 }
 
+// controlCause 将暂停映射为专用原因，其余停止动作使用普通取消。
 func controlCause(action domain.Action) error {
 	if action == domain.Pause {
 		return ErrPauseRequested
@@ -144,6 +153,7 @@ func controlCause(action domain.Action) error {
 	return context.Canceled
 }
 
+// run 登记活动执行并复读控制状态，解决控制先于取消句柄注册的竞态，再加载当前配置执行模块。
 func (s *Service) run(ctx context.Context, job domain.Job) (string, error) {
 	runCtx, cancel := context.WithCancelCause(ctx)
 	attempt := runAttempt{job.ID, job.Attempt}
@@ -156,7 +166,7 @@ func (s *Service) run(ctx context.Context, job domain.Job) (string, error) {
 		s.activeMu.Unlock()
 		cancel(context.Canceled)
 	}()
-	// A control can persist before the worker registers its cancellation hook.
+	// 控制命令可能先于工作协程的取消句柄完成持久化，因此登记后需要复读。
 	current, err := s.repo.ReadJob(ctx, job.ID)
 	if err != nil {
 		return "storage_unavailable", err
@@ -193,6 +203,7 @@ func (s *Service) run(ctx context.Context, job domain.Job) (string, error) {
 	return "", nil
 }
 
+// runModule 调用业务模块，将 panic 转为固定执行错误，避免崩溃信息进入任务历史。
 func runModule(ctx context.Context, module Module, execution Execution) (err error) {
 	defer func() {
 		if recover() != nil {
@@ -202,6 +213,7 @@ func runModule(ctx context.Context, module Module, execution Execution) (err err
 	return module.Run(ctx, execution)
 }
 
+// execute 执行任务后使用独立短期限保存终态，优先处理已持久化控制；停机中断留待重启核验。
 func (s *Service) execute(ctx context.Context, job domain.Job) {
 	started := time.Now()
 	code, runErr := s.run(ctx, job)
@@ -237,6 +249,7 @@ func (s *Service) execute(ctx context.Context, job domain.Job) {
 	}
 }
 
+// reconcile 逐个核验数据库中遗留的运行任务，在工作池启动前保存恢复决策。
 func (s *Service) reconcile(ctx context.Context) error {
 	running, err := s.repo.RunningJobs(ctx)
 	if err != nil {
@@ -255,6 +268,7 @@ func (s *Service) reconcile(ctx context.Context) error {
 	return nil
 }
 
+// reconcileJob 先由模块核验副作用和检查点，再按控制状态决定重排、暂停或取消；无法核验则失败。
 func (s *Service) reconcileJob(ctx context.Context, job domain.Job) (domain.Status, string) {
 	module, available := s.module(job.Type)
 	if !available {
@@ -283,6 +297,7 @@ func (s *Service) reconcileJob(ctx context.Context, job domain.Job) (domain.Stat
 	}
 }
 
+// verifyModule 调用模块恢复核验，将 panic 转为固定错误而不泄露模块内部信息。
 func verifyModule(ctx context.Context, module Module, execution Execution) (_ bool, err error) {
 	defer func() {
 		if recover() != nil {
@@ -292,6 +307,7 @@ func verifyModule(ctx context.Context, module Module, execution Execution) (_ bo
 	return module.Recover(ctx, execution)
 }
 
+// finish 提交执行状态并发布变更或完成通知，记录带分类计数的状态变更结果。
 func (s *Service) finish(ctx context.Context, job domain.Job, status domain.Status, code, operation string, started time.Time) error {
 	finished, err := s.repo.FinishJob(ctx, job, status, code, s.now().UTC())
 	if err != nil {
@@ -337,10 +353,10 @@ func (s *Service) finish(ctx context.Context, job domain.Job, status domain.Stat
 	return nil
 }
 
-// Only administrator-safe summaries belong in module callbacks. Suppress common
-// accidental credential and URL forms before persisting any free-form fields.
+// sensitiveText 识别模块自由文本中常见的凭据和 URL 形式；仅作额外遮挡，模块仍须自行提供安全摘要。
 var sensitiveText = regexp.MustCompile(`(?i)(https?://|\b(?:cookie|authorization|password|access[_-]?token|refresh[_-]?token|pickcode|uid|cid|seid|kid)\s*[:=]|\bbearer\s+)`)
 
+// safeText 隐藏匹配常见凭据或 URL 形式的文本，替换控制字符并按 UTF-8 边界限制字节长度。
 func safeText(value string, limit int) string {
 	if sensitiveText.MatchString(value) {
 		return "内容已隐藏"
@@ -358,6 +374,7 @@ func safeText(value string, limit int) string {
 	return value
 }
 
+// execution 构造绑定任务执行次数的上报回调，校验并清理管理员摘要，返回需调用的更新资源释放函数。
 func (s *Service) execution(job domain.Job, target library.Library) (Execution, func()) {
 	execution := Execution{Job: job, Library: target}
 	updates := &executionUpdates{publish: func() { s.publish(domain.Event{JobID: job.ID}) }}
@@ -409,8 +426,7 @@ func (s *Service) execution(job domain.Job, target library.Library) (Execution, 
 	return execution, updates.close
 }
 
-// executionUpdates sends at most one change hint per second, including the last
-// report when a quiet period follows. The terminal transition sends its own hint.
+// executionUpdates 将运行中变更提示合并到每秒最多一次，并用定时器补发静默前最后一次提示；终态单独发布。
 type executionUpdates struct {
 	mu      sync.Mutex
 	publish func()
@@ -419,6 +435,7 @@ type executionUpdates struct {
 	closed  bool
 }
 
+// report 在锁内发送或预约合并提示；已有待发定时器时复用该次提示。
 func (u *executionUpdates) report() {
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -433,6 +450,7 @@ func (u *executionUpdates) report() {
 	u.publish()
 }
 
+// flush 在锁内清除已触发定时器，尚未关闭时发布尾部变更提示。
 func (u *executionUpdates) flush() {
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -443,6 +461,7 @@ func (u *executionUpdates) flush() {
 	}
 }
 
+// close 标记上报资源关闭并停止未触发定时器，后续报告不再发送提示。
 func (u *executionUpdates) close() {
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -452,6 +471,7 @@ func (u *executionUpdates) close() {
 	}
 }
 
+// invalidProgress 拒绝非数值或越界的百分比，以及负速度和负条目总数。
 func invalidProgress(progress domain.Progress) bool {
 	return (progress.ProgressPercent != nil && (math.IsNaN(*progress.ProgressPercent) || *progress.ProgressPercent < 0 || *progress.ProgressPercent > 100)) ||
 		(progress.SpeedBytesPerSecond != nil && *progress.SpeedBytesPerSecond < 0) ||

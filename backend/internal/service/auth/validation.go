@@ -1,3 +1,5 @@
+// validation.go：集中校验认证输入、服务地址和服务器输出路径，返回可向管理员展示的字段错误。
+
 package auth
 
 import (
@@ -14,14 +16,16 @@ import (
 
 var usernamePattern = regexp.MustCompile(`^[A-Za-z0-9_.-]{3,32}$`)
 
-// Password length is measured in characters; the allowed ASCII range is one byte per character.
+// 密码仅允许单字节 ASCII，字符数与字节数一致。
 const (
-	MinPasswordLength         = 8
+	// MinPasswordLength 是初始化、登录与恢复统一使用的密码最小长度。
+	MinPasswordLength = 8
+	// MaxPasswordLength 是密码最大长度，不因入口不同而改变。
 	MaxPasswordLength         = 32
 	passwordValidationMessage = "密码需为 8–32 位英文字母、数字或 ASCII 符号，不能包含空格"
 )
 
-// ValidatePassword enforces the product's printable, non-space ASCII policy without trimming.
+// ValidatePassword 要求密码为 8–32 位可打印且不含空格的 ASCII 字符，不裁剪用户输入。
 func ValidatePassword(password string) error {
 	valid := len(password) >= MinPasswordLength && len(password) <= MaxPasswordLength
 	for i := 0; valid && i < len(password); i++ {
@@ -33,6 +37,7 @@ func ValidatePassword(password string) error {
 	return nil
 }
 
+// validateCredentials 汇总用户名格式与密码策略错误，不回显原始凭据。
 func validateCredentials(username, password string) error {
 	fields := map[string]string{}
 	if !usernamePattern.MatchString(username) {
@@ -47,6 +52,7 @@ func validateCredentials(username, password string) error {
 	return nil
 }
 
+// validateSettings 校验 HTTP(S) 服务源地址、规范绝对输出目录和支持的会话期限；不检查目录写权限。
 func validateSettings(settings domain.Settings) error {
 	fields := map[string]string{}
 	parsed, err := url.Parse(settings.ServiceURL)
@@ -69,6 +75,7 @@ func validateSettings(settings domain.Settings) error {
 	return nil
 }
 
+// invalidPort 拒绝空端口及 1–65535 范围外的显式端口。
 func invalidPort(address *url.URL) bool {
 	if strings.HasSuffix(address.Host, ":") {
 		return true

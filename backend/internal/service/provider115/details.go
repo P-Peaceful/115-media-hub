@@ -1,3 +1,5 @@
+// details.go：负责读取 115 账号资料、容量及设备信息，兼容可选字段并阻止旧凭据的在途结果返回。
+
 package provider115
 
 import (
@@ -12,7 +14,7 @@ import (
 	"time"
 )
 
-// AccountProfile contains only fields returned by the provider's nav endpoint.
+// AccountProfile 描述上游资料接口实际提供的公开账号字段，指针为空表示未知。
 type AccountProfile struct {
 	UserName        string     `json:"user_name"`
 	UserID          *string    `json:"user_id"`
@@ -22,13 +24,13 @@ type AccountProfile struct {
 	MemberForever   *bool      `json:"member_forever"`
 }
 
-// AccountSpace contains byte counts as decimal strings, avoiding JavaScript precision loss.
+// AccountSpace 以十进制字符串表示容量字节数，避免前端整数精度丢失。
 type AccountSpace struct {
 	UsedBytes  string `json:"used_bytes"`
 	TotalBytes string `json:"total_bytes"`
 }
 
-// AccountDetails distinguishes provider authorization from local configuration and optional space information.
+// AccountDetails 区分本地未配置、上游授权状态和容量、设备信息的可用性。
 type AccountDetails struct {
 	Status        string          `json:"status"`
 	Profile       *AccountProfile `json:"profile"`
@@ -38,6 +40,7 @@ type AccountDetails struct {
 	DevicesStatus string          `json:"devices_status"`
 }
 
+// AccountDevice 描述上游返回的登录设备信息，不包含设备凭据。
 type AccountDevice struct {
 	Name      string     `json:"name"`
 	Type      string     `json:"type"`
@@ -46,11 +49,13 @@ type AccountDevice struct {
 	LoginAt   *time.Time `json:"login_at"`
 	IsCurrent bool       `json:"is_current"`
 }
+
+// credentialRepository 提供当前存储的凭据，仅供上游请求边界使用。
 type credentialRepository interface {
 	ProviderCredential(context.Context) (string, error)
 }
 
-// Details requests fresh account information without exposing the stored credential.
+// Details 读取最新账号资料；容量和设备信息允许部分不可用，返回前再次校验凭据未被替换。
 func (s *Service) Details(ctx context.Context, correlation string) (result AccountDetails, resultErr error) {
 	start := time.Now()
 	defer func() {
@@ -70,8 +75,7 @@ func (s *Service) Details(ctx context.Context, correlation string) (result Accou
 	if cookie == "" {
 		return result, nil
 	}
-	// A replaced or removed account must not publish an in-flight response for
-	// the previously stored credential.
+	// 授权被替换或删除后，不得返回旧凭据对应的在途资料。
 	defer func() {
 		if resultErr != nil {
 			return
@@ -188,6 +192,7 @@ func (s *Service) Details(ctx context.Context, correlation string) (result Accou
 	return result, nil
 }
 
+// parseMember 只识别已知会员状态 0、1、2，未知或畸形值保留为空。
 func parseMember(raw json.RawMessage) *bool {
 	value := parseInteger(raw)
 	if value == nil {
@@ -200,6 +205,7 @@ func parseMember(raw json.RawMessage) *bool {
 	return &member
 }
 
+// parseString 解析可选的非空字符串，缺失或格式错误时返回空指针。
 func parseString(raw json.RawMessage) *string {
 	value := parseOptionalString(raw)
 	if value == "" {
@@ -208,6 +214,7 @@ func parseString(raw json.RawMessage) *string {
 	return &value
 }
 
+// parseOptionalString 仅接受 JSON 字符串，缺失、null 或类型错误时返回空串。
 func parseOptionalString(raw json.RawMessage) string {
 	var value string
 	if len(raw) == 0 || string(raw) == "null" || json.Unmarshal(raw, &value) != nil {
@@ -216,6 +223,7 @@ func parseOptionalString(raw json.RawMessage) string {
 	return value
 }
 
+// parseID 兼容字符串和数字形式的大整数 ID，不经浮点数转换。
 func parseID(raw json.RawMessage) *string {
 	var value json.Number
 	if json.Unmarshal(raw, &value) == nil {
@@ -233,6 +241,7 @@ func parseID(raw json.RawMessage) *string {
 	return nil
 }
 
+// parseBoolLike 将整数形式的零映射为假、非零映射为真，无法解析时保留未知。
 func parseBoolLike(raw json.RawMessage) *bool {
 	value := parseInteger(raw)
 	if value == nil {
@@ -242,6 +251,7 @@ func parseBoolLike(raw json.RawMessage) *bool {
 	return &result
 }
 
+// parseInteger 解析数字或数字字符串形式的有符号 64 位整数，拒绝小数和越界值。
 func parseInteger(raw json.RawMessage) *int64 {
 	text := strings.TrimSpace(string(raw))
 	if text == "" || text == "null" {
@@ -259,6 +269,7 @@ func parseInteger(raw json.RawMessage) *int64 {
 	return &value
 }
 
+// parseUnixTime 将正整数秒级时间戳转换为 UTC，未知或非正值返回空指针。
 func parseUnixTime(raw json.RawMessage) *time.Time {
 	seconds := parseInteger(raw)
 	if seconds == nil || *seconds <= 0 {
@@ -268,6 +279,7 @@ func parseUnixTime(raw json.RawMessage) *time.Time {
 	return &value
 }
 
+// parseBytes 解析非负容量并截为整数字符串；限制数值指数以避免异常上游数据造成巨大分配。
 func parseBytes(raw json.RawMessage) (string, bool) {
 	text := strings.TrimSpace(string(raw))
 	if strings.HasPrefix(text, `"`) {
@@ -276,7 +288,7 @@ func parseBytes(raw json.RawMessage) (string, bool) {
 		}
 	}
 	f, _, err := big.ParseFloat(text, 10, 256, big.ToZero)
-	// Bound upstream values before converting to an integer to avoid enormous allocations.
+	// 转整数前限制上游数值范围，避免异常容量导致巨大内存分配。
 	if err != nil || f.IsInf() || f.Sign() < 0 || f.MantExp(nil) > 256 {
 		return "", false
 	}
@@ -286,6 +298,8 @@ func parseBytes(raw json.RawMessage) (string, bool) {
 	}
 	return integer.String(), true
 }
+
+// accountRequest 携带 Cookie 发起 15 秒只读请求，禁用跳转以免转发凭据，限制响应读取并关闭响应体。
 func (s *Service) accountRequest(ctx context.Context, address, cookie string) ([]byte, error) {
 	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 	defer cancel()

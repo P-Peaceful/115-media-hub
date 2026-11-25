@@ -1,3 +1,5 @@
+// output_test.go：验证输出预检不写文件、执行期创建目录，以及路径别名、权限和路径冲突处理。
+
 package strm
 
 import (
@@ -11,6 +13,7 @@ import (
 	"testing"
 )
 
+// TestGenerationCreatesMissingOutputDirectoriesAfterReadOnlyPreview 验证预览仅报告待创建状态，正式执行才逐层创建并登记文件。
 func TestGenerationCreatesMissingOutputDirectoriesAfterReadOnlyPreview(t *testing.T) {
 	service, repo, execution, _ := newGenerationFixture(t, singleVideoProvider(), io.Discard)
 	parent := filepath.Join(execution.Library.OutputPath, "新目录")
@@ -34,6 +37,7 @@ func TestGenerationCreatesMissingOutputDirectoriesAfterReadOnlyPreview(t *testin
 	}
 }
 
+// TestOutputRootKeepsExistingAliasesAndRejectsBrokenLinks 验证已有根路径别名可解析到规范目录，断链不会被误判为待创建目录。
 func TestOutputRootKeepsExistingAliasesAndRejectsBrokenLinks(t *testing.T) {
 	parent := t.TempDir()
 	alias := filepath.Join(parent, "alias")
@@ -74,6 +78,7 @@ func TestOutputRootKeepsExistingAliasesAndRejectsBrokenLinks(t *testing.T) {
 	}
 }
 
+// TestGenerationReportsOutputPathCollisionWithoutLoggingPath 验证输出路径被普通文件阻挡时返回稳定状态并保留内容，日志不暴露路径。
 func TestGenerationReportsOutputPathCollisionWithoutLoggingPath(t *testing.T) {
 	var logs bytes.Buffer
 	service, _, execution, result := newGenerationFixture(t, singleVideoProvider(), &logs)
@@ -96,6 +101,7 @@ func TestGenerationReportsOutputPathCollisionWithoutLoggingPath(t *testing.T) {
 	}
 }
 
+// TestOutputPreviewChecksEffectiveWriteAccess 验证按服务有效身份拒绝不可写目录及其缺失后代；根用户场景跳过权限断言。
 func TestOutputPreviewChecksEffectiveWriteAccess(t *testing.T) {
 	if os.Geteuid() == 0 {
 		t.Skip("root can write to the test directory")

@@ -1,3 +1,5 @@
+// tasks_test.go：验证任务与计划管理 API 的认证、CSRF、持久结果、失败项重试和会话撤销后的 SSE 关闭。
+
 package http
 
 import (
@@ -19,6 +21,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
 )
 
+// newTaskBrowser 在临时认证浏览器上装配媒体库与指定任务模块，返回可直接控制生命周期的任务服务。
 func newTaskBrowser(t *testing.T, modules map[domain.Type]jobs.Module) (*authBrowser, *jobs.Service) {
 	t.Helper()
 	browser, authentication, db := newAuthBrowser(t, false, nil)
@@ -33,6 +36,7 @@ func newTaskBrowser(t *testing.T, modules map[domain.Type]jobs.Module) (*authBro
 	return browser, service
 }
 
+// taskJSON 检查响应状态并解码指定传输类型，失败时提供原始测试响应帮助定位。
 func taskJSON[T any](t *testing.T, response *httptest.ResponseRecorder, status int) T {
 	t.Helper()
 	var data T
@@ -47,6 +51,7 @@ func taskJSON[T any](t *testing.T, response *httptest.ResponseRecorder, status i
 
 const allLibrariesDailySchedule = `{"name":"每日扫描","type":"scan","library_id":null,"enabled":true,"period":"daily","timezone":"Asia/Shanghai","time":"03:00","notify_on":["partial_failure"]}`
 
+// TestTaskCenterManagementBoundaryAndUnavailableTypes 验证任务中心读写权限、空集合合同、未注册类型限制和非法查询或执行参数拒绝。
 func TestTaskCenterManagementBoundaryAndUnavailableTypes(t *testing.T) {
 	b, _ := newTaskBrowser(t, nil)
 	for _, route := range []string{"/api/v1/task-types", "/api/v1/tasks", "/api/v1/tasks/missing", "/api/v1/tasks/missing/failures", "/api/v1/tasks/missing/logs", "/api/v1/schedules", "/api/v1/events"} {
@@ -95,6 +100,7 @@ func TestTaskCenterManagementBoundaryAndUnavailableTypes(t *testing.T) {
 	assertAuthError(t, b.request(t, http.MethodGet, "/api/v1/tasks/missing/failures", "", nil), http.StatusNotFound, generated.NotFound)
 }
 
+// TestTaskCenterReadsPersistedResultsAndRetriesFailures 验证后台执行后的进度、部分失败、日志与筛选统计，并确认失败项重试创建关联新任务。
 func TestTaskCenterReadsPersistedResultsAndRetriesFailures(t *testing.T) {
 	b, service := newTaskBrowser(t, map[domain.Type]jobs.Module{
 		domain.Scan: {
@@ -169,6 +175,7 @@ func TestTaskCenterReadsPersistedResultsAndRetriesFailures(t *testing.T) {
 	}
 }
 
+// TestTaskScheduleCRUDAndAuthenticatedEventStream 验证计划创建、启停和版本冲突，SSE 使用连接内序号并在会话注销后停止发送数据。
 func TestTaskScheduleCRUDAndAuthenticatedEventStream(t *testing.T) {
 	b, service := newTaskBrowser(t, map[domain.Type]jobs.Module{
 		domain.Scan: {Run: func(context.Context, jobs.Execution) error { return nil }},
@@ -256,6 +263,7 @@ func TestTaskScheduleCRUDAndAuthenticatedEventStream(t *testing.T) {
 	assertAuthError(t, b.request(t, http.MethodGet, planPath, "", nil), http.StatusNotFound, generated.NotFound)
 }
 
+// readTaskFrame 读取至 SSE 空行分隔符并返回完整帧，流读取失败立即使测试失败。
 func readTaskFrame(t *testing.T, reader *bufio.Reader) string {
 	t.Helper()
 	var frame strings.Builder

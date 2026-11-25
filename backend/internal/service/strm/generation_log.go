@@ -1,3 +1,5 @@
+// generation_log.go：负责聚合扫描及生成统计、限制失败日志样例，并输出不含文件路径和播放凭据的终态日志。
+
 package strm
 
 import (
@@ -12,11 +14,13 @@ const (
 	generationSampleLimit = 3
 )
 
+// generationFailures 聚合同类失败并统计被抑制的日志数量，每轮任务独立持有。
 type generationFailures struct {
 	byCode     map[string]int
 	suppressed int
 }
 
+// record 累计失败类别并只记录有限样例，日志只附通过格式校验的源 ID。
 func (failures *generationFailures) record(ctx context.Context, logger *slog.Logger, source sourceFile, code string) {
 	failures.byCode[code]++
 	// 单次任务每种失败原因只记录前三条明细，其他失败仍纳入分类汇总。
@@ -34,10 +38,12 @@ func (failures *generationFailures) record(ctx context.Context, logger *slog.Log
 	logger.WarnContext(ctx, "STRM source item failed", attrs...)
 }
 
+// attributes 返回分类失败数与被抑制的日志样例数，供终态日志汇总。
 func (failures generationFailures) attributes() []any {
 	return []any{"failure_counts", failures.byCode, "suppressed_failure_logs", failures.suppressed}
 }
 
+// attributes 返回扫描耗时、目录完整性及视频候选统计，供阶段进度和结果日志使用。
 func (summary scanSummary) attributes(elapsed time.Duration) []any {
 	return []any{
 		"duration_ms", elapsed.Milliseconds(),
@@ -49,6 +55,7 @@ func (summary scanSummary) attributes(elapsed time.Duration) []any {
 	}
 }
 
+// attributes 返回生成、跳过、失败及冲突数量，供生成进度和终态日志使用。
 func (counts generationCounts) attributes() []any {
 	return []any{
 		"generated_files", counts.generated, "failed_files", counts.failed,
@@ -56,6 +63,7 @@ func (counts generationCounts) attributes() []any {
 	}
 }
 
+// logGenerationResult 统一记录成功、取消、全部失败或部分成功终态，附加汇总与脱敏错误码。
 func logGenerationResult(ctx context.Context, logger *slog.Logger, started time.Time, counts generationCounts, err error, extra ...any) {
 	level, outcome := slog.LevelInfo, "succeeded"
 	attrs := append(counts.attributes(), "duration_ms", time.Since(started).Milliseconds())

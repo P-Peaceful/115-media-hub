@@ -1,3 +1,5 @@
+// write.go：负责单个 STRM 的归属核验、写入意图、文件发布和中断恢复，保留冲突内容供核对。
+
 package strm
 
 import (
@@ -13,6 +15,8 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
 )
 
+// generateFile 串行核验目标归属与已有内容，按配置跳过或发布；只为匹配源身份的登记保留凭据。
+// 返回 true 表示完成新写入，false 且无错误表示同源可用文件被跳过。
 func (s *Service) generateFile(ctx context.Context, config library.Library, origin string, root *os.Root, canonical string, source sourceFile) (_ bool, resultErr error) {
 	if source.err != nil {
 		return false, source.err
@@ -79,6 +83,7 @@ func (s *Service) generateFile(ctx context.Context, config library.Library, orig
 	return true, nil
 }
 
+// verifyPendingTarget 先恢复目标路径已有意图，拒绝其他媒体库占用或无法核实的待写入状态。
 func (s *Service) verifyPendingTarget(ctx context.Context, libraryID, target string) error {
 	intent, err := s.repo.StrmIntentByTarget(ctx, target)
 	if errors.Is(err, ErrNotFound) {
@@ -94,6 +99,7 @@ func (s *Service) verifyPendingTarget(ctx context.Context, libraryID, target str
 	return err
 }
 
+// writeArtifact 先保存恢复意图，再发布并复核内容和目录身份，最后完成登记；不确定结果保留意图。
 func (s *Service) writeArtifact(ctx context.Context, root, directory *os.Root, intent WriteIntent, content string) error {
 	if err := s.repo.SaveStrmIntent(ctx, intent); err != nil {
 		return errors.Join(errRegistry, err)
@@ -126,11 +132,13 @@ func (s *Service) writeArtifact(ctx context.Context, root, directory *os.Root, i
 	return nil
 }
 
+// recoverGeneration 供任务中心恢复中断任务；只有意图核对无冲突且无错误时才允许重新排队。
 func (s *Service) recoverGeneration(ctx context.Context, execution jobs.Execution) (bool, error) {
 	conflicts, err := s.reconcileIntents(ctx, execution)
 	return conflicts == 0 && err == nil, err
 }
 
+// reconcileIntents 在输出锁内核对媒体库全部意图，保留冲突并计数，其他存储或 I/O 错误立即终止。
 func (s *Service) reconcileIntents(ctx context.Context, execution jobs.Execution) (int, error) {
 	s.outputMu.Lock()
 	defer s.outputMu.Unlock()
@@ -164,6 +172,7 @@ func (s *Service) reconcileIntents(ctx context.Context, execution jobs.Execution
 	return counts.conflicts, nil
 }
 
+// reconcileIntent 核对登记路径、目录及当前内容，补登已发布内容或释放未发布意图；歧义状态保留且返回冲突。
 func (s *Service) reconcileIntent(ctx context.Context, intent WriteIntent) (_ bool, resultErr error) {
 	if err := ctx.Err(); err != nil {
 		return false, err

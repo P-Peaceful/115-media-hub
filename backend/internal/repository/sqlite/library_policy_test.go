@@ -1,3 +1,5 @@
+// library_policy_test.go：验证已有 STRM 策略的旧配置读取默认值和显式非法值处理，不允许读取隐式回写。
+
 package sqlite
 
 import (
@@ -10,6 +12,7 @@ import (
 	"time"
 )
 
+// TestReadPrePolicyLibrariesDefaultsOnlyMissingPolicyWithoutWriting 验证仅缺失字段补 skip，列表与详情一致且 JSON、修订号及时间均不变。
 func TestReadPrePolicyLibrariesDefaultsOnlyMissingPolicyWithoutWriting(t *testing.T) {
 	ctx := context.Background()
 	db, err := Open(ctx, filepath.Join(t.TempDir(), "pre-policy.db"))
@@ -65,6 +68,7 @@ func TestReadPrePolicyLibrariesDefaultsOnlyMissingPolicyWithoutWriting(t *testin
 	}
 }
 
+// TestStoredExplicitInvalidPolicyIsNotDefaulted 验证空值、错误类型和未知策略作为损坏拒绝，不被默认值掩盖。
 func TestStoredExplicitInvalidPolicyIsNotDefaulted(t *testing.T) {
 	for _, value := range []string{`""`, `null`, `"rename"`, `true`, `123`} {
 		t.Run(value, func(t *testing.T) {

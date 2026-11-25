@@ -1,3 +1,5 @@
+// strm.go：提供 STRM 清单、详情、全量同步预览与独立播放入口，隔离管理会话和播放凭据的响应边界。
+
 package http
 
 import (
@@ -16,13 +18,16 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/strm"
 )
 
+// fullSyncPreviewTimeout 为只读预览保留独立期限，在服务器写入超时前留出响应时间。
 const fullSyncPreviewTimeout = 55 * time.Second
 
+// strmHandler 连接 STRM 服务及媒体库配置，不在传输层实现扫描和落盘。
 type strmHandler struct {
 	service   *strm.Service
 	libraries *library.Service
 }
 
+// register 注册管理清单和详情、可用时的媒体库预览，以及使用独立凭据的 GET/HEAD 播放入口。
 func (h *strmHandler) register(router *gin.Engine) {
 	router.GET("/api/v1/strm", h.list)
 	router.GET("/api/v1/strm/:id", h.detail)
@@ -33,6 +38,7 @@ func (h *strmHandler) register(router *gin.Engine) {
 	router.HEAD("/p/:id/:token/:name", h.play)
 }
 
+// previewFullSync 在有界请求上下文中读取媒体库并执行只读预览，保留取消语义且区分配置、授权和源目录故障。
 func (h *strmHandler) previewFullSync(c *gin.Context) {
 	id := c.Param("id")
 	if !validTaskID(id) {
@@ -86,6 +92,7 @@ func (h *strmHandler) previewFullSync(c *gin.Context) {
 	}
 }
 
+// list 解析 STRM 分页筛选条件，读取登记清单并转换为 API 分页响应。
 func (h *strmHandler) list(c *gin.Context) {
 	page, pageErr := strconv.Atoi(c.DefaultQuery("page", "1"))
 	limit, limitErr := strconv.Atoi(c.DefaultQuery("limit", "50"))
@@ -111,6 +118,7 @@ func (h *strmHandler) list(c *gin.Context) {
 	}
 }
 
+// strmFileResponse 从业务产物提取公开登记字段，使用相对路径文件名及 UTC 生成时间构造传输对象。
 func strmFileResponse(artifact strm.Artifact) generated.StrmFile {
 	return generated.StrmFile{
 		Id: artifact.ID, LibraryId: artifact.LibraryID, LibraryName: artifact.LibraryName,
@@ -120,6 +128,7 @@ func strmFileResponse(artifact strm.Artifact) generated.StrmFile {
 	}
 }
 
+// detail 读取登记产物与本地文件状态，返回受服务内容校验约束的文件内容和输出位置。
 func (h *strmHandler) detail(c *gin.Context) {
 	result, err := h.service.Detail(c.Request.Context(), c.Param("id"), c.GetString("request_id"))
 	switch {
@@ -138,6 +147,7 @@ func (h *strmHandler) detail(c *gin.Context) {
 	}
 }
 
+// play 验证独立播放凭据并按客户端 User-Agent 解析临时直链，仅发送不可缓存的 302 响应。
 func (h *strmHandler) play(c *gin.Context) {
 	// 302 目标具有时效，避免中间缓存与 Referer 传播播放凭据。
 	c.Header("Cache-Control", "no-store")

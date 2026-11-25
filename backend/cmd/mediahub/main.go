@@ -1,3 +1,5 @@
+// main.go：装配进程启动流程，选择本地维护命令或 HTTP 服务，并统一回收日志与应用资源。
+
 package main
 
 import (
@@ -16,6 +18,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/web"
 )
 
+// main 设置 Gin 运行模式并启动程序；失败时记录结构化日志并返回非零退出码。
 func main() {
 	gin.SetMode(gin.ReleaseMode)
 	if err := run(); err != nil {
@@ -24,6 +27,7 @@ func main() {
 	}
 }
 
+// run 读取配置、创建日志和信号上下文，再启动维护命令或服务；退出时汇总资源关闭错误。
 func run() (resultErr error) {
 	config, err := app.LoadConfig()
 	if err != nil {

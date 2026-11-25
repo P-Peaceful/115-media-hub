@@ -1,3 +1,5 @@
+// library_test.go：通过认证路由验证媒体库 CRUD、启停和分页，并覆盖现存文件策略、CSRF 和版本冲突校验。
+
 package http
 
 import (
@@ -10,6 +12,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
 )
 
+// TestLibraryManagementBoundaryAndCRUD 验证媒体库权限、完整配置保存与读取、分页、启停、删除，以及非法字段和过期版本拒绝。
 func TestLibraryManagementBoundaryAndCRUD(t *testing.T) {
 	b, authService, db := newAuthBrowser(t, false, nil)
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))

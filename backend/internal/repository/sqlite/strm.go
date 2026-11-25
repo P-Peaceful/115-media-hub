@@ -1,3 +1,5 @@
+// strm.go：保存 STRM 归属台账及可恢复写入意图，提供同快照的产物列表和详情查询。
+
 package sqlite
 
 import (
@@ -11,10 +13,13 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/domain/strm"
 )
 
+// strmArtifactModel 映射 STRM 产物及其媒体库、账号、源文件和播放身份。
 type strmArtifactModel strm.Artifact
 
+// TableName 指定持久化表名 strm_artifacts，避免依赖 ORM 自动命名。
 func (strmArtifactModel) TableName() string { return "strm_artifacts" }
 
+// strmIntentModel 按目标路径保留写入意图，记录预期产物及可选的原文件内容供恢复核验。
 type strmIntentModel struct {
 	TargetPath      string `gorm:"primaryKey"`
 	LibraryID       string
@@ -23,8 +28,10 @@ type strmIntentModel struct {
 	Legacy          bool
 }
 
+// TableName 指定持久化表名 strm_write_intents，避免依赖 ORM 自动命名。
 func (strmIntentModel) TableName() string { return "strm_write_intents" }
 
+// intent 解析写入意图并核对 JSON 中的目标路径及媒体库身份，身份不一致视为冲突。
 func (m strmIntentModel) intent() (strm.WriteIntent, error) {
 	result := strm.WriteIntent{PreviousContent: m.PreviousContent, Legacy: m.Legacy}
 	if err := json.Unmarshal([]byte(m.ArtifactJSON), &result.Artifact); err != nil {
@@ -36,12 +43,14 @@ func (m strmIntentModel) intent() (strm.WriteIntent, error) {
 	return result, nil
 }
 
+// StrmArtifactByTarget 按唯一输出路径读取产物归属，不依赖磁盘文件状态。
 func (d *Database) StrmArtifactByTarget(ctx context.Context, target string) (strm.Artifact, error) {
 	var row strmArtifactModel
 	err := d.orm.WithContext(ctx).Where("target_path = ?", target).Take(&row).Error
 	return strm.Artifact(row), strmReadError(err)
 }
 
+// strmReadError 将 GORM 记录缺失转换为 STRM 业务未找到错误。
 func strmReadError(err error) error {
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return strm.ErrNotFound
@@ -49,6 +58,7 @@ func strmReadError(err error) error {
 	return err
 }
 
+// StrmIntentByTarget 读取目标路径的写入意图并验证持久化身份一致性。
 func (d *Database) StrmIntentByTarget(ctx context.Context, target string) (strm.WriteIntent, error) {
 	var row strmIntentModel
 	if err := d.orm.WithContext(ctx).Where("target_path = ?", target).Take(&row).Error; err != nil {
@@ -57,6 +67,7 @@ func (d *Database) StrmIntentByTarget(ctx context.Context, target string) (strm.
 	return row.intent()
 }
 
+// StrmIntentsByLibrary 按目标路径返回媒体库全部待恢复写入意图，损坏意图使读取失败。
 func (d *Database) StrmIntentsByLibrary(ctx context.Context, libraryID string) ([]strm.WriteIntent, error) {
 	var rows []strmIntentModel
 	if err := d.orm.WithContext(ctx).Where("library_id = ?", libraryID).Order("target_path").Find(&rows).Error; err != nil {
@@ -73,7 +84,7 @@ func (d *Database) StrmIntentsByLibrary(ctx context.Context, libraryID string) (
 	return result, nil
 }
 
-// SaveStrmIntent 先保留目标路径的归属，文件发布由事务外的服务完成。
+// SaveStrmIntent 先保留目标路径归属，校验现有源身份和预期旧内容；文件发布由事务外的服务完成。
 func (d *Database) SaveStrmIntent(ctx context.Context, intent strm.WriteIntent) error {
 	artifact := intent.Artifact
 	if intent.Legacy || artifact.PlaybackURL == "" {
@@ -115,7 +126,7 @@ func (d *Database) SaveStrmIntent(ctx context.Context, intent strm.WriteIntent) 
 	})
 }
 
-// CompleteStrmIntent 将产物登记和移除写入意图放进同一个事务。
+// CompleteStrmIntent 核对保存的意图后，在同一事务登记产物并移除意图，保留播放身份。
 func (d *Database) CompleteStrmIntent(ctx context.Context, intent strm.WriteIntent) error {
 	artifact := intent.Artifact
 	if artifact.PlaybackURL == "" {
@@ -152,6 +163,7 @@ func (d *Database) CompleteStrmIntent(ctx context.Context, intent strm.WriteInte
 	})
 }
 
+// matchesStrmIntentArtifact 比较待完成与已存意图的产物身份，允许旧版意图补播放地址并统一时间时区。
 func matchesStrmIntentArtifact(stored, completed strm.WriteIntent) bool {
 	if stored.Legacy != completed.Legacy {
 		return false
@@ -166,22 +178,26 @@ func matchesStrmIntentArtifact(stored, completed strm.WriteIntent) bool {
 	return stored.Artifact == completed.Artifact
 }
 
+// DiscardStrmIntent 移除指定路径的写入意图，不修改磁盘文件或产物台账。
 func (d *Database) DiscardStrmIntent(ctx context.Context, target string) error {
 	return d.orm.WithContext(ctx).Where("target_path = ?", target).Delete(&strmIntentModel{}).Error
 }
 
+// strmWithLibrary 构造可附带当前媒体库名称的产物查询，媒体库删除后仍保留产物。
 func (d *Database) strmWithLibrary(ctx context.Context) *gorm.DB {
 	return d.orm.WithContext(ctx).Model(&strmArtifactModel{}).
 		Select("strm_artifacts.*, json_extract(media_libraries.config_json, '$.name') AS library_name").
 		Joins("LEFT JOIN media_libraries ON media_libraries.id = strm_artifacts.library_id")
 }
 
+// StrmArtifact 按产物 ID 查询归属详情及可选媒体库名称。
 func (d *Database) StrmArtifact(ctx context.Context, id string) (strm.Artifact, error) {
 	var row strmArtifactModel
 	err := d.strmWithLibrary(ctx).Where("strm_artifacts.id = ?", id).Take(&row).Error
 	return strm.Artifact(row), strmReadError(err)
 }
 
+// ListStrmArtifacts 按白名单字段排序并分页查询产物，计数与列表在同一事务快照读取。
 func (d *Database) ListStrmArtifacts(ctx context.Context, filter strm.ListFilter) (strm.ArtifactPage, error) {
 	result := strm.ArtifactPage{Items: []strm.Artifact{}, Page: filter.Page, Limit: filter.Limit}
 	query := func(db *gorm.DB) *gorm.DB {

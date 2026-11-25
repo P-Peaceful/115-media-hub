@@ -1,4 +1,6 @@
-// Package sqlite owns the SQLite connection and migration boundary.
+// database.go：建立 SQLite 单连接池，配置连接参数并在对外可用前完成数据库迁移。
+
+// Package sqlite 管理 SQLite 连接、迁移与持久化边界。
 package sqlite
 
 import (
@@ -18,13 +20,13 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/migrations"
 )
 
-// Database owns the single-connection pool. Closing it releases SQLite resources.
+// Database 拥有单连接数据库池及 ORM 入口，关闭时释放 SQLite 资源。
 type Database struct {
 	sql *sql.DB
 	orm *gorm.DB
 }
 
-// Open configures every connection and migrates before the database becomes ready.
+// Open 创建数据库目录并配置每个连接的 WAL、外键和忙等待；迁移失败时关闭已建立的池。
 func Open(ctx context.Context, path string) (_ *Database, resultErr error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 		return nil, fmt.Errorf("create database directory: %w", err)
@@ -52,7 +54,7 @@ func Open(ctx context.Context, path string) (_ *Database, resultErr error) {
 			resultErr = errors.Join(resultErr, pool.Close())
 		}
 	}()
-	// Serialize writes; per-connection DSN settings also apply after replacement.
+	// 使用单连接串行写入；DSN 中的连接参数在底层连接替换后仍生效。
 	pool.SetMaxOpenConns(1)
 	pool.SetMaxIdleConns(1)
 	if err := pool.PingContext(ctx); err != nil {
@@ -68,8 +70,8 @@ func Open(ctx context.Context, path string) (_ *Database, resultErr error) {
 	return &Database{sql: pool, orm: orm}, nil
 }
 
-// Ping checks that SQLite can still accept connections.
+// Ping 使用调用方上下文检查数据库连接是否可用。
 func (d *Database) Ping(ctx context.Context) error { return d.sql.PingContext(ctx) }
 
-// Close releases the connection pool after HTTP shutdown.
+// Close 释放数据库连接池，应在服务停止使用数据库后调用。
 func (d *Database) Close() error { return d.sql.Close() }

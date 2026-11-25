@@ -1,3 +1,5 @@
+// strm_test.go：以临时 SQLite、输出目录和 HTTP 服务验证 STRM 预览、生成登记与 302 播放，覆盖凭据及日志安全边界。
+
 package http
 
 import (
@@ -27,25 +29,30 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/strm"
 )
 
+// lockedBuffer 为后台任务与 HTTP 并发日志提供可安全读取的测试缓冲区。
 type lockedBuffer struct {
 	mu     sync.Mutex
 	buffer bytes.Buffer
 }
 
+// Write 在互斥保护下捕获并发任务与请求日志，供集成测试统一断言。
 func (b *lockedBuffer) Write(content []byte) (int, error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.buffer.Write(content)
 }
 
+// String 在互斥保护下读取日志快照，避免与后台写入竞争。
 func (b *lockedBuffer) String() string {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	return b.buffer.String()
 }
 
+// testStrmProvider 用固定清单和取链条件替代真实网盘，保持测试可重复。
 type testStrmProvider struct{ targetURL string }
 
+// Files 仅为测试目录返回固定视频清单，其他目录模拟源不存在。
 func (testStrmProvider) Files(_ context.Context, query provider115.FileQuery, _ string) (provider115.FilePage, error) {
 	if query.DirectoryID != "12" {
 		return provider115.FilePage{}, provider115.ErrDirectoryNotFound
@@ -57,6 +64,7 @@ func (testStrmProvider) Files(_ context.Context, query provider115.FileQuery, _ 
 	}, nil
 }
 
+// ResolvePlayback 校验账号、源文件、取链码及播放器标识，匹配时返回测试媒体地址。
 func (p testStrmProvider) ResolvePlayback(_ context.Context, accountID, fileID, code, userAgent, _ string) (string, error) {
 	if accountID != "11501" || fileID != "34" || code != "provider-private-code" || userAgent != "TestPlayer" {
 		return "", provider115.ErrUpstream
@@ -64,6 +72,7 @@ func (p testStrmProvider) ResolvePlayback(_ context.Context, accountID, fileID, 
 	return p.targetURL, nil
 }
 
+// TestSTRMGenerationRegistryAndPlaybackBoundary 验证只读预览、任务生成和重复跳过、登记详情、GET/HEAD 重定向及修改文件和敏感日志保护。
 func TestSTRMGenerationRegistryAndPlaybackBoundary(t *testing.T) {
 	browser, administrator, db := newAuthBrowser(t, false, nil)
 	logs := &lockedBuffer{}

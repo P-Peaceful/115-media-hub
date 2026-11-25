@@ -1,3 +1,5 @@
+// files.go：负责受根目录句柄约束的路径校验、内容读取和文件原子发布，检测路径替换及覆盖竞态。
+
 package strm
 
 import (
@@ -14,13 +16,16 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+// maxSTRMContent 限制登记文件的最大读取和生成长度，避免将任意大文件作为 STRM 处理。
 const maxSTRMContent = 16 * 1024
 
+// validPathPart 拒绝空名、点路径、分隔符、控制字符和超长或非法 UTF-8 名称。
 func validPathPart(name string) bool {
 	return name != "" && name != "." && name != ".." && len(name) <= 255 && utf8.ValidString(name) &&
 		!strings.ContainsAny(name, `/\`) && strings.IndexFunc(name, unicode.IsControl) == -1
 }
 
+// validArtifactPath 校验规范的本地相对 .strm 路径，逐层拒绝非法路径片段。
 func validArtifactPath(relative string) bool {
 	if !filepath.IsLocal(relative) || filepath.Clean(relative) != relative || filepath.Ext(relative) != ".strm" {
 		return false
@@ -33,6 +38,7 @@ func validArtifactPath(relative string) bool {
 	return true
 }
 
+// openOutputRoot 解析已存在的绝对输出路径别名并核对目录身份；返回句柄由调用者关闭。
 func openOutputRoot(path string) (*os.Root, string, error) {
 	if !filepath.IsAbs(path) {
 		return nil, "", ErrConflict
@@ -48,6 +54,7 @@ func openOutputRoot(path string) (*os.Root, string, error) {
 	return root, canonical, nil
 }
 
+// openIdentifiedDirectory 先 Lstat 再打开并核验同一目录，失败时关闭新句柄，成功后转交调用者。
 func openIdentifiedDirectory(lstat func(string) (fs.FileInfo, error), open func(string) (*os.Root, error), name string) (*os.Root, error) {
 	info, err := lstat(name)
 	if err != nil {
@@ -66,6 +73,7 @@ func openIdentifiedDirectory(lstat func(string) (fs.FileInfo, error), open func(
 	return directory, nil
 }
 
+// matchOutputDirectory 比较目录句柄和预检查文件信息，检测路径被替换或指向非目录。
 func matchOutputDirectory(root *os.Root, info fs.FileInfo) error {
 	actual, err := root.Stat(".")
 	if err != nil {
@@ -77,6 +85,7 @@ func matchOutputDirectory(root *os.Root, info fs.FileInfo) error {
 	return nil
 }
 
+// openArtifactDirectory 沿受限根句柄逐层打开产物父目录，按需创建并关闭中间句柄；不接受子目录链接。
 func openArtifactDirectory(root *os.Root, relative string, create bool) (*os.Root, error) {
 	if !validArtifactPath(relative) {
 		return nil, ErrConflict
@@ -100,6 +109,7 @@ func openArtifactDirectory(root *os.Root, relative string, create bool) (*os.Roo
 	return directory, nil
 }
 
+// openOutputSubdirectory 核验真实子目录；允许创建时同步父目录并重新检查新目录身份。
 func openOutputSubdirectory(parent *os.Root, name string, create bool) (*os.Root, error) {
 	directory, err := openIdentifiedDirectory(parent.Lstat, parent.OpenRoot, name)
 	if !create || !errors.Is(err, fs.ErrNotExist) {
@@ -114,6 +124,7 @@ func openOutputSubdirectory(parent *os.Root, name string, create bool) (*os.Root
 	return openIdentifiedDirectory(parent.Lstat, parent.OpenRoot, name)
 }
 
+// syncDirectory 同步目录元数据并关闭临时文件句柄，将两者错误一并返回。
 func syncDirectory(directory *os.Root) error {
 	file, err := directory.Open(".")
 	if err != nil {
@@ -122,6 +133,7 @@ func syncDirectory(directory *os.Root) error {
 	return errors.Join(file.Sync(), file.Close())
 }
 
+// readArtifactFile 通过已校验的父目录句柄读取单个 STRM，负责关闭父目录句柄。
 func readArtifactFile(root *os.Root, relative string) (_ string, resultErr error) {
 	directory, err := openArtifactDirectory(root, relative, false)
 	if err != nil {
@@ -131,6 +143,7 @@ func readArtifactFile(root *os.Root, relative string) (_ string, resultErr error
 	return readArtifactLeaf(directory, filepath.Base(relative))
 }
 
+// verifyArtifactDirectory 复核根路径和产物父目录仍对应已打开句柄，防止改名后的旧目录被误登记。
 func verifyArtifactDirectory(root, directory *os.Root, canonical, relative string) (resultErr error) {
 	// Root 句柄会继续指向改名后的目录。登记前确认此句柄仍对应登记路径。
 	rootInfo, err := os.Lstat(canonical)
@@ -159,6 +172,7 @@ func verifyArtifactDirectory(root, directory *os.Root, canonical, relative strin
 	return nil
 }
 
+// readArtifactLeaf 有界读取同一普通文件，禁用末级链接和阻塞打开，拒绝替换竞态及超长内容。
 func readArtifactLeaf(directory *os.Root, name string) (_ string, resultErr error) {
 	info, err := directory.Lstat(name)
 	if err != nil {
@@ -190,6 +204,7 @@ func readArtifactLeaf(directory *os.Root, name string) (_ string, resultErr erro
 	return string(content), err
 }
 
+// existingContent 读取已有内容；仅在文件不存在时返回空指针，其他异常保持错误语义。
 func existingContent(directory *os.Root, name string) (*string, error) {
 	content, err := readArtifactLeaf(directory, name)
 	if errors.Is(err, fs.ErrNotExist) {
@@ -201,6 +216,7 @@ func existingContent(directory *os.Root, name string) (*string, error) {
 	return &content, nil
 }
 
+// publishArtifact 先写入并同步临时文件，再以硬链接或原子交换发布；覆盖歧义时保留暂存内容。
 func publishArtifact(directory *os.Root, name string, previous *string, content string) (resultErr error) {
 	temporary := ".strm-" + rand.Text() + ".tmp"
 	file, err := directory.OpenFile(temporary, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
@@ -239,6 +255,8 @@ func publishArtifact(directory *os.Root, name string, previous *string, content 
 	return syncDirectory(directory)
 }
 
+// replaceArtifact 校验原内容后原子交换目标与临时文件，并核对被置换内容；必要时尝试恢复。
+// 返回值指示调用者是否可删除临时文件，歧义时必须保留以免丢失并发写入。
 func replaceArtifact(directory *os.Root, temporary, name, previous, content string) (_ bool, resultErr error) {
 	current, err := existingContent(directory, name)
 	if err != nil {

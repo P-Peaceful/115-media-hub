@@ -8,86 +8,86 @@
 
 | 文件 | 类别 | 文件职责注释验收 |
 | --- | --- | --- |
-| `backend/cmd/mediahub/main.go` | 手写源码 | 待检查/补齐 |
-| `backend/cmd/mediahub/recovery.go` | 手写源码 | 待检查/补齐 |
-| `backend/cmd/mediahub/recovery_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/app/app.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/app/app_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/app/config.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/app/config_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/app/logging.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/app/logging_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/app/recovery.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/domain/auth/auth.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/domain/jobs/jobs.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/domain/strm/artifact.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/http/auth.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/http/auth_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/http/generated/generate.go` | 手写源码 | 待检查/补齐 |
+| `backend/cmd/mediahub/main.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/cmd/mediahub/recovery.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/cmd/mediahub/recovery_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/app/app.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/app/app_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/app/config.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/app/config_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/app/logging.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/app/logging_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/app/recovery.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/domain/auth/auth.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/domain/jobs/jobs.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/domain/strm/artifact.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/auth.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/auth_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/generated/generate.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
 | `backend/internal/http/generated/types.gen.go` | 自动生成，排除手改 | 保持生成标识 |
-| `backend/internal/http/library.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/http/library_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/http/provider115.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/http/provider115_files_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/http/router.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/http/router_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/http/schedules.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/http/settings.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/http/strm.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/http/strm_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/http/task_events.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/http/tasks.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/http/tasks_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/auth.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/auth_errors.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/auth_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/database.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/database_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/library.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/library_policy_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/library_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/provider115.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/strm.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/strm_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/task_center_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/task_jobs.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/repository/sqlite/task_schedules.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/auth/auth_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/service/auth/errors.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/auth/limiter.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/auth/logging.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/auth/service.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/auth/settings.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/auth/storage_error.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/auth/tokens.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/auth/validation.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/jobs/runtime.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/jobs/runtime_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/service/jobs/schedule.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/jobs/schedule_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/service/jobs/service.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/library/service.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/provider115/details.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/provider115/details_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/service/provider115/files.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/provider115/files_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/service/provider115/playback.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/provider115/playback_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/service/provider115/service.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/provider115/service_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/service/strm/files.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/strm/generate.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/strm/generate_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/service/strm/generation_log.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/strm/output.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/strm/output_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/service/strm/playback.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/strm/preview.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/strm/preview_test.go` | 测试 | 待检查/补齐 |
-| `backend/internal/service/strm/read.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/strm/scan.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/strm/types.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/service/strm/write.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/web/development.go` | 手写源码 | 待检查/补齐 |
-| `backend/internal/web/production.go` | 手写源码 | 待检查/补齐 |
-| `backend/migrations/embed.go` | 手写源码 | 待检查/补齐 |
+| `backend/internal/http/library.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/library_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/provider115.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/provider115_files_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/router.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/router_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/schedules.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/settings.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/strm.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/strm_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/task_events.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/tasks.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/http/tasks_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/auth.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/auth_errors.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/auth_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/database.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/database_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/library.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/library_policy_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/library_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/provider115.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/strm.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/strm_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/task_center_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/task_jobs.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/repository/sqlite/task_schedules.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/auth/auth_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/auth/errors.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/auth/limiter.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/auth/logging.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/auth/service.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/auth/settings.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/auth/storage_error.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/auth/tokens.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/auth/validation.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/jobs/runtime.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/jobs/runtime_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/jobs/schedule.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/jobs/schedule_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/jobs/service.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/library/service.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/provider115/details.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/provider115/details_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/provider115/files.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/provider115/files_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/provider115/playback.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/provider115/playback_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/provider115/service.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/provider115/service_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/strm/files.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/strm/generate.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/strm/generate_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/strm/generation_log.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/strm/output.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/strm/output_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/strm/playback.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/strm/preview.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/strm/preview_test.go` | 测试 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/strm/read.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/strm/scan.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/strm/types.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/service/strm/write.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/web/development.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/internal/web/production.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |
+| `backend/migrations/embed.go` | 手写源码 | 中文职责已补齐；AST 等价通过 |

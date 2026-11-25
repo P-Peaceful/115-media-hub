@@ -1,3 +1,5 @@
+// library.go：实现媒体库配置的 HTTP 增删改查、启停、分页和严格请求字段校验，更新时传递版本以检测冲突。
+
 package http
 
 import (
@@ -16,8 +18,10 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
 )
 
+// libraryHandler 仅负责配置传输与服务调用，媒体库约束由业务服务维护。
 type libraryHandler struct{ service *library.Service }
 
+// register 注册媒体库列表、详情、创建、更新、启停和删除接口。
 func (h *libraryHandler) register(r *gin.Engine) {
 	r.GET("/api/v1/libraries", h.list)
 	r.POST("/api/v1/libraries", h.create)
@@ -27,8 +31,10 @@ func (h *libraryHandler) register(r *gin.Engine) {
 	r.DELETE("/api/v1/libraries/:id", h.delete)
 }
 
+// configFields 列出完整配置请求允许且必须提供的字段，不包含响应专用状态。
 var configFields = []string{"name", "directory_id", "directory_path", "media_type", "output_path", "generate_strm", "strm_existing_file_policy", "generate_nfo", "generate_poster_cover", "language_preference", "scrape_source", "exclude_directory_path", "include_subdirectories", "follow_directory_changes", "file_encoding", "link_type", "strm_direct_domain", "strm_link_format"}
 
+// decodeLibraryBody 解码限定大小的单个 JSON 配置，拒绝未知、不支持、缺失或 null 字段。
 func decodeLibraryBody(c *gin.Context, target any, required []string) bool {
 	media, _, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
 	if err != nil || media != "application/json" {
@@ -65,6 +71,8 @@ func decodeLibraryBody(c *gin.Context, target any, required []string) bool {
 	}
 	return true
 }
+
+// failure 将媒体库校验、版本冲突和不存在错误转换为稳定响应，隐藏存储细节。
 func (h *libraryHandler) failure(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, library.ErrInvalid):
@@ -77,6 +85,8 @@ func (h *libraryHandler) failure(c *gin.Context, err error) {
 		writeError(c, 503, generated.ServiceUnavailable, "媒体库服务暂时不可用")
 	}
 }
+
+// list 校验游标和分页上限，多读取一条判断后续页，并返回媒体库列表与下一游标。
 func (h *libraryHandler) list(c *gin.Context) {
 	limit, err := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	cursor := c.Query("cursor")
@@ -97,6 +107,8 @@ func (h *libraryHandler) list(c *gin.Context) {
 	}
 	c.JSON(200, gin.H{"items": items, "next_cursor": next})
 }
+
+// get 按路径标识读取媒体库配置，交由服务校验与处理不存在情况。
 func (h *libraryHandler) get(c *gin.Context) {
 	item, err := h.service.Get(c.Request.Context(), c.Param("id"), c.GetString("request_id"))
 	if err != nil {
@@ -105,6 +117,8 @@ func (h *libraryHandler) get(c *gin.Context) {
 	}
 	c.JSON(200, item)
 }
+
+// create 解码完整配置并创建媒体库，成功时返回 201 与保存结果。
 func (h *libraryHandler) create(c *gin.Context) {
 	var config library.Config
 	if !decodeLibraryBody(c, &config, configFields) {
@@ -117,6 +131,8 @@ func (h *libraryHandler) create(c *gin.Context) {
 	}
 	c.JSON(201, item)
 }
+
+// update 读取规范的正整数配置版本，提交完整配置以进行乐观并发更新。
 func (h *libraryHandler) update(c *gin.Context) {
 	revisionText := c.GetHeader("X-Library-Revision")
 	revision, err := strconv.ParseInt(revisionText, 10, 64)
@@ -135,6 +151,8 @@ func (h *libraryHandler) update(c *gin.Context) {
 	}
 	c.JSON(200, item)
 }
+
+// enabled 仅解码启停字段并更新媒体库启用状态。
 func (h *libraryHandler) enabled(c *gin.Context) {
 	var body struct {
 		Enabled bool `json:"enabled"`
@@ -149,6 +167,8 @@ func (h *libraryHandler) enabled(c *gin.Context) {
 	}
 	c.JSON(200, item)
 }
+
+// delete 携带管理员身份删除媒体库配置，成功后返回无内容响应。
 func (h *libraryHandler) delete(c *gin.Context) {
 	err := h.service.Delete(c.Request.Context(), c.Param("id"), providerIdentity(c).Administrator.ID, c.GetString("request_id"))
 	if err != nil {

@@ -1,3 +1,5 @@
+// strm_test.go：验证 STRM 迁移保留归属与播放身份，以及写入意图对原内容和源身份的事务保护。
+
 package sqlite
 
 import (
@@ -14,6 +16,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/migrations"
 )
 
+// TestStrmMigrationPreservesOwnershipAndPendingWrite 验证旧台账与待发布意图升级后保留身份，允许核验后补播放地址且拒绝破坏性降级。
 func TestStrmMigrationPreservesOwnershipAndPendingWrite(t *testing.T) {
 	ctx := t.Context()
 	path := filepath.Join(t.TempDir(), "version-6.db")
@@ -96,6 +99,7 @@ func TestStrmMigrationPreservesOwnershipAndPendingWrite(t *testing.T) {
 	}
 }
 
+// TestStrmIntentClaimChecksRecordedOwnerAndPreviousContent 验证不同源或旧内容不匹配时无法认领或完成意图，合法覆盖保留播放令牌。
 func TestStrmIntentClaimChecksRecordedOwnerAndPreviousContent(t *testing.T) {
 	ctx := t.Context()
 	db := taskDatabase(t)

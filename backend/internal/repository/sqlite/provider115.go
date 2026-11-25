@@ -1,3 +1,5 @@
+// provider115.go：保存单个 115 账号授权及审计，区分公开账号状态与仅服务端可读的 Cookie。
+
 package sqlite
 
 import (
@@ -12,6 +14,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/provider115"
 )
 
+// providerAccountModel 映射唯一 115 账号；Cookie 按当前产品约定原样存储，不能用于公开响应或日志。
 type providerAccountModel struct {
 	Singleton   int `gorm:"primaryKey"`
 	AccountName string
@@ -19,7 +22,10 @@ type providerAccountModel struct {
 	ConnectedAt time.Time
 }
 
+// TableName 指定持久化表名 provider_115_account，避免依赖 ORM 自动命名。
 func (providerAccountModel) TableName() string { return "provider_115_account" }
+
+// ProviderAccount 读取不含 Cookie 的账号状态，未授权时返回空状态。
 func (d *Database) ProviderAccount(ctx context.Context) (provider115.Account, error) {
 	var model providerAccountModel
 	err := d.orm.WithContext(ctx).Where("singleton = ?", 1).Take(&model).Error
@@ -31,6 +37,8 @@ func (d *Database) ProviderAccount(ctx context.Context) (provider115.Account, er
 	}
 	return provider115.Account{Connected: true, AccountName: &model.AccountName, ConnectedAt: &model.ConnectedAt}, nil
 }
+
+// SaveProviderAccount 事务内确认发起授权的会话仍有效，再保存单例账号与授权审计。
 func (d *Database) SaveProviderAccount(ctx context.Context, name, cookie string, now time.Time, actor, correlation, sessionHash string) error {
 	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var session sessionModel
@@ -44,6 +52,8 @@ func (d *Database) SaveProviderAccount(ctx context.Context, name, cookie string,
 		return insertAudit(tx, domain.Audit{ActorID: actor, Action: "authorize_115", TargetID: "115", Outcome: "succeeded", CorrelationID: correlation, OccurredAt: now})
 	})
 }
+
+// DeleteProviderAccount 原子移除单例授权与记录审计，不操作网盘数据。
 func (d *Database) DeleteProviderAccount(ctx context.Context, actor, correlation string, now time.Time) error {
 	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("singleton = ?", 1).Delete(&providerAccountModel{}).Error; err != nil {
@@ -53,7 +63,7 @@ func (d *Database) DeleteProviderAccount(ctx context.Context, actor, correlation
 	})
 }
 
-// ProviderCredential loads the provider credential for server-side requests only.
+// ProviderCredential 仅供服务端请求读取 Cookie，未授权时返回空字符串。
 func (d *Database) ProviderCredential(ctx context.Context) (string, error) {
 	var model providerAccountModel
 	err := d.orm.WithContext(ctx).Select("cookie").Where("singleton = ?", 1).Take(&model).Error

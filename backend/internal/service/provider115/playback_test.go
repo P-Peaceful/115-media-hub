@@ -1,3 +1,5 @@
+// playback_test.go：验证播放取链接口的错误分类、账号归属、可信跳转及敏感信息日志边界。
+
 package provider115
 
 import (
@@ -12,6 +14,7 @@ import (
 	"testing"
 )
 
+// TestResolvePlaybackUpstreamFailuresAndRedaction 验证下载协议请求编码、UA 透传、失败分类和禁止跳转，并检查日志不含敏感输入。
 func TestResolvePlaybackUpstreamFailuresAndRedaction(t *testing.T) {
 	const (
 		cookie = "UID=1234_A1_private; CID=secret"
@@ -80,6 +83,7 @@ func TestResolvePlaybackUpstreamFailuresAndRedaction(t *testing.T) {
 	}
 }
 
+// TestResolvePlaybackRequiresAccountOwnership 验证取链前拒绝未授权、不同账号和畸形账号身份。
 func TestResolvePlaybackRequiresAccountOwnership(t *testing.T) {
 	cases := []struct {
 		cookie string
@@ -99,6 +103,7 @@ func TestResolvePlaybackRequiresAccountOwnership(t *testing.T) {
 	}
 }
 
+// TestPlaybackTargetVerifiesSourceAndRedirect 验证源 ID、定位码与目标匹配，拒绝伪造域名、用户信息、显式端口和非 HTTP(S) 地址。
 func TestPlaybackTargetVerifiesSourceAndRedirect(t *testing.T) {
 	const valid = "https://media.115cdn.net/sample?signature=temporary"
 	fixture := func(id, pickCode, target string) []byte {

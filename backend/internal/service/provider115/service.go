@@ -1,3 +1,5 @@
+// service.go：负责单账号扫码授权的创建、轮询、取消及会话失效处理，管理临时二维码状态与凭据保存边界。
+
 // Package provider115 管理单账号 115 授权、网盘目录和播放链接。
 package provider115
 
@@ -18,31 +20,43 @@ import (
 	"time"
 )
 
+// ErrNotFound 表示二维码不存在、已结束或不属于当前会话。
 var ErrNotFound = errors.New("QR session not found")
+
+// ErrUpstream 表示上游响应或请求不可用；不携带上游敏感正文。
 var ErrUpstream = errors.New("115 service unavailable")
 
+// Account 描述本地保存的账号连接状态，不包含 Cookie。
 type Account struct {
 	Connected   bool       `json:"connected"`
 	AccountName *string    `json:"account_name"`
 	ConnectedAt *time.Time `json:"connected_at"`
 }
+
+// QR 描述返回客户端的二维码状态和过期时间，不暴露上游签名。
 type QR struct {
 	ID        string    `json:"id"`
 	QRURL     string    `json:"qr_url"`
 	Status    string    `json:"status"`
 	ExpiresAt time.Time `json:"expires_at"`
 }
+
+// Repository 提供账号状态及带审计信息的授权保存、删除边界。
 type Repository interface {
 	ProviderAccount(context.Context) (Account, error)
 	SaveProviderAccount(context.Context, string, string, time.Time, string, string, string) error
 	DeleteProviderAccount(context.Context, string, string, time.Time) error
 }
+
+// pending 保存单个会话的临时扫码材料，访问时由服务互斥锁保护。
 type pending struct {
 	QR
 	owner, uid, sign string
 	timestamp        int64
 	busy             bool
 }
+
+// Service 管理单账号授权及上游客户端；互斥锁保护临时二维码和授权代次。
 type Service struct {
 	repo          Repository
 	client        *http.Client
@@ -60,6 +74,7 @@ type Service struct {
 	now           func() time.Time
 }
 
+// New 构造带上游地址、HTTP 超时和模块日志的单账号服务。
 func New(repo Repository, logger *slog.Logger) *Service {
 	return &Service{
 		repo: repo, logger: logger.With("module", "provider_115"), client: &http.Client{Timeout: 65 * time.Second},
@@ -68,6 +83,8 @@ func New(repo Repository, logger *slog.Logger) *Service {
 		playbackURL: "https://proapi.115.com/app/chrome/downurl", now: time.Now,
 	}
 }
+
+// log 记录操作结果和耗时；目录成功分页只记录 DEBUG，避免扫描日志洪泛。
 func (s *Service) log(ctx context.Context, operation, requestID string, start time.Time, err error) {
 	level := slog.LevelInfo
 	outcome := "succeeded"
@@ -82,7 +99,11 @@ func (s *Service) log(ctx context.Context, operation, requestID string, start ti
 	attrs = append(attrs, "outcome", outcome)
 	s.logger.Log(ctx, level, "115 operation completed", attrs...)
 }
+
+// Account 读取本地已保存的账号连接状态，不向上游请求新资料。
 func (s *Service) Account(ctx context.Context) (Account, error) { return s.repo.ProviderAccount(ctx) }
+
+// Start 替换当前二维码并获取扫码材料；以代次检查阻止过期创建请求覆盖新会话。
 func (s *Service) Start(ctx context.Context, owner, requestID string) (result QR, resultErr error) {
 	start := time.Now()
 	defer func() { s.log(ctx, "start_qr", requestID, start, resultErr) }()
@@ -135,6 +156,8 @@ func (s *Service) Start(ctx context.Context, owner, requestID string) (result QR
 	})
 	return result, nil
 }
+
+// Poll 校验会话归属并轮询扫码状态；网络等待时释放锁，确认状态仍有效后才交换并保存授权。
 func (s *Service) Poll(ctx context.Context, owner, id, actor, requestID string) (result QR, resultErr error) {
 	start := time.Now()
 	s.mu.Lock()
@@ -242,6 +265,8 @@ func (s *Service) Poll(ctx context.Context, owner, id, actor, requestID string) 
 	}
 	return result, nil
 }
+
+// Cancel 取消属于当前会话的二维码并递增代次，使在途轮询不能继续授权。
 func (s *Service) Cancel(ctx context.Context, owner, id, requestID string) error {
 	start := time.Now()
 	s.mu.Lock()
@@ -254,6 +279,8 @@ func (s *Service) Cancel(ctx context.Context, owner, id, requestID string) error
 	s.log(ctx, "cancel_qr", requestID, start, nil)
 	return nil
 }
+
+// Remove 清除临时扫码状态并删除已保存账号，由仓储记录删除审计。
 func (s *Service) Remove(ctx context.Context, owner, actor, requestID string) (resultErr error) {
 	start := time.Now()
 	defer func() { s.log(ctx, "remove_account", requestID, start, resultErr) }()
@@ -264,7 +291,7 @@ func (s *Service) Remove(ctx context.Context, owner, actor, requestID string) (r
 	return s.repo.DeleteProviderAccount(ctx, actor, requestID, s.now().UTC())
 }
 
-// clearLocked releases transient QR data. The caller must hold s.mu.
+// clearLocked 释放临时二维码及过期计时器；调用者必须持有 s.mu。
 func (s *Service) clearLocked() {
 	if s.expiryTimer != nil {
 		s.expiryTimer.Stop()
@@ -273,7 +300,7 @@ func (s *Service) clearLocked() {
 	s.active = nil
 }
 
-// InvalidateSession discards QR state belonging to a logged-out session.
+// InvalidateSession 丢弃已退出会话的扫码状态，并使该会话尚未完成的创建请求失效。
 func (s *Service) InvalidateSession(owner string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -284,6 +311,7 @@ func (s *Service) InvalidateSession(owner string) {
 	}
 }
 
+// request 发送二维码协议请求，限制响应读取为 1 MiB 并关闭响应体；非 200 状态视为上游失败。
 func (s *Service) request(ctx context.Context, method, path string, body io.Reader) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, method, s.baseURL+path, body)
 	if err != nil {
@@ -309,9 +337,10 @@ func (s *Service) request(ctx context.Context, method, path string, body io.Read
 	return data, nil
 }
 
-// upstreamState accepts the provider's numeric and boolean state encodings.
+// upstreamState 兼容上游布尔值和 0、1 数字状态编码。
 type upstreamState bool
 
+// UnmarshalJSON 只接受 true、false、0、1，拒绝未知状态编码。
 func (s *upstreamState) UnmarshalJSON(data []byte) error {
 	switch string(data) {
 	case "1", "true":

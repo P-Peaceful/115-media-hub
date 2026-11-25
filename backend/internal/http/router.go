@@ -1,4 +1,6 @@
-// Package http owns HTTP transport, request correlation, and frontend delivery.
+// router.go：组装 HTTP 路由、请求关联与异常恢复，提供健康检查和带命名空间边界的前端页面回退。
+
+// Package http 负责 HTTP 传输、请求关联及前端资源交付。
 package http
 
 import (
@@ -17,15 +19,19 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/http/generated"
 )
 
-// Version is set by the build using -ldflags; unversioned local builds are dev.
+// Version 由构建时的 -ldflags 注入；未指定版本的本地构建使用 dev。
 var Version = "dev"
 
+// processStarted 记录进程初始化时刻，供系统状态计算运行时长。
 var processStarted = time.Now()
 
-// Readiness exposes only the database operation needed by the health transport.
-type Readiness interface{ Ping(context.Context) error }
+// Readiness 仅暴露就绪检查所需的数据库探测能力，不让 HTTP 层依赖具体存储。
+type Readiness interface {
+	// Ping 检查数据库是否可用，遵守健康探测上下文的取消和超时。
+	Ping(context.Context) error
+}
 
-// NewRouter constructs isolated Gin routes without global logger/recovery state.
+// NewRouter 构造独立 Gin 路由并注入业务服务，关闭代理信任与尾斜线重定向；配置前端时先检查首页存在。
 func NewRouter(database Readiness, logger *slog.Logger, assets fs.FS, options ...AuthOptions) (http.Handler, error) {
 	if assets != nil {
 		if _, err := fs.ReadFile(assets, "index.html"); err != nil {
@@ -82,10 +88,12 @@ func NewRouter(database Readiness, logger *slog.Logger, assets fs.FS, options ..
 	return router, nil
 }
 
+// writeError 中止当前请求并输出携带请求标识的统一错误响应，消息应由调用方提供脱敏文本。
 func writeError(c *gin.Context, status int, code generated.APIErrorCode, message string) {
 	c.AbortWithStatusJSON(status, generated.ErrorResponse{Error: generated.APIError{Code: code, Message: message, RequestId: c.GetString("request_id")}})
 }
 
+// requestMiddleware 校验或生成请求标识，捕获未处理异常并记录耗时；访问日志仅记录路由模板，避免泄露路径凭据。
 func requestMiddleware(logger *slog.Logger) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		started := time.Now()
@@ -118,6 +126,7 @@ func requestMiddleware(logger *slog.Logger) gin.HandlerFunc {
 	}
 }
 
+// validRequestID 限制请求标识为 1 至 64 个字节的字母、数字或点、下划线、短横线，避免原始头部污染日志。
 func validRequestID(value string) bool {
 	if len(value) == 0 || len(value) > 64 {
 		return false
@@ -131,8 +140,9 @@ func validRequestID(value string) bool {
 	return true
 }
 
+// serveFrontend 归一化请求路径后提供静态资源或 SPA 首页；保留 API、健康、播放及缺失资源的错误响应。
 func serveFrontend(c *gin.Context, assets fs.FS) {
-	// Normalize before checking namespace ownership so dot segments cannot enter SPA fallback.
+	// 先归一化再校验命名空间，防止点路径绕过接口边界进入 SPA 回退。
 	requestPath := path.Clean("/" + strings.TrimPrefix(c.Request.URL.Path, "/"))
 	reserved := false
 	for _, prefix := range []string{"/api", "/health", "/p", "/assets"} {
@@ -151,7 +161,7 @@ func serveFrontend(c *gin.Context, assets fs.FS) {
 	}
 	data, err := fs.ReadFile(assets, name)
 	if err != nil {
-		// Missing assets and file-like URLs must never receive an HTML success response.
+		// 缺失资源及类似文件的 URL 必须返回错误，不能用首页伪装成成功响应。
 		if reserved || path.Ext(name) != "" || strings.HasPrefix(name, ".") {
 			writeError(c, http.StatusNotFound, generated.NotFound, "Not found")
 			return

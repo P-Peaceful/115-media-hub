@@ -1,3 +1,5 @@
+// generate_test.go：验证全量生成的目录完整性、归属冲突、日志脱敏、并发发布和写入中断恢复。
+
 package strm
 
 import (
@@ -20,6 +22,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/provider115"
 )
 
+// generationRepository 在内存中保存产物和写入意图，支持注入意图前回调及登记失败。
 type generationRepository struct {
 	Repository
 	artifacts    map[string]Artifact
@@ -28,6 +31,7 @@ type generationRepository struct {
 	beforeIntent func() error
 }
 
+// StrmArtifactByTarget 按规范目标路径读取模拟归属，不存在时返回领域缺失错误。
 func (r *generationRepository) StrmArtifactByTarget(_ context.Context, target string) (Artifact, error) {
 	item, found := r.artifacts[target]
 	if !found {
@@ -36,6 +40,7 @@ func (r *generationRepository) StrmArtifactByTarget(_ context.Context, target st
 	return item, nil
 }
 
+// StrmIntentByTarget 读取目标路径待恢复的模拟写入意图。
 func (r *generationRepository) StrmIntentByTarget(_ context.Context, target string) (WriteIntent, error) {
 	intent, found := r.intents[target]
 	if !found {
@@ -44,6 +49,7 @@ func (r *generationRepository) StrmIntentByTarget(_ context.Context, target stri
 	return intent, nil
 }
 
+// SaveStrmIntent 执行可注入的中断或竞态回调，再保存待写入意图。
 func (r *generationRepository) SaveStrmIntent(_ context.Context, intent WriteIntent) error {
 	if r.beforeIntent != nil {
 		if err := r.beforeIntent(); err != nil {
@@ -54,6 +60,7 @@ func (r *generationRepository) SaveStrmIntent(_ context.Context, intent WriteInt
 	return nil
 }
 
+// CompleteStrmIntent 模拟登记产物并删除意图，或按配置注入持久化失败。
 func (r *generationRepository) CompleteStrmIntent(_ context.Context, intent WriteIntent) error {
 	if r.completeErr != nil {
 		return r.completeErr
@@ -63,11 +70,13 @@ func (r *generationRepository) CompleteStrmIntent(_ context.Context, intent Writ
 	return nil
 }
 
+// DiscardStrmIntent 模拟释放尚未发布或已无需恢复的写入意图。
 func (r *generationRepository) DiscardStrmIntent(_ context.Context, target string) error {
 	delete(r.intents, target)
 	return nil
 }
 
+// StrmIntentsByLibrary 筛选媒体库的模拟写入意图，供恢复流程使用。
 func (r *generationRepository) StrmIntentsByLibrary(_ context.Context, libraryID string) ([]WriteIntent, error) {
 	var result []WriteIntent
 	for _, intent := range r.intents {
@@ -78,21 +87,25 @@ func (r *generationRepository) StrmIntentsByLibrary(_ context.Context, libraryID
 	return result, nil
 }
 
+// generationProvider 通过可注入目录回调模拟网盘分页边界。
 type generationProvider struct {
 	Provider
 	list func(context.Context, provider115.FileQuery) (provider115.FilePage, error)
 }
 
+// Files 转发测试分页查询到场景回调。
 func (p generationProvider) Files(ctx context.Context, query provider115.FileQuery, _ string) (provider115.FilePage, error) {
 	return p.list(ctx, query)
 }
 
+// generationResult 收集执行回调报告的条目、最近进度和用户可见日志。
 type generationResult struct {
 	items    []domain.Item
 	progress domain.Progress
 	logs     []string
 }
 
+// newGenerationFixture 构造临时输出目录、内存仓储和执行回调；目录由测试框架清理。
 func newGenerationFixture(t *testing.T, provider generationProvider, logOutput io.Writer) (*Service, *generationRepository, jobs.Execution, *generationResult) {
 	t.Helper()
 	repo := &generationRepository{artifacts: make(map[string]Artifact), intents: make(map[string]WriteIntent)}
@@ -119,6 +132,7 @@ func newGenerationFixture(t *testing.T, provider generationProvider, logOutput i
 	return service, repo, execution, result
 }
 
+// rootPage 构造带账号身份及根路径的合法媒体库目录页。
 func rootPage(items ...provider115.FileItem) provider115.FilePage {
 	return provider115.FilePage{
 		DirectoryID: "42", AccountID: "private-account", Items: items,
@@ -126,16 +140,19 @@ func rootPage(items ...provider115.FileItem) provider115.FilePage {
 	}
 }
 
+// videoFile 构造具有稳定 ID 和播放定位码的视频候选。
 func videoFile(id, name string) provider115.FileItem {
 	return provider115.FileItem{ID: id, Name: name, FileType: "video", PlaybackCode: "private-playback-code"}
 }
 
+// singleVideoProvider 提供始终返回一个合法视频的基础网盘替身。
 func singleVideoProvider() generationProvider {
 	return generationProvider{list: func(context.Context, provider115.FileQuery) (provider115.FilePage, error) {
 		return rootPage(videoFile("123", "样片 1.mkv")), nil
 	}}
 }
 
+// requireGeneration 执行同步并在任务错误时立即终止当前测试。
 func requireGeneration(t *testing.T, service *Service, execution jobs.Execution) {
 	t.Helper()
 	if err := service.Module().Run(t.Context(), execution); err != nil {
@@ -143,6 +160,7 @@ func requireGeneration(t *testing.T, service *Service, execution jobs.Execution)
 	}
 }
 
+// requireFile 读取预期存在的本地文件，读取失败时终止测试。
 func requireFile(t *testing.T, name string) string {
 	t.Helper()
 	content, err := os.ReadFile(name)
@@ -152,6 +170,7 @@ func requireFile(t *testing.T, name string) string {
 	return string(content)
 }
 
+// TestGenerationScansPagesAndProcessesIndependentDirectories 验证跨页去重、排除目录及兄弟目录独立生成，局部目录失败仍有完整统计和终态日志。
 func TestGenerationScansPagesAndProcessesIndependentDirectories(t *testing.T) {
 	var logs bytes.Buffer
 	provider := generationProvider{list: func(_ context.Context, query provider115.FileQuery) (provider115.FilePage, error) {
@@ -219,6 +238,7 @@ func TestGenerationScansPagesAndProcessesIndependentDirectories(t *testing.T) {
 	}
 }
 
+// TestGenerationLimitsFailureLogsAndRedactsUntrustedFields 验证失败日志按类别限样但不丢统计，并拒绝输出不可信 ID、文件名、路径及原始错误。
 func TestGenerationLimitsFailureLogsAndRedactsUntrustedFields(t *testing.T) {
 	const sourceName = "private-file-name"
 	const invalidID = "private-malformed-source-id"
@@ -268,6 +288,7 @@ func TestGenerationLimitsFailureLogsAndRedactsUntrustedFields(t *testing.T) {
 	}
 }
 
+// TestGenerationPreservesFirstOwnerWhenExtensionsShareAnOutput 验证同主干不同扩展名视频映射到同一 STRM 时，首个源保留归属且后者报告冲突。
 func TestGenerationPreservesFirstOwnerWhenExtensionsShareAnOutput(t *testing.T) {
 	provider := generationProvider{list: func(context.Context, provider115.FileQuery) (provider115.FilePage, error) {
 		return rootPage(videoFile("123", "样片.mkv"), videoFile("456", "样片.mp4")), nil
@@ -287,6 +308,7 @@ func TestGenerationPreservesFirstOwnerWhenExtensionsShareAnOutput(t *testing.T) 
 	}
 }
 
+// TestGenerationPreservesIdentityAcrossRerunAndMissingFile 验证资格判断、跳过和覆盖策略及缺失重建，产物身份与播放凭据保持稳定。
 func TestGenerationPreservesIdentityAcrossRerunAndMissingFile(t *testing.T) {
 	service, repo, execution, result := newGenerationFixture(t, singleVideoProvider(), io.Discard)
 	module := service.Module()
@@ -334,6 +356,7 @@ func TestGenerationPreservesIdentityAcrossRerunAndMissingFile(t *testing.T) {
 	}
 }
 
+// TestGenerationPreservesExternalFilesAndConflictingOwners 验证外部、被修改、其他媒体库及并发插入的目标均不被覆盖，并记录脱敏冲突。
 func TestGenerationPreservesExternalFilesAndConflictingOwners(t *testing.T) {
 	for _, kind := range []string{"unowned", "modified", "other_library", "symlink", "created_during_generation", "modified_during_generation"} {
 		t.Run(kind, func(t *testing.T) {
@@ -391,6 +414,7 @@ func TestGenerationPreservesExternalFilesAndConflictingOwners(t *testing.T) {
 	}
 }
 
+// TestGenerationRecoversPublishedAndUnpublishedIntents 验证已发布意图补登、未发布意图释放，未知内容保留并阻止自动恢复。
 func TestGenerationRecoversPublishedAndUnpublishedIntents(t *testing.T) {
 	service, repo, execution, result := newGenerationFixture(t, singleVideoProvider(), io.Discard)
 	path := filepath.Join(execution.Library.OutputPath, "样片 1.strm")
@@ -428,6 +452,7 @@ func TestGenerationRecoversPublishedAndUnpublishedIntents(t *testing.T) {
 	}
 }
 
+// TestGenerationRecoversLegacyIntentsWithoutAdoptingExternalContent 验证旧版意图只接纳匹配规范身份的原链接，并在后续覆盖中保持登记身份。
 func TestGenerationRecoversLegacyIntentsWithoutAdoptingExternalContent(t *testing.T) {
 	service, repo, execution, _ := newGenerationFixture(t, singleVideoProvider(), io.Discard)
 	path := filepath.Join(execution.Library.OutputPath, "样片 1.strm")
@@ -475,6 +500,7 @@ func TestGenerationRecoversLegacyIntentsWithoutAdoptingExternalContent(t *testin
 	}
 }
 
+// TestGenerationRejectsChangedAccountBeforePublishingAnyFile 验证跨页账号变化终止扫描，任何源文件都不会提前发布。
 func TestGenerationRejectsChangedAccountBeforePublishingAnyFile(t *testing.T) {
 	provider := generationProvider{list: func(_ context.Context, query provider115.FileQuery) (provider115.FilePage, error) {
 		page := rootPage(videoFile("123", "样片 1.mkv"))
@@ -496,6 +522,7 @@ func TestGenerationRejectsChangedAccountBeforePublishingAnyFile(t *testing.T) {
 	}
 }
 
+// TestGenerationSerializesLibraryOutputsThroughRootAlias 并发运行指向同一规范根路径的两个库，验证恰有一个库取得产物归属。
 func TestGenerationSerializesLibraryOutputsThroughRootAlias(t *testing.T) {
 	service, repo, first, firstResult := newGenerationFixture(t, singleVideoProvider(), io.Discard)
 	_, _, second, secondResult := newGenerationFixture(t, singleVideoProvider(), io.Discard)
@@ -522,6 +549,7 @@ func TestGenerationSerializesLibraryOutputsThroughRootAlias(t *testing.T) {
 	}
 }
 
+// TestGenerationRejectsOutputDirectoryLinks 验证产物子目录是符号链接时拒绝写入且不触碰链接外目标。
 func TestGenerationRejectsOutputDirectoryLinks(t *testing.T) {
 	provider := generationProvider{list: func(_ context.Context, query provider115.FileQuery) (provider115.FilePage, error) {
 		if query.DirectoryID == "42" {
@@ -550,6 +578,7 @@ func TestGenerationRejectsOutputDirectoryLinks(t *testing.T) {
 	}
 }
 
+// TestGenerationCancellationLeavesIntentForSafeRetry 在保存意图时取消任务，验证不发布文件且保留可供下次安全重跑的恢复证据。
 func TestGenerationCancellationLeavesIntentForSafeRetry(t *testing.T) {
 	var logs bytes.Buffer
 	service, repo, execution, result := newGenerationFixture(t, singleVideoProvider(), &logs)
@@ -570,6 +599,7 @@ func TestGenerationCancellationLeavesIntentForSafeRetry(t *testing.T) {
 	}
 }
 
+// TestGenerationRejectsOutputRootReplacedDuringWrite 在保存意图前替换输出根路径，验证旧句柄与新路径均不会被写入或误登记。
 func TestGenerationRejectsOutputRootReplacedDuringWrite(t *testing.T) {
 	service, repo, execution, result := newGenerationFixture(t, singleVideoProvider(), io.Discard)
 	root := execution.Library.OutputPath

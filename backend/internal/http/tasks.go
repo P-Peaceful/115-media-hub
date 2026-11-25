@@ -1,3 +1,5 @@
+// tasks.go：实现任务中心 HTTP 入口、筛选和分页校验，将持久任务及允许动作映射为管理接口响应。
+
 package http
 
 import (
@@ -15,12 +17,14 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/jobs"
 )
 
+// taskHandler 注入任务服务及会话校验，用于持久任务管理和事件流转发。
 type taskHandler struct {
 	service *jobs.Service
 	auth    *auth.Service
 	logger  *slog.Logger
 }
 
+// register 注册任务能力、任务历史与控制、计划管理和事件流路由。
 func (h *taskHandler) register(r *gin.Engine) {
 	r.GET("/api/v1/task-types", h.capabilities)
 	r.GET("/api/v1/tasks", h.listTasks)
@@ -38,6 +42,7 @@ func (h *taskHandler) register(r *gin.Engine) {
 	r.GET("/api/v1/events", h.events)
 }
 
+// failure 按操作区分任务状态与计划冲突，映射稳定业务错误；请求取消时中止，未知故障记录安全诊断。
 func (h *taskHandler) failure(c *gin.Context, operation string, err error) {
 	switch {
 	case errors.Is(err, domain.ErrInvalid):
@@ -60,6 +65,7 @@ func (h *taskHandler) failure(c *gin.Context, operation string, err error) {
 	}
 }
 
+// capabilities 返回全部任务类型及当前注册模块实际支持的操作能力。
 func (h *taskHandler) capabilities(c *gin.Context) {
 	capabilities := h.service.Capabilities()
 	items := make([]generated.TaskTypeCapability, 0, len(capabilities))
@@ -72,6 +78,7 @@ func (h *taskHandler) capabilities(c *gin.Context) {
 	c.JSON(http.StatusOK, generated.TaskTypeCapabilities{Items: items})
 }
 
+// listTasks 校验筛选条件并读取任务分页及分类统计，保证集合响应使用数组或映射。
 func (h *taskHandler) listTasks(c *gin.Context) {
 	filter, ok := queryTaskFilter(c)
 	if !ok {
@@ -105,6 +112,7 @@ func (h *taskHandler) listTasks(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// submitTask 校验任务类型和媒体库标识，提交持久任务后以 202 返回可查询的任务对象。
 func (h *taskHandler) submitTask(c *gin.Context) {
 	var request generated.SubmitTaskInput
 	if !decodeAuthBody(c, &request, []string{"type", "library_id"}) {
@@ -122,6 +130,7 @@ func (h *taskHandler) submitTask(c *gin.Context) {
 	c.JSON(http.StatusAccepted, taskResponse(item))
 }
 
+// getTask 校验任务标识并返回持久任务及当前允许动作。
 func (h *taskHandler) getTask(c *gin.Context) {
 	id, ok := taskPathID(c)
 	if !ok {
@@ -135,6 +144,7 @@ func (h *taskHandler) getTask(c *gin.Context) {
 	c.JSON(http.StatusOK, taskResponse(item))
 }
 
+// listFailures 分页读取指定任务的失败项，返回管理员可见路径与原因。
 func (h *taskHandler) listFailures(c *gin.Context) {
 	id, ok := taskPathID(c)
 	if !ok {
@@ -156,6 +166,7 @@ func (h *taskHandler) listFailures(c *gin.Context) {
 	c.JSON(http.StatusOK, generated.TaskFailurePage{Items: items, NextCursor: page.NextCursor})
 }
 
+// listLogs 分页读取任务持久日志，将创建时间转换为 UTC 传输字段。
 func (h *taskHandler) listLogs(c *gin.Context) {
 	id, ok := taskPathID(c)
 	if !ok {
@@ -177,6 +188,7 @@ func (h *taskHandler) listLogs(c *gin.Context) {
 	c.JSON(http.StatusOK, generated.TaskLogPage{Items: items, NextCursor: page.NextCursor})
 }
 
+// applyAction 校验任务动作，将重试分派到新运行创建，其余动作交由现有任务状态控制。
 func (h *taskHandler) applyAction(c *gin.Context) {
 	id, ok := taskPathID(c)
 	if !ok {
@@ -208,6 +220,7 @@ func (h *taskHandler) applyAction(c *gin.Context) {
 	c.JSON(http.StatusAccepted, taskResponse(item))
 }
 
+// queryTaskFilter 组合分页、任务类型与媒体库筛选，任一传输字段无效时直接返回错误响应。
 func queryTaskFilter(c *gin.Context) (domain.JobFilter, bool) {
 	page, ok := queryTaskPage(c)
 	filter := domain.JobFilter{Page: page}
@@ -231,6 +244,7 @@ func queryTaskFilter(c *gin.Context) (domain.JobFilter, bool) {
 	return filter, true
 }
 
+// queryTaskPage 约束每页 1 至 200 条和有界无空白游标，返回业务层分页条件。
 func queryTaskPage(c *gin.Context) (domain.Page, bool) {
 	limit, err := strconv.Atoi(c.DefaultQuery("limit", "50"))
 	cursor := c.Query("cursor")
@@ -241,6 +255,7 @@ func queryTaskPage(c *gin.Context) (domain.Page, bool) {
 	return domain.Page{Limit: limit, Cursor: cursor}, true
 }
 
+// taskPathID 读取并校验路径中的任务或计划标识，失败时写入参数错误响应。
 func taskPathID(c *gin.Context) (string, bool) {
 	id := c.Param("id")
 	if !validTaskID(id) {
@@ -250,10 +265,12 @@ func taskPathID(c *gin.Context) (string, bool) {
 	return id, true
 }
 
+// validTaskID 检查标识非空、不超过 128 字节且无首尾空白，具体资源存在性由服务判断。
 func validTaskID(id string) bool {
 	return len(id) > 0 && len(id) <= 128 && strings.TrimSpace(id) == id
 }
 
+// taskResponse 将任务状态、统计与允许动作转换为 API 对象，保留可空结果和时间字段。
 func taskResponse(item domain.Job) generated.Task {
 	actions := make([]generated.TaskAction, 0, len(item.Actions))
 	for _, action := range item.Actions {

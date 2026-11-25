@@ -1,3 +1,5 @@
+// scan.go：负责只读遍历媒体库源目录、校验分页与路径身份，并收集可生成 STRM 的视频；丢弃未完整读取的目录结果。
+
 package strm
 
 import (
@@ -17,10 +19,12 @@ var (
 	errPlaybackCode     = errors.New("115 源文件缺少播放定位信息")
 )
 
+// sourceDirectory 保存待遍历目录的稳定身份、预期父目录和输出相对位置。
 type sourceDirectory struct {
 	id, parentID, relative, display string
 }
 
+// sourceFile 保存扫描条目的源身份、输出位置或失败；目录失败也作为任务条目返回。
 type sourceFile struct {
 	key, path, relative, name, id, accountID, playbackCode string
 	directoryID                                            string
@@ -28,14 +32,18 @@ type sourceFile struct {
 	err                                                    error
 }
 
+// scanSummary 汇总已完整读取目录、失败目录及视频候选的统计。
 type scanSummary struct {
 	completedDirectories, failedDirectories, scannedVideos, candidateFiles, invalidSourceEntries int
 }
 
+// providerID 判断源 ID 是否为 1–32 位十进制数字，供目录和条目身份校验使用。
 func providerID(id string) bool {
 	return len(id) > 0 && len(id) <= 32 && strings.Trim(id, "0123456789") == ""
 }
 
+// scan 广度遍历保存的范围并按稳定身份去重；目录分页失败时丢弃该目录结果，兄弟目录可继续。
+// 根目录、授权或账号变更失败终止整轮；取消只返回此前完整读取的目录。
 func (s *Service) scan(ctx context.Context, target library.Library, requestID string, reportDirectory func(string, scanSummary) error, reportFailure func(sourceFile)) ([]sourceFile, scanSummary, error) {
 	directories := []sourceDirectory{{id: target.DirectoryID, display: target.DirectoryPath}}
 	seenDirectories := map[string]bool{target.DirectoryID: true}
@@ -98,6 +106,7 @@ func (s *Service) scan(ctx context.Context, target library.Library, requestID st
 	return files, summary, nil
 }
 
+// scanDirectory 读取单目录所有分页并核对账号、路径及游标；仅完整成功才返回子目录和视频列表。
 func (s *Service) scanDirectory(ctx context.Context, config library.Config, requestID string, directory sourceDirectory, accountID *string) ([]sourceDirectory, []sourceFile, error) {
 	query := provider115.FileQuery{DirectoryID: directory.id, Limit: 200, Sort: "name", Order: "asc", Type: "all"}
 	var directories []sourceDirectory
@@ -161,6 +170,7 @@ func (s *Service) scanDirectory(ctx context.Context, config library.Config, requ
 	}
 }
 
+// sourceDirectoryPaths 核对请求目录及父子路径身份，拒绝扫描期间被移动或改名的子目录。
 func sourceDirectoryPaths(directory sourceDirectory, page provider115.FilePage) (display, relative string, err error) {
 	path := page.Path
 	if page.DirectoryID != directory.id || len(path) == 0 || path[0].ID != "0" || path[len(path)-1].ID != directory.id {
@@ -181,6 +191,7 @@ func sourceDirectoryPaths(directory sourceDirectory, page provider115.FilePage) 
 	return display, strings.Join(names[1:], "/"), nil
 }
 
+// excludedDirectory 按配置的完整展示路径或网盘根相对路径排除目录及其后代。
 func excludedDirectory(configured, display, relative string) bool {
 	if configured == "" {
 		return false
@@ -195,6 +206,7 @@ func excludedDirectory(configured, display, relative string) bool {
 	return display == excluded || strings.HasPrefix(display, excluded+"/")
 }
 
+// sourceVideo 校验视频 ID、文件名及定位码，派生同主干 STRM 相对路径，保留错误供条目统计。
 func sourceVideo(item provider115.FileItem, outputDir, sourceDir, accountID string) sourceFile {
 	file := sourceFile{
 		key: "file:" + item.ID, path: "/" + strings.TrimPrefix(sourceDir+"/"+item.Name, "/"),

@@ -1,3 +1,5 @@
+// files.go：负责只读目录分页、查询游标和条目转换，保留供内部扫描与播放使用的账号及定位信息。
+
 package provider115
 
 import (
@@ -12,11 +14,19 @@ import (
 	"time"
 )
 
+// ErrUnconfigured 表示尚未保存 115 凭据。
 var ErrUnconfigured = errors.New("115 account not configured")
+
+// ErrInvalidAuthorization 表示保存的凭据无效或不属于所需源账号。
 var ErrInvalidAuthorization = errors.New("115 authorization invalid")
+
+// ErrDirectoryNotFound 表示上游返回的目录身份与请求不符。
 var ErrDirectoryNotFound = errors.New("115 directory not found")
+
+// ErrInvalidQuery 表示目录查询参数或分页游标不符合合同。
 var ErrInvalidQuery = errors.New("invalid directory query")
 
+// FileQuery 定义单目录分页查询；页码和游标互斥，公开页大小最多 200。
 type FileQuery struct {
 	DirectoryID string
 	Limit       int
@@ -26,10 +36,14 @@ type FileQuery struct {
 	Order       string
 	Type        string
 }
+
+// FilePath 描述目录面包屑中的稳定 ID 和名称。
 type FilePath struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
 }
+
+// FileItem 描述网盘条目；播放定位码仅供内部使用，不参与 JSON 输出。
 type FileItem struct {
 	ID           string     `json:"id"`
 	Name         string     `json:"name"`
@@ -39,6 +53,8 @@ type FileItem struct {
 	FileType     string     `json:"file_type"`
 	PlaybackCode string     `json:"-"`
 }
+
+// FilePage 描述单页目录结果；内部账号身份用于阻止跨账号混合扫描。
 type FilePage struct {
 	DirectoryID string     `json:"directory_id"`
 	Path        []FilePath `json:"path"`
@@ -50,6 +66,8 @@ type FilePage struct {
 	TotalPages  int64      `json:"total_pages"`
 	AccountID   string     `json:"-"`
 }
+
+// fileCursor 绑定目录、偏移及排序过滤条件，防止改变查询后继续使用旧游标。
 type fileCursor struct {
 	DirectoryID string `json:"d"`
 	Offset      int    `json:"o"`
@@ -59,8 +77,8 @@ type fileCursor struct {
 	Type        string `json:"t"`
 }
 
-// Files returns a provider page. Offset pagination reflects the live directory;
-// concurrent changes can move entries between pages, so refresh restarts browsing.
+// Files 校验并读取实时目录的一页，核对目录、数量及路径后转换条目；授权变化时丢弃结果。
+// 偏移分页可能受并发目录变化影响，刷新浏览应从头开始。
 func (s *Service) Files(ctx context.Context, q FileQuery, requestID string) (result FilePage, resultErr error) {
 	start := time.Now()
 	defer func() { s.log(ctx, "list_files", requestID, start, resultErr) }()
@@ -221,6 +239,7 @@ func credentialAccountID(cookie string) string {
 	return ""
 }
 
+// classifyFile 按末尾扩展名进行本地文件分类，不读取文件内容。
 func classifyFile(name string) string {
 	switch strings.ToLower(filepath.Ext(name)) {
 	case ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".ts", ".m4v", ".webm":

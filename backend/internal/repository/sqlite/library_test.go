@@ -1,3 +1,5 @@
+// library_test.go：验证媒体库配置持久化、删除审计回滚、输入约束和修订号并发保护，确保不修改媒体文件。
+
 package sqlite
 
 import (
@@ -14,9 +16,12 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
 )
 
+// validLibraryConfig 构造完整合法媒体库配置，固定现有文件策略以供持久化与验证测试复用。
 func validLibraryConfig(output string) library.Config {
 	return library.Config{Name: "电影", DirectoryID: "12345678901234567890", DirectoryPath: "/我的资源/电影", MediaType: "movie", Enabled: true, OutputPath: output, GenerateSTRM: true, STRMExistingFilePolicy: "skip", GenerateNFO: true, GeneratePosterCover: true, LanguagePreference: "zh-CN", ScrapeSource: "tmdb", IncludeSubdirectories: true, FollowDirectoryChanges: true, FileEncoding: "UTF-8", LinkType: "proxy", STRMLinkFormat: "original_name"}
 }
+
+// TestLibraryLifecycleAndDeleteAudit 验证配置读写、停用和删除，审计失败回滚且本地媒体文件与敏感路径不受影响。
 func TestLibraryLifecycleAndDeleteAudit(t *testing.T) {
 	ctx := context.Background()
 	dir := t.TempDir()
@@ -96,6 +101,8 @@ func TestLibraryLifecycleAndDeleteAudit(t *testing.T) {
 		t.Error("logs contain path")
 	}
 }
+
+// TestLibraryValidation 验证已有文件策略、播放源地址、目录 ID 和服务器输出路径边界。
 func TestLibraryValidation(t *testing.T) {
 	for _, policy := range []string{"skip", "overwrite", "", "rename"} {
 		c := validLibraryConfig("/media")
@@ -147,6 +154,7 @@ func TestLibraryValidation(t *testing.T) {
 	}
 }
 
+// TestLibraryConcurrentChangesDoNotOverwrite 验证旧修订号更新返回冲突，不覆盖已保存的新配置。
 func TestLibraryConcurrentChangesDoNotOverwrite(t *testing.T) {
 	ctx := context.Background()
 	db, err := Open(ctx, filepath.Join(t.TempDir(), "concurrency.db"))

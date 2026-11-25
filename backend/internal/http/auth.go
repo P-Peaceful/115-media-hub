@@ -1,3 +1,5 @@
+// auth.go：实现管理员认证 HTTP 入口、管理接口默认保护、Cookie 与 CSRF 校验，以及安全的请求解码和错误转换。
+
 package http
 
 import (
@@ -26,10 +28,13 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/strm"
 )
 
+// sessionCookie 保存管理员会话绑定，Cookie 值仅作为服务端校验的凭据。
 const sessionCookie = "mediahub_session"
+
+// anonymousCookie 保存匿名引导的短期绑定，用于初始化和登录的 CSRF 校验。
 const anonymousCookie = "mediahub_preauth"
 
-// AuthOptions injects authentication policy and the explicit reverse-proxy HTTPS cookie setting.
+// AuthOptions 注入管理认证、已启用的业务服务及反向代理部署的 HTTPS Cookie 策略。
 type AuthOptions struct {
 	Service      *auth.Service
 	CookieSecure bool
@@ -39,6 +44,7 @@ type AuthOptions struct {
 	STRM         *strm.Service
 }
 
+// authenticationHandler 将会话认证、CSRF 和 Cookie 策略集中在 HTTP 边界。
 type authenticationHandler struct {
 	service  *auth.Service
 	provider *provider115.Service
@@ -46,6 +52,7 @@ type authenticationHandler struct {
 	logger   *slog.Logger
 }
 
+// register 注册认证和安全设置路由，由管理边界中间件统一执行会话与 CSRF 保护。
 func (h *authenticationHandler) register(router *gin.Engine) {
 	router.GET("/api/v1/auth/bootstrap", h.bootstrap)
 	router.POST("/api/v1/auth/initialize", h.initialize)
@@ -56,7 +63,8 @@ func (h *authenticationHandler) register(router *gin.Engine) {
 	router.PUT("/api/v1/settings/security/session", h.sessionSettings)
 }
 
-// Registered management routes are protected by default; unknown namespaces retain their 404 contract.
+// managementBoundary 默认保护已注册的管理接口，装载会话身份并校验变更请求的 Cookie 绑定 CSRF 与同源信息。
+// 未知路由保留原有 404，匿名引导、初始化和登录采用各自的公开入口规则。
 func (h *authenticationHandler) managementBoundary() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.FullPath() == "" || !strings.HasPrefix(c.FullPath(), "/api/v1/") {
@@ -101,6 +109,7 @@ func (h *authenticationHandler) managementBoundary() gin.HandlerFunc {
 	}
 }
 
+// sameOrigin 拒绝明确跨站或与请求主机、协议不匹配的 Origin；无 Origin 的客户端仍须通过 CSRF 校验。
 func (h *authenticationHandler) sameOrigin(request *http.Request) bool {
 	if request.Header.Get("Sec-Fetch-Site") == "cross-site" {
 		return false
@@ -108,7 +117,7 @@ func (h *authenticationHandler) sameOrigin(request *http.Request) bool {
 	origin := request.Header.Get("Origin")
 	if origin == "" {
 		return true
-	} // Non-browser clients still require the cookie-bound CSRF proof.
+	} // 非浏览器客户端仍须提供 Cookie 绑定的 CSRF 证明。
 	parsed, err := url.Parse(origin)
 	if err != nil || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.ForceQuery || parsed.Fragment != "" || strings.Contains(origin, "#") {
 		return false
@@ -120,6 +129,7 @@ func (h *authenticationHandler) sameOrigin(request *http.Request) bool {
 	return parsed.Scheme == scheme && strings.EqualFold(parsed.Host, request.Host)
 }
 
+// bootstrap 返回初始化与登录状态，为匿名请求复用或创建短期 CSRF 绑定，并清除失效会话 Cookie。
 func (h *authenticationHandler) bootstrap(c *gin.Context) {
 	started := time.Now()
 	initialized, err := h.service.Initialized(c.Request.Context())
@@ -150,6 +160,7 @@ func (h *authenticationHandler) bootstrap(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
+// initialize 解码初始化必填字段，调用服务原子建立管理员与设置，成功后切换为持久会话 Cookie。
 func (h *authenticationHandler) initialize(c *gin.Context) {
 	var body generated.InitializeRequest
 	if !decodeAuthBody(c, &body, []string{"username", "password", "service_url", "output_directory", "session_lifetime_days"}) {
@@ -163,6 +174,7 @@ func (h *authenticationHandler) initialize(c *gin.Context) {
 	h.startSession(c, result, true, http.StatusCreated)
 }
 
+// login 提交凭据和旧会话给认证服务，成功后按记住登录选项设置新 Cookie 与 CSRF 令牌。
 func (h *authenticationHandler) login(c *gin.Context) {
 	var body generated.LoginRequest
 	if !decodeAuthBody(c, &body, []string{"username", "password", "remember_login"}) {
@@ -177,6 +189,7 @@ func (h *authenticationHandler) login(c *gin.Context) {
 	h.startSession(c, result, body.RememberLogin, http.StatusOK)
 }
 
+// logout 撤销当前会话，取消其关联的 115 授权状态，并清除会话及匿名 Cookie。
 func (h *authenticationHandler) logout(c *gin.Context) {
 	value, _ := c.Get("auth_identity")
 	if err := h.service.Logout(c.Request.Context(), value.(domain.Identity), c.GetString("request_id")); err != nil {
@@ -191,6 +204,7 @@ func (h *authenticationHandler) logout(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// startSession 写入服务签发的会话 Cookie 并返回登录身份；仅记住登录时设置浏览器持久期限。
 func (h *authenticationHandler) startSession(c *gin.Context, result auth.SessionResult, remember bool, status int) {
 	cookie := &http.Cookie{Name: sessionCookie, Value: result.Token}
 	if remember {
@@ -202,6 +216,7 @@ func (h *authenticationHandler) startSession(c *gin.Context, result auth.Session
 	c.JSON(status, generated.AuthSession{Administrator: generated.Administrator{Id: result.Identity.Administrator.ID, Username: result.Identity.Administrator.Username}, ExpiresAt: result.Identity.Session.ExpiresAt, CsrfToken: result.CSRFToken})
 }
 
+// setCookie 统一设置 HttpOnly、SameSite 和根路径，并在配置 HTTPS 或直接 TLS 时启用 Secure。
 func (h *authenticationHandler) setCookie(c *gin.Context, cookie *http.Cookie) {
 	cookie.HttpOnly = true
 	cookie.Secure = h.secure || c.Request.TLS != nil
@@ -209,10 +224,13 @@ func (h *authenticationHandler) setCookie(c *gin.Context, cookie *http.Cookie) {
 	cookie.Path = "/"
 	http.SetCookie(c.Writer, cookie)
 }
+
+// expireCookie 按统一安全属性写入已过期 Cookie，通知浏览器删除指定绑定。
 func (h *authenticationHandler) expireCookie(c *gin.Context, name string) {
 	h.setCookie(c, &http.Cookie{Name: name, MaxAge: -1, Expires: time.Unix(1, 0)})
 }
 
+// trustedPeer 从连接对端地址提取来源 IP；不信任客户端可伪造的转发头，无法解析时返回 unknown。
 func trustedPeer(request *http.Request) string {
 	host, _, err := net.SplitHostPort(request.RemoteAddr)
 	if err != nil {
@@ -221,6 +239,7 @@ func trustedPeer(request *http.Request) string {
 	return host
 }
 
+// decodeAuthBody 仅解码不超过 4096 字节的单个 JSON 对象，拒绝未知字段，并检查非 null 必填及可空必填字段。
 func decodeAuthBody(c *gin.Context, target any, required []string, requiredNullable ...string) bool {
 	mediaType, _, err := mime.ParseMediaType(c.GetHeader("Content-Type"))
 	if err != nil || mediaType != "application/json" {
@@ -262,6 +281,7 @@ func decodeAuthBody(c *gin.Context, target any, required []string, requiredNulla
 	return true
 }
 
+// writeFailure 将认证验证、限流和状态错误转换为稳定 HTTP 响应，不向客户端透传底层错误。
 func (h *authenticationHandler) writeFailure(c *gin.Context, err error) {
 	var validation *auth.ValidationError
 	var throttled *auth.ThrottledError
@@ -286,12 +306,10 @@ func (h *authenticationHandler) writeFailure(c *gin.Context, err error) {
 	}
 }
 
-// State reads have no mutation-service completion record, so transport owns their
-// failure diagnostic. Never emit raw SQL/driver error text or request payloads.
+// handleStateFailure 为缺少业务完成日志的认证状态读取记录脱敏失败诊断；客户端取消仅记取消并停止响应。
 func (h *authenticationHandler) handleStateFailure(c *gin.Context, operation string, started time.Time, err error) {
 	if errors.Is(err, context.Canceled) && c.Request.Context().Err() != nil {
-		// An aborted browser bootstrap is normal during navigation/StrictMode.
-		// The client is gone; do not invent a service-unavailable response.
+		// 导航或 StrictMode 可正常取消引导请求；客户端已离开时不补发服务不可用响应。
 		h.logger.DebugContext(c.Request.Context(), "authentication state request canceled", "module", "auth", "operation", operation, "outcome", "canceled", "request_id", c.GetString("request_id"), "duration_ms", time.Since(started).Milliseconds())
 		c.Abort()
 		return

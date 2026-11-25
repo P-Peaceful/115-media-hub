@@ -1,3 +1,5 @@
+// router_test.go：验证健康接口、请求标识、错误脱敏、前端回退及 panic 恢复，确保路由边界不被静态页面吞没。
+
 package http
 
 import (
@@ -18,10 +20,13 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/http/generated"
 )
 
+// readinessStub 以可注入错误替代数据库探测，隔离健康接口测试。
 type readinessStub struct{ err error }
 
+// Ping 返回注入的健康检查错误，模拟数据库就绪与故障。
 func (r readinessStub) Ping(context.Context) error { return r.err }
 
+// TestHealthAndErrors 验证存活、就绪、方法错误和未知 API 的状态及错误合同，避免数据库诊断泄露和健康日志刷屏。
 func TestHealthAndErrors(t *testing.T) {
 	for _, test := range []struct {
 		name    string
@@ -73,6 +78,7 @@ func TestHealthAndErrors(t *testing.T) {
 	}
 }
 
+// TestSystemStatusWithoutAuthService 验证未装配认证服务时系统状态仍受保护并禁止缓存。
 func TestSystemStatusWithoutAuthService(t *testing.T) {
 	router, err := NewRouter(readinessStub{}, slog.New(slog.NewJSONHandler(io.Discard, nil)), nil)
 	if err != nil {
@@ -85,6 +91,7 @@ func TestSystemStatusWithoutAuthService(t *testing.T) {
 	}
 }
 
+// TestRequestIDsAndSafeAccessLogs 验证无效请求标识被替换，访问日志保留关联信息且不记录查询或认证头。
 func TestRequestIDsAndSafeAccessLogs(t *testing.T) {
 	for _, requestID := range []string{"", strings.Repeat("a", 65), "invalid request", "bad/identifier"} {
 		var logs bytes.Buffer
@@ -114,6 +121,7 @@ func TestRequestIDsAndSafeAccessLogs(t *testing.T) {
 	}
 }
 
+// TestSPAFallbackBoundaries 验证普通页面回退首页，保留 API、健康、播放、缺失资源与隐藏文件的错误边界。
 func TestSPAFallbackBoundaries(t *testing.T) {
 	assets := fstest.MapFS{"index.html": {Data: []byte("<h1>application</h1>")}, "assets/app.js": {Data: []byte("console.log('asset')")}}
 	router, err := NewRouter(readinessStub{}, slog.New(slog.NewJSONHandler(io.Discard, nil)), assets)
@@ -139,6 +147,7 @@ func TestSPAFallbackBoundaries(t *testing.T) {
 	}
 }
 
+// TestRecoveryDoesNotExposePanic 验证未处理 panic 转换为 500，日志和响应均不暴露 panic 原文。
 func TestRecoveryDoesNotExposePanic(t *testing.T) {
 	var logs bytes.Buffer
 	router, err := NewRouter(readinessStub{}, slog.New(slog.NewJSONHandler(&logs, nil)), nil)

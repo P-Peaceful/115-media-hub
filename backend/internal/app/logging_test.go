@@ -1,3 +1,5 @@
+// logging_test.go：验证结构化日志关键字段、真实文件轮转及过期备份清理，覆盖配置的存储保留边界。
+
 package app
 
 import (
@@ -12,10 +14,11 @@ import (
 	"time"
 )
 
+// TestStructuredLogAndRotation 验证 JSON 日志字段、10 MiB 文件触发轮转及七天外备份清理后的活动文件内容。
 func TestStructuredLogAndRotation(t *testing.T) {
 	directory := t.TempDir()
 	filename := filepath.Join(directory, "app.log")
-	// Seed expired backups to verify the configured retention policy on rotation.
+	// 预置过期备份，验证真实轮转执行配置的保留策略。
 	oldName := filepath.Join(directory, "app-"+time.Now().Add(-8*24*time.Hour).UTC().Format("2006-01-02T15-04-05.000")+".log")
 	if err := os.WriteFile(oldName, []byte("expired"), 0o600); err != nil {
 		t.Fatal(err)
@@ -36,7 +39,7 @@ func TestStructuredLogAndRotation(t *testing.T) {
 	if err := closer.Close(); err != nil {
 		t.Fatal(err)
 	}
-	// A large existing active file triggers real lumberjack rotation on the next write.
+	// 预置达到上限的活动文件，让下一次写入触发真实 lumberjack 轮转。
 	if err := os.WriteFile(filename, []byte(strings.Repeat("x", 10*1024*1024)), 0o600); err != nil {
 		t.Fatal(err)
 	}

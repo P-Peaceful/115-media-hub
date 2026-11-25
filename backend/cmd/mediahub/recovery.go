@@ -1,3 +1,5 @@
+// recovery.go：解析管理员密码恢复命令，提供受限标准输入和隐藏终端输入，不允许密码通过命令行参数传入。
+
 package main
 
 import (
@@ -16,6 +18,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
 )
 
+// runCommand 校验本地密码恢复命令及参数，读取密码后更新既有管理员，并输出会话撤销提示。
 func runCommand(ctx context.Context, config app.Config, logger *slog.Logger, args []string, input *os.File, output io.Writer) error {
 	if len(args) < 2 || args[0] != "admin" || args[1] != "reset-password" {
 		return errors.New("usage: mediahub admin reset-password [--password-stdin]; stop the application first and use its configured database")
@@ -43,9 +46,10 @@ func runCommand(ctx context.Context, config app.Config, logger *slog.Logger, arg
 	return err
 }
 
+// readNewPassword 从显式标准输入读取一行密码，或在终端隐藏输入并确认；拒绝超长、非法及隐式管道输入。
 func readNewPassword(input *os.File, output io.Writer, fromStdin bool) (string, error) {
 	if fromStdin {
-		// Read at most the ASCII password limit plus CRLF and one overflow byte.
+		// 仅读取 ASCII 密码上限、CRLF 及一个溢出字节，识别超长输入且避免无界读取。
 		data, err := io.ReadAll(io.LimitReader(input, int64(auth.MaxPasswordLength+3)))
 		if err != nil {
 			return "", fmt.Errorf("read password input: %w", err)
@@ -82,6 +86,7 @@ func readNewPassword(input *os.File, output io.Writer, fromStdin bool) (string, 
 	return password, nil
 }
 
+// promptPassword 显示提示并隐藏读取终端密码，保留读取和换行输出错误供调用方处理。
 func promptPassword(input *os.File, output io.Writer, prompt string) (string, error) {
 	if _, err := fmt.Fprint(output, prompt); err != nil {
 		return "", err

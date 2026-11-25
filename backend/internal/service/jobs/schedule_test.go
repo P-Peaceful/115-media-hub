@@ -1,3 +1,5 @@
+// schedule_test.go：验证日历周期与 IANA 时区的下次触发计算，以及非法 Cron 和重复周期字段的拒绝。
+
 package jobs
 
 import (
@@ -8,6 +10,7 @@ import (
 	domain "github.com/wenzhengcheng/115-media-hub/backend/internal/domain/jobs"
 )
 
+// TestScheduleRecurrenceUsesCalendarAndTimezone 验证星期、月底跳月和夏令时变化按指定时区计算下次触发。
 func TestScheduleRecurrenceUsesCalendarAndTimezone(t *testing.T) {
 	clock := "02:00"
 	monthDay := 31
@@ -49,6 +52,7 @@ func TestScheduleRecurrenceUsesCalendarAndTimezone(t *testing.T) {
 	}
 }
 
+// TestScheduleRecurrenceRejectsInvalidFields 验证重复或超界星期、六字段 Cron 和无效时区不能形成计划。
 func TestScheduleRecurrenceRejectsInvalidFields(t *testing.T) {
 	clock := "02:00"
 	sixFields := "0 0 3 * * *"

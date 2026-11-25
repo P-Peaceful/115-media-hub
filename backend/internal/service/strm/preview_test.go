@@ -1,3 +1,5 @@
+// preview_test.go：验证预览遵守保存的扫描范围、不写产物，并在超时和取消时保留正确的完整性语义。
+
 package strm
 
 import (
@@ -16,6 +18,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/provider115"
 )
 
+// TestFullSyncPreviewScansSavedScopeEvenWhenOutputIsBlocked 验证输出受阻时仍按已保存范围扫描并给出样例和失败统计，预览不修改产物或登记。
 func TestFullSyncPreviewScansSavedScopeEvenWhenOutputIsBlocked(t *testing.T) {
 	var requests []string
 	var logs bytes.Buffer
@@ -85,6 +88,7 @@ func TestFullSyncPreviewScansSavedScopeEvenWhenOutputIsBlocked(t *testing.T) {
 	}
 }
 
+// TestFullSyncPreviewDeadlineKeepsOnlyCompleteDirectories 验证截止时间到达时只保留分页已结束的目录，不把中断目录计入候选。
 func TestFullSyncPreviewDeadlineKeepsOnlyCompleteDirectories(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		provider := generationProvider{list: func(ctx context.Context, query provider115.FileQuery) (provider115.FilePage, error) {
@@ -117,6 +121,7 @@ func TestFullSyncPreviewDeadlineKeepsOnlyCompleteDirectories(t *testing.T) {
 	})
 }
 
+// TestFullSyncPreviewRespectsClientCancellation 验证客户端取消返回取消错误，不被当作可展示的超时部分结果。
 func TestFullSyncPreviewRespectsClientCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()

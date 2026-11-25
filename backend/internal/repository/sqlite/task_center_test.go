@@ -1,3 +1,5 @@
+// task_center_test.go：使用真实 SQLite 验证任务迁移、并发抢占、历史分页及计划触发批量提交的事务回滚。
+
 package sqlite
 
 import (
@@ -16,6 +18,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/migrations"
 )
 
+// TestTaskCenterMigrationPreservesExistingLibraries 验证从旧媒体库 schema 升级保留配置和修订号，新增任务表为空。
 func TestTaskCenterMigrationPreservesExistingLibraries(t *testing.T) {
 	ctx := t.Context()
 	path := filepath.Join(t.TempDir(), "previous.db")
@@ -57,6 +60,7 @@ func TestTaskCenterMigrationPreservesExistingLibraries(t *testing.T) {
 	}
 }
 
+// taskDatabase 创建当前 schema 的临时数据库并注册资源清理，供持久化回归测试复用。
 func taskDatabase(t *testing.T) *Database {
 	t.Helper()
 	db, err := Open(t.Context(), filepath.Join(t.TempDir(), "tasks.db"))
@@ -71,6 +75,7 @@ func taskDatabase(t *testing.T) *Database {
 	return db
 }
 
+// TestTaskCenterDowngradeRejectsHistoryLoss 验证禁止破坏任务历史的降级，拒绝后仍保留任务及日志。
 func TestTaskCenterDowngradeRejectsHistoryLoss(t *testing.T) {
 	ctx := t.Context()
 	db := taskDatabase(t)
@@ -101,6 +106,7 @@ func TestTaskCenterDowngradeRejectsHistoryLoss(t *testing.T) {
 	}
 }
 
+// TestConcurrentClaimSerializesSameLibraryAndPagesHistory 验证并发抢占按媒体库串行与 FIFO 执行，并验证倒序历史游标及释放后再抢占。
 func TestConcurrentClaimSerializesSameLibraryAndPagesHistory(t *testing.T) {
 	ctx := t.Context()
 	db := taskDatabase(t)
@@ -173,6 +179,7 @@ func TestConcurrentClaimSerializesSameLibraryAndPagesHistory(t *testing.T) {
 	}
 }
 
+// TestScheduleAdvanceRollsBackPartialSubmission 验证批量入队失败回滚触发时间与已插入任务，过期触发快照返回冲突。
 func TestScheduleAdvanceRollsBackPartialSubmission(t *testing.T) {
 	ctx := t.Context()
 	db := taskDatabase(t)

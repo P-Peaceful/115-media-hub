@@ -31,6 +31,7 @@
     "sdk_scope": "A_cookie_transport_and_fast_scan",
     "preview_scope": "bounded_directory_sampling_then_full_execution",
     "preview_limits": "confirmed_3_directories_5_requests_15_seconds_20_samples",
-    "sidecar_prerequisite": "same_source_directory_video_with_generated_or_verified_same_source_strm"
+    "sidecar_prerequisite": "same_source_directory_video_with_generated_or_verified_same_source_strm",
+    "user_requested_delay": "4 hours from 2026-11-25 05:31 Asia/Shanghai"
   }
 }

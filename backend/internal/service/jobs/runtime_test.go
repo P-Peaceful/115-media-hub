@@ -1,3 +1,5 @@
+// runtime_test.go：结合真实 SQLite 与注入业务模块验证调度、重试、暂停取消、执行隔离和重启核验。
+
 package jobs
 
 import (
@@ -17,6 +19,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
 )
 
+// newFixture 创建临时数据库、媒体库和任务服务，清理时先限时停止工作池再关闭数据库。
 func newFixture(t *testing.T, modules map[domain.Type]Module) (*Service, *sqlite.Database, *library.Service) {
 	t.Helper()
 	db, err := sqlite.Open(t.Context(), filepath.Join(t.TempDir(), "task.db"))
@@ -39,6 +42,7 @@ func newFixture(t *testing.T, modules map[domain.Type]Module) (*Service, *sqlite
 	return service, db, libraries
 }
 
+// testLibrary 创建具有独立输出目录的合法测试媒体库。
 func testLibrary(t *testing.T, libraries *library.Service, name string) library.Library {
 	t.Helper()
 	target, err := libraries.Create(t.Context(), library.Config{
@@ -52,6 +56,7 @@ func testLibrary(t *testing.T, libraries *library.Service, name string) library.
 	return target
 }
 
+// waitTask 在有界期限内通过变更提示回读持久化任务，直到达到期望状态。
 func waitTask(t *testing.T, service *Service, events <-chan domain.Event, id string, want domain.Status) domain.Job {
 	t.Helper()
 	timer := time.NewTimer(5 * time.Second)
@@ -75,6 +80,7 @@ func waitTask(t *testing.T, service *Service, events <-chan domain.Event, id str
 	}
 }
 
+// TestScheduleAndRetryPersistModuleResults 验证计划目标过滤和并发触发去重、部分失败通知、日志脱敏与失败条目重试。
 func TestScheduleAndRetryPersistModuleResults(t *testing.T) {
 	var seenRetry atomic.Bool
 	module := Module{CanRetryFailed: true, Run: func(ctx context.Context, x Execution) error {
@@ -166,7 +172,7 @@ func TestScheduleAndRetryPersistModuleResults(t *testing.T) {
 			event := <-notifications
 			found = found || (event.JobID == job.ID && event.Notification != nil && *event.Notification == domain.PartialFailure)
 		}
-		// The commit may be observed before the notification is published.
+		// 可能先读到已提交状态，再收到对应的通知。
 		if !found {
 			select {
 			case event := <-notifications:
@@ -216,6 +222,7 @@ func TestScheduleAndRetryPersistModuleResults(t *testing.T) {
 	}
 }
 
+// TestPauseResumeAndCancel 验证暂停恢复和取消，并确保旧执行的控制及上报无法影响新执行次数。
 func TestPauseResumeAndCancel(t *testing.T) {
 	started := make(chan Execution, 3)
 	runContexts := make(chan context.Context, 3)
@@ -286,6 +293,7 @@ func TestPauseResumeAndCancel(t *testing.T) {
 	}
 }
 
+// TestProgressPublishesTrailingChangeWhileRunning 验证运行中合并进度仍会补发尾部提示，并可回读最新持久化进度。
 func TestProgressPublishesTrailingChangeWhileRunning(t *testing.T) {
 	started := make(chan Execution, 1)
 	service, _, libraries := newFixture(t, map[domain.Type]Module{domain.Scan: {
@@ -325,6 +333,7 @@ func TestProgressPublishesTrailingChangeWhileRunning(t *testing.T) {
 	}
 }
 
+// awaitExecution 限时等待工作协程调用模块，避免测试在调度失败时无限阻塞。
 func awaitExecution(t *testing.T, executed <-chan Execution) Execution {
 	t.Helper()
 	select {
@@ -336,6 +345,7 @@ func awaitExecution(t *testing.T, executed <-chan Execution) Execution {
 	}
 }
 
+// TestRestartReconcilesAndSkipsMissedPlans 验证遗留执行先核验再恢复，无核验能力则失败，停机期间错过计划只推进时间。
 func TestRestartReconcilesAndSkipsMissedPlans(t *testing.T) {
 	verified := make(chan string, 1)
 	executed := make(chan Execution, 2)

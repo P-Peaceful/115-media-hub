@@ -1,3 +1,5 @@
+// recovery_test.go：验证本地密码恢复的标准输入边界、ASCII 密码策略以及禁止隐式管道输入的约束。
+
 package main
 
 import (
@@ -7,6 +9,7 @@ import (
 	"testing"
 )
 
+// passwordInput 建立可回读的临时输入文件，并由测试清理负责关闭，模拟恢复命令的标准输入。
 func passwordInput(t *testing.T, text string) *os.File {
 	t.Helper()
 	file, err := os.CreateTemp(t.TempDir(), "input")
@@ -27,6 +30,7 @@ func passwordInput(t *testing.T, text string) *os.File {
 	return file
 }
 
+// TestExplicitStdinPasswordInput 验证单行密码、CRLF 与长度边界，拒绝非法字符、多行及未显式授权的管道输入。
 func TestExplicitStdinPasswordInput(t *testing.T) {
 	for _, test := range []struct {
 		input string

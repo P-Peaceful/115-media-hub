@@ -1,3 +1,5 @@
+// app_test.go：通过真实 HTTP 监听器验证应用就绪、事件流关闭和任务中心停止，同时检查数据库由外层生命周期释放。
+
 package app
 
 import (
@@ -16,6 +18,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
 )
 
+// TestServeAndGracefulShutdown 验证取消应用上下文后 HTTP 与 SSE 有界退出、任务中心停止接纳订阅，数据库仍留待调用方关闭。
 func TestServeAndGracefulShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()

@@ -1,3 +1,5 @@
+// settings.go：实现管理员凭据与会话期限设置，验证当前密码并委托仓储完成原子安全变更。
+
 package auth
 
 import (
@@ -9,12 +11,13 @@ import (
 	domain "github.com/wenzhengcheng/115-media-hub/backend/internal/domain/auth"
 )
 
+// settingsRepository 补充安全设置写入合同，变更需同时校验凭据状态并持久化审计。
 type settingsRepository interface {
 	UpdateCredentials(context.Context, string, string, string, string, domain.Audit) error
 	UpdateSessionLifetime(context.Context, int, domain.Audit) error
 }
 
-// SecuritySettings returns the current session lifetime and administrator name.
+// SecuritySettings 读取管理员信息与当前会话期限设置，将持久化失败归类为认证服务不可用。
 func (s *Service) SecuritySettings(ctx context.Context) (domain.Administrator, domain.Settings, error) {
 	administrator, err := s.repo.Administrator(ctx)
 	if err != nil {
@@ -24,7 +27,7 @@ func (s *Service) SecuritySettings(ctx context.Context) (domain.Administrator, d
 	return administrator, settings, unavailable(err)
 }
 
-// UpdateCredentials verifies the current password and preserves only the calling session.
+// UpdateCredentials 验证当前密码并生成新哈希；仓储再次检查密码代次，只保留发起变更的会话。
 func (s *Service) UpdateCredentials(ctx context.Context, identity domain.Identity, username, currentPassword, newPassword, correlation string) (resultErr error) {
 	started := time.Now()
 	defer func() { s.logOutcome(ctx, "update_credentials", correlation, started, resultErr) }()
@@ -58,7 +61,7 @@ func (s *Service) UpdateCredentials(ctx context.Context, identity domain.Identit
 	return unavailable(repo.UpdateCredentials(ctx, username, hash, administrator.PasswordHash, identity.Session.TokenHash, s.audit(identity.Administrator.ID, "update_credentials", identity.Administrator.ID, "succeeded", correlation)))
 }
 
-// UpdateSessionLifetime applies only to sessions created after this change.
+// UpdateSessionLifetime 保存 1、7 或 30 天的会话期限，仅影响此后创建的会话。
 func (s *Service) UpdateSessionLifetime(ctx context.Context, identity domain.Identity, days int, correlation string) (resultErr error) {
 	started := time.Now()
 	defer func() { s.logOutcome(ctx, "update_session_lifetime", correlation, started, resultErr) }()

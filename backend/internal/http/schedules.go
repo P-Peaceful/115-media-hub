@@ -1,3 +1,5 @@
+// schedules.go：实现任务计划的 HTTP 管理和传输转换，校验可空媒体库、通知枚举及乐观更新版本。
+
 package http
 
 import (
@@ -10,6 +12,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/http/generated"
 )
 
+// listSchedules 组合分页、类型、媒体库和严格布尔启用筛选，返回计划列表及下一游标。
 func (h *taskHandler) listSchedules(c *gin.Context) {
 	target, ok := queryTaskFilter(c)
 	if !ok {
@@ -36,6 +39,7 @@ func (h *taskHandler) listSchedules(c *gin.Context) {
 	c.JSON(http.StatusOK, generated.SchedulePage{Items: items, NextCursor: page.NextCursor})
 }
 
+// createSchedule 校验计划输入并创建持久计划，返回其版本与下次运行信息。
 func (h *taskHandler) createSchedule(c *gin.Context) {
 	input, ok := readScheduleInput(c)
 	if !ok {
@@ -49,6 +53,7 @@ func (h *taskHandler) createSchedule(c *gin.Context) {
 	c.JSON(http.StatusCreated, scheduleResponse(item))
 }
 
+// getSchedule 校验计划标识并读取保存的计划配置。
 func (h *taskHandler) getSchedule(c *gin.Context) {
 	id, ok := taskPathID(c)
 	if !ok {
@@ -62,6 +67,7 @@ func (h *taskHandler) getSchedule(c *gin.Context) {
 	c.JSON(http.StatusOK, scheduleResponse(item))
 }
 
+// updateSchedule 要求规范的正整数版本并更新计划，过期版本由服务返回冲突。
 func (h *taskHandler) updateSchedule(c *gin.Context) {
 	id, ok := taskPathID(c)
 	if !ok {
@@ -85,6 +91,7 @@ func (h *taskHandler) updateSchedule(c *gin.Context) {
 	c.JSON(http.StatusOK, scheduleResponse(item))
 }
 
+// enableSchedule 仅接收 enabled 字段更新计划启停状态，返回刷新后的计划。
 func (h *taskHandler) enableSchedule(c *gin.Context) {
 	id, ok := taskPathID(c)
 	if !ok {
@@ -102,6 +109,7 @@ func (h *taskHandler) enableSchedule(c *gin.Context) {
 	c.JSON(http.StatusOK, scheduleResponse(item))
 }
 
+// deleteSchedule 携带管理员身份删除指定计划，保留任务历史的处理由服务负责。
 func (h *taskHandler) deleteSchedule(c *gin.Context) {
 	id, ok := taskPathID(c)
 	if !ok {
@@ -114,6 +122,7 @@ func (h *taskHandler) deleteSchedule(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// readScheduleInput 严格解码计划必填字段及可空媒体库，校验枚举后构造业务输入，时间规则由服务校验。
 func readScheduleInput(c *gin.Context) (domain.ScheduleInput, bool) {
 	var request generated.ScheduleInput
 	if !decodeAuthBody(c, &request, []string{"name", "type", "enabled", "period", "timezone", "notify_on"}, "library_id") {
@@ -141,6 +150,7 @@ func readScheduleInput(c *gin.Context) (domain.ScheduleInput, bool) {
 	return input, true
 }
 
+// scheduleResponse 映射计划配置、通知和时间字段，按传输合同保留可空星期与下次执行时间。
 func scheduleResponse(schedule domain.Schedule) generated.Schedule {
 	notifyOn := make([]generated.TaskOutcome, 0, len(schedule.NotifyOn))
 	for _, outcome := range schedule.NotifyOn {

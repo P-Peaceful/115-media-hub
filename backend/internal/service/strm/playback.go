@@ -1,3 +1,5 @@
+// playback.go：负责构造稳定产物播放入口、校验当前或旧版文件内容，并以产物凭据授权播放解析。
+
 package strm
 
 import (
@@ -12,6 +14,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/provider115"
 )
 
+// playbackURL 按配置的文件名格式构造产物专属稳定播放入口，对各路径片段转义。
 func playbackURL(baseURL string, artifact Artifact, format string) string {
 	name := artifact.SourceFileID
 	if format == "original_name" {
@@ -20,6 +23,7 @@ func playbackURL(baseURL string, artifact Artifact, format string) string {
 	return strings.TrimRight(baseURL, "/") + "/p/" + url.PathEscape(artifact.ID) + "/" + url.PathEscape(artifact.PlaybackToken) + "/" + url.PathEscape(name)
 }
 
+// matchesArtifactContent 核对文件与登记时播放地址逐字匹配；旧登记通过规范入口身份识别。
 func matchesArtifactContent(artifact Artifact, content string) bool {
 	if artifact.PlaybackURL != "" {
 		return content == artifact.PlaybackURL+"\n"
@@ -27,7 +31,7 @@ func matchesArtifactContent(artifact Artifact, content string) bool {
 	return legacyPlaybackURL(artifact, content) != ""
 }
 
-// 旧登记未保存原始链接。只识别带登记凭据以及源文件名或 ID 的规范单行链接。
+// legacyPlaybackURL 识别旧登记的单行规范入口，要求匹配产物身份、凭据及源文件名或 ID。
 func legacyPlaybackURL(artifact Artifact, content string) string {
 	line, ok := strings.CutSuffix(content, "\n")
 	if !ok || artifact.ID == "" || artifact.PlaybackToken == "" {
@@ -75,6 +79,7 @@ func (s *Service) ResolvePlayback(ctx context.Context, id, token, userAgent, req
 	return s.provider.ResolvePlayback(ctx, artifact.AccountID, artifact.SourceFileID, artifact.PlaybackCode, userAgent, requestID)
 }
 
+// playbackErrorCode 将播放失败归类为客户端和日志使用的稳定错误码。
 func playbackErrorCode(err error) string {
 	switch {
 	case errors.Is(err, ErrNotFound), errors.Is(err, provider115.ErrSourceNotFound):

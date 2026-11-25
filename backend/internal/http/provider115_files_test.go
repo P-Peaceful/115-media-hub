@@ -1,3 +1,5 @@
+// provider115_files_test.go：验证网盘目录 HTTP 分页转发与上游总数响应，覆盖无效页码以及页码和游标互斥。
+
 package http
 
 import (
@@ -15,16 +17,21 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/provider115"
 )
 
+// cloudCredentialRepo 仅替代目录请求所需的凭据读取，不提供真实存储能力。
 type cloudCredentialRepo struct{ provider115.Repository }
 
+// ProviderCredential 提供测试用凭据标识，避免目录浏览测试依赖真实账号。
 func (cloudCredentialRepo) ProviderCredential(context.Context) (string, error) {
 	return "UID=test", nil
 }
 
+// cloudRoundTrip 允许测试捕获并替代 HTTP 传输，测试结束后恢复默认传输器。
 type cloudRoundTrip func(*http.Request) (*http.Response, error)
 
+// RoundTrip 委托注入函数模拟上游响应，供测试检查发出的目录查询。
 func (f cloudRoundTrip) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
+// TestCloudDriveFilesReturnsProviderTotal 验证筛选和页偏移被转发、总数与分页字段被保留，并拒绝非法或互斥分页参数。
 func TestCloudDriveFilesReturnsProviderTotal(t *testing.T) {
 	original := http.DefaultTransport
 	http.DefaultTransport = cloudRoundTrip(func(r *http.Request) (*http.Response, error) {

@@ -1,3 +1,5 @@
+// auth_errors.go：将认证存储错误映射为允许记录的原因代码，保留底层错误链而不直接展示 SQL 信息。
+
 package sqlite
 
 import (
@@ -10,6 +12,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
 )
 
+// authStorageError 按取消、超时及 SQLite 错误种类生成白名单诊断，禁止将驱动原始消息当作安全日志内容。
 func authStorageError(operation string, err error) error {
 	reason := "database_unavailable"
 	var sqliteErr driver.Error

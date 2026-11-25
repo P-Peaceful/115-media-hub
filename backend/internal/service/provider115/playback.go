@@ -1,3 +1,5 @@
+// playback.go：负责 Cookie 下载取链协议、响应解码及目标校验，按登记源身份解析临时播放地址。
+
 package provider115
 
 import (
@@ -17,8 +19,10 @@ import (
 // ErrSourceNotFound 表示 115 已确认找不到登记对应的源文件。
 var ErrSourceNotFound = errors.New("115 source file not found")
 
+// errPlaybackThrottled 标记取链遭到上游限流，供错误分类和脱敏日志使用。
 var errPlaybackThrottled = errors.New("115 playback lookup throttled")
 
+// playbackTimeout 限制单次播放解析的总时长。
 const playbackTimeout = 10 * time.Second
 
 // ResolvePlayback 用当前 115 授权为登记的源文件签发临时链接。
@@ -56,6 +60,7 @@ func (s *Service) ResolvePlayback(ctx context.Context, accountID, sourceFileID, 
 	return target, nil
 }
 
+// requestPlayback 编码下载取链请求并透传播放器 UA；禁用带 Cookie 请求的跳转，分类处理认证和限流失败。
 func (s *Service) requestPlayback(ctx context.Context, cookie, sourceFileID, playbackCode, userAgent string) (string, error) {
 	payload, err := json.Marshal(struct {
 		PickCode string `json:"pickcode"`
@@ -102,6 +107,7 @@ func (s *Service) requestPlayback(ctx context.Context, cookie, sourceFileID, pla
 	return readPlaybackResponse(resp.Body, key, sourceFileID, playbackCode)
 }
 
+// readPlaybackResponse 有界读取取链响应，先判断错误信封，再解码并核对源文件和可信目标。
 func readPlaybackResponse(body io.Reader, key m115.Key, sourceFileID, playbackCode string) (string, error) {
 	const maxResponse = 64 << 10
 	data, err := io.ReadAll(io.LimitReader(body, maxResponse+1))
@@ -134,6 +140,7 @@ func readPlaybackResponse(body io.Reader, key m115.Key, sourceFileID, playbackCo
 	return playbackTarget(decoded, sourceFileID, playbackCode)
 }
 
+// decodePlaybackData 解码上游下载协议，并将第三方解码器处理畸形数据的 panic 收敛为上游错误。
 func decodePlaybackData(encoded string, key m115.Key) (_ []byte, resultErr error) {
 	// 第三方解码器假设解包后至少有一个密钥头。把畸形上游数据限制在适配器边界。
 	defer func() {
@@ -148,6 +155,7 @@ func decodePlaybackData(encoded string, key m115.Key) (_ []byte, resultErr error
 	return decoded, nil
 }
 
+// playbackUpstreamError 将已知上游错误码和登录、文件缺失提示转换为稳定领域错误。
 func playbackUpstreamError(code, fallback json.RawMessage, description, message string) error {
 	status := parseInteger(code)
 	if status == nil {
@@ -173,6 +181,7 @@ func playbackUpstreamError(code, fallback json.RawMessage, description, message 
 	return ErrUpstream
 }
 
+// playbackTarget 按源文件 ID 和可选定位码核对响应，仅返回通过域名与 URL 结构校验的下载目标。
 func playbackTarget(data []byte, sourceFileID, playbackCode string) (string, error) {
 	var files map[string]struct {
 		PickCode string          `json:"pick_code"`
@@ -194,6 +203,7 @@ func playbackTarget(data []byte, sourceFileID, playbackCode string) (string, err
 	return target.URL, nil
 }
 
+// validPlaybackURL 只允许无用户信息、片段或显式端口的 HTTP(S) 115 域名链接。
 func validPlaybackURL(raw string) bool {
 	target, err := url.Parse(raw)
 	if err != nil || (target.Scheme != "https" && target.Scheme != "http") || target.Opaque != "" || target.User != nil || target.Fragment != "" || target.Hostname() == "" || target.Path == "" {
@@ -209,6 +219,7 @@ func validPlaybackURL(raw string) bool {
 		host == "115cdn.net" || strings.HasSuffix(host, ".115cdn.net")
 }
 
+// logPlayback 记录取链的稳定错误类别和源文件 ID，不记录 Cookie、UA、定位码或临时链接。
 func (s *Service) logPlayback(ctx context.Context, sourceFileID, requestID string, start time.Time, err error) {
 	attrs := []any{"operation", "resolve_playback", "request_id", requestID, "duration_ms", time.Since(start).Milliseconds()}
 	if sourceFileID != "" {

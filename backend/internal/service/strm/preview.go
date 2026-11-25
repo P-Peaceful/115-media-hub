@@ -1,3 +1,5 @@
+// preview.go：负责全量同步资格与只读预检，汇总已完整扫描目录的候选数量、样例和输出目录状态。
+
 package strm
 
 import (
@@ -10,6 +12,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
 )
 
+// fullSyncPreviewSampleLimit 限制预览响应中的源和输出路径样例数量。
 const fullSyncPreviewSampleLimit = 20
 
 // ErrFullSyncUnavailable 表示媒体库的保存配置不满足全量同步要求。
@@ -71,6 +74,7 @@ func (s *Service) PreviewFullSync(ctx context.Context, target library.Library, r
 	return result, nil
 }
 
+// logPreviewResult 按扫描完成度、输出状态和失败数记录预检结果，不记录路径样例。
 func logPreviewResult(ctx context.Context, logger *slog.Logger, started time.Time, result FullSyncPreview, err error) {
 	level, outcome, code := slog.LevelInfo, "succeeded", ""
 	switch {

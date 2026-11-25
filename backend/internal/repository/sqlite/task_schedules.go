@@ -1,3 +1,5 @@
+// task_schedules.go：持久化定时计划及修订号，将推进下次触发时间与批量任务入队放在同一事务。
+
 package sqlite
 
 import (
@@ -12,6 +14,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/domain/jobs"
 )
 
+// taskScheduleModel 保存定时规则、时区、通知结果及修订号，集合字段使用 JSON 编码。
 type taskScheduleModel struct {
 	ID             string `gorm:"primaryKey"`
 	Name           string
@@ -32,8 +35,10 @@ type taskScheduleModel struct {
 	UpdatedAt      time.Time
 }
 
+// TableName 指定持久化表名 task_schedules，避免依赖 ORM 自动命名。
 func (taskScheduleModel) TableName() string { return "task_schedules" }
 
+// domain 将持久化计划映射为领域规则、修订号和下次触发时间。
 func (model taskScheduleModel) domain() jobs.Schedule {
 	return jobs.Schedule{
 		ScheduleInput: jobs.ScheduleInput{
@@ -44,6 +49,7 @@ func (model taskScheduleModel) domain() jobs.Schedule {
 	}
 }
 
+// newTaskScheduleModel 构造计划存储值，复制集合避免与调用方共享可变切片。
 func newTaskScheduleModel(schedule jobs.Schedule) taskScheduleModel {
 	return taskScheduleModel{
 		ID: schedule.ID, Name: schedule.Name, Type: schedule.Type, LibraryID: schedule.LibraryID, Enabled: schedule.Enabled,
@@ -53,6 +59,7 @@ func newTaskScheduleModel(schedule jobs.Schedule) taskScheduleModel {
 	}
 }
 
+// QuerySchedules 按 ID 升序游标查询计划，可按类型、媒体库和启用状态筛选。
 func (d *Database) QuerySchedules(ctx context.Context, filter jobs.ScheduleFilter) (jobs.SchedulePage, error) {
 	query := d.orm.WithContext(ctx).Where("id > ?", filter.Cursor)
 	if filter.Type != "" {
@@ -80,6 +87,7 @@ func (d *Database) QuerySchedules(ctx context.Context, filter jobs.ScheduleFilte
 	return result, nil
 }
 
+// ReadSchedule 按 ID 读取计划，不存在时返回任务业务未找到错误。
 func (d *Database) ReadSchedule(ctx context.Context, id string) (jobs.Schedule, error) {
 	var model taskScheduleModel
 	err := d.orm.WithContext(ctx).Where("id = ?", id).Take(&model).Error
@@ -89,11 +97,13 @@ func (d *Database) ReadSchedule(ctx context.Context, id string) (jobs.Schedule, 
 	return model.domain(), err
 }
 
+// InsertSchedule 保存已由服务校验的新计划及其首次计算的触发时间。
 func (d *Database) InsertSchedule(ctx context.Context, plan jobs.Schedule) error {
 	model := newTaskScheduleModel(plan)
 	return d.orm.WithContext(ctx).Create(&model).Error
 }
 
+// SaveSchedule 以修订号条件更新计划并递增版本，显式写入禁用状态及空触发时间。
 func (d *Database) SaveSchedule(ctx context.Context, plan jobs.Schedule) error {
 	model := newTaskScheduleModel(plan)
 	model.Revision++
@@ -104,6 +114,7 @@ func (d *Database) SaveSchedule(ctx context.Context, plan jobs.Schedule) error {
 		Updates(&model))
 }
 
+// RemoveSchedule 事务删除计划并保存审计，保留已有任务历史。
 func (d *Database) RemoveSchedule(ctx context.Context, id, actorID, requestID string) error {
 	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Where("id = ?", id).Delete(&taskScheduleModel{})
@@ -118,6 +129,7 @@ func (d *Database) RemoveSchedule(ctx context.Context, id, actorID, requestID st
 	})
 }
 
+// DueSchedules 按触发时间和 ID 读取最多 100 个到期且启用的计划。
 func (d *Database) DueSchedules(ctx context.Context, now time.Time) ([]jobs.Schedule, error) {
 	var rows []taskScheduleModel
 	err := d.orm.WithContext(ctx).Where("enabled AND next_run_at <= ?", now).
@@ -132,6 +144,7 @@ func (d *Database) DueSchedules(ctx context.Context, now time.Time) ([]jobs.Sche
 	return plans, nil
 }
 
+// AdvanceSchedule 条件推进当前触发点并原子批量入队及记日志；任何任务插入失败均回滚推进。
 func (d *Database) AdvanceSchedule(ctx context.Context, plan jobs.Schedule, next *time.Time, reason string, runs []jobs.Job) error {
 	return d.orm.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		result := tx.Model(&taskScheduleModel{}).Where("id = ? AND enabled AND revision = ? AND next_run_at = ?", plan.ID, plan.Revision, plan.NextRunAt).
@@ -148,7 +161,7 @@ func (d *Database) AdvanceSchedule(ctx context.Context, plan jobs.Schedule, next
 			models = append(models, newTaskJobModel(run))
 			logs = append(logs, taskLogModel{ID: rand.Text(), JobID: run.ID, Level: "info", Message: "定时任务已加入队列", CreatedAt: run.CreatedAt})
 		}
-		// Occurrence conflicts indicate a stale trigger. Roll back the advance as well.
+		// 同一触发点冲突说明触发快照已过期，推进时间也必须回滚。
 		if err := tx.CreateInBatches(&models, 100).Error; err != nil {
 			return err
 		}
