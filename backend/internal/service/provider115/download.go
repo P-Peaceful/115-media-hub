@@ -346,6 +346,8 @@ func (s *Service) logDownload(ctx context.Context, request DownloadRequest, star
 		code = "sidecar_untrusted_target"
 	case errors.Is(err, errDownloadExpired):
 		code = "sidecar_link_expired"
+	case errors.Is(err, errPlaybackThrottled):
+		code = "download_throttled"
 	case errors.Is(err, ErrDownloadTakeLink):
 		code = "sidecar_take_link_failed"
 	case errors.Is(err, ErrDownloadContentRequest):
@@ -356,8 +358,6 @@ func (s *Service) logDownload(ctx context.Context, request DownloadRequest, star
 		code = "download_length_mismatch"
 	case errors.Is(err, ErrDownloadQueueFull):
 		code = "download_queue_full"
-	case errors.Is(err, errPlaybackThrottled):
-		code = "download_throttled"
 	case errors.Is(err, ErrDownloadContentStatus):
 		code = "sidecar_content_status_failed"
 	}
