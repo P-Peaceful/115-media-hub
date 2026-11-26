@@ -26,6 +26,7 @@ import {
   LibraryFormPage,
   LibraryListPage,
 } from "@/features/media-library/library-page";
+import { RuntimeLogsPage } from "@/features/runtime-logs/runtime-logs-page";
 import { SettingsPage } from "@/features/settings/settings-page";
 import { StrmDetailPage } from "@/features/strm-management/strm-detail-page";
 import { StrmListPage } from "@/features/strm-management/strm-list-page";
@@ -217,6 +218,14 @@ export function App() {
                   element={
                     <AppShell currentPage="定时计划">
                       <ScheduleEditorPage />
+                    </AppShell>
+                  }
+                />
+                <Route
+                  path="/logs"
+                  element={
+                    <AppShell currentPage="运行日志">
+                      <RuntimeLogsPage />
                     </AppShell>
                   }
                 />

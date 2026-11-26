@@ -55,7 +55,7 @@ const navigation = [
     items: [
       { label: "任务中心", icon: ListVideo, href: "/tasks" },
       { label: "文件回传", icon: UploadCloud },
-      { label: "运行日志", icon: FileText },
+      { label: "运行日志", icon: FileText, href: "/logs" },
     ],
   },
 ];
@@ -313,7 +313,7 @@ export function AppShell({
                 currentPage === "媒体库" ||
                 currentPage === "STRM 管理"
                   ? "资源管理"
-                  : isTaskCenter
+                  : isTaskCenter || currentPage === "运行日志"
                     ? "任务与维护"
                     : "工作台"}
               </Breadcrumbs.Item>
