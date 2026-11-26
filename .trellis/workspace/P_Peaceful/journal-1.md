@@ -345,3 +345,28 @@ Implemented persistent media library configuration, management UI and shared pag
 ### Status
 
 [OK] **Completed**
+
+
+## Session 14: 完成后端中文注释、115 SDK 与附属同步
+<!-- trellis-session: v=2 fp=972f3213d1cb4a1e -->
+
+**Date**: 2026-11-26
+**Task**: 完成后端中文注释、115 SDK 与附属同步
+**Branch**: `codex/backend-provider115-sidecars`
+
+### Summary
+
+完成后端 Go 中文职责与方法注释审计；实现 115 Cookie SDK、请求限流、有界预览与快速扫描；实现同一扫描清单下的 NFO/图片附属同步、同目录有效 STRM 资格、下载并发控制、持久化意图、安全发布与恢复；完成 spec 更新、前后端门禁、生成校验、构建和 Docker 烟测。真实 115 下载未验证；完整桌面集成通过 33/40，7 项旧账号/健康状态/表单场景失败，受影响 9/9 场景通过。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `63ea591` | docs: plan backend comments and 115 synchronization upgrades |
+| `61ecef8` | docs: document backend responsibilities in Chinese |
+| `2490d1c` | feat: control 115 requests and sample full-sync previews |
+| `cf396c9` | feat: sync eligible 115 sidecar files |
+
+### Status
+
+[OK] **Completed**

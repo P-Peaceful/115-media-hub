@@ -8,8 +8,8 @@
 
 <!-- @@@auto:current-status -->
 - **Active File**: `journal-1.md`
-- **Total Sessions**: 13
-- **Last Active**: 2026-11-25
+- **Total Sessions**: 14
+- **Last Active**: 2026-11-26
 <!-- @@@/auto:current-status -->
 
 ---
@@ -19,7 +19,7 @@
 <!-- @@@auto:active-documents -->
 | File | Lines | Status |
 |------|-------|--------|
-| `journal-1.md` | ~347 | Active |
+| `journal-1.md` | ~372 | Active |
 <!-- @@@/auto:active-documents -->
 
 ---
@@ -29,6 +29,7 @@
 <!-- @@@auto:session-history -->
 | # | Date | Title | Commits | Branch |
 |---|------|-------|---------|--------|
+| 14 | 2026-11-26 | 完成后端中文注释、115 SDK 与附属同步 | `63ea591`, `61ecef8`, `2490d1c`, `cf396c9` | `codex/backend-provider115-sidecars` |
 | 13 | 2026-11-25 | 媒体库 STRM 生成与产物登记 | `0bcfbc1` | `codex/strm-generation` |
 | 12 | 2026-11-21 | STRM 管理前端演示 | `e735f4c` | `main` |
 | 11 | 2026-11-21 | 任务中心开发 | `e83e7b3` | `codex/task-center` |
