@@ -9,6 +9,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
+	"strings"
 	"time"
 
 	adapter "github.com/wenzhengcheng/115-media-hub/backend/internal/adapter/provider115"
@@ -16,8 +18,11 @@ import (
 
 const (
 	downloadUserAgent      = "Mozilla/5.0 115Browser/36.0.0"
+	downloadSigningAgent   = "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/116.0.5845.89 Mobile/15E148 Safari/604.1"
 	downloadTimeout        = 120 * time.Second
 	downloadAttemptTimeout = 30 * time.Second
+	downloadMaxAttempts    = 3
+	downloadMaxCookieTries = 4
 )
 
 // ErrDownloadTooLarge 表示源大小或实际内容超出对应类型上限。
@@ -125,8 +130,8 @@ func (s *Service) DownloadSidecar(parent context.Context, request DownloadReques
 	defer stop()
 	resolve := s.downloads.resolve
 	if resolve == nil {
-		resolve = func(ctx context.Context, cookie, source, code string) (string, error) {
-			return s.requestDownloadLink(ctx, cookie, source, code, downloadUserAgent, adapter.DownloadLink, adapter.Background)
+		resolve = func(ctx context.Context, cookie, source, code string) (downloadTarget, error) {
+			return s.resolveDownloadTarget(ctx, cookie, source, code, downloadSigningAgent, adapter.DownloadLink, adapter.Background)
 		}
 	}
 	target, err := resolve(ctx, cookie, request.SourceFileID, request.PlaybackCode)
@@ -135,19 +140,21 @@ func (s *Service) DownloadSidecar(parent context.Context, request DownloadReques
 		return receipt, downloadContextError(ctx, err)
 	}
 	refreshed := false
-	for attempt := 1; attempt <= 3; attempt++ {
+	variants, err := target.cookieVariants(cookie, s.now())
+	if err != nil {
+		return receipt, err
+	}
+	variant := 0
+	for attempt := 1; attempt <= downloadMaxCookieTries; attempt++ {
 		if err = s.waitDownloadCooldown(ctx, gate, check); err != nil {
 			return receipt, err
-		}
-		if !validDownloadURL(target) {
-			return receipt, &downloadError{"untrusted_target", errors.Join(ErrDownloadUntrustedTarget, ErrUpstream)}
 		}
 		if err = resetDownloadSink(sink); err != nil {
 			return receipt, err
 		}
 		var bytes int64
 		var retry bool
-		bytes, retry, err = s.downloadAttempt(ctx, target, request.ExpectedBytes, limit, sink, check, gate)
+		bytes, retry, err = s.downloadAttempt(ctx, target, variants[variant], request.ExpectedBytes, limit, sink, check, gate)
 		if err == nil {
 			if err = check(ctx); err != nil {
 				return receipt, err
@@ -157,16 +164,25 @@ func (s *Service) DownloadSidecar(parent context.Context, request DownloadReques
 		if ctx.Err() != nil {
 			return receipt, downloadContextError(ctx, err)
 		}
-		if errors.Is(err, errDownloadExpired) && !refreshed && attempt < 3 {
+		if errors.Is(err, errDownloadExpired) && !refreshed && attempt < downloadMaxAttempts {
 			refreshed = true
 			target, err = resolve(ctx, cookie, request.SourceFileID, request.PlaybackCode)
 			if err != nil {
 				err = wrapDownloadTakeLinkError(err)
 				return receipt, downloadContextError(ctx, err)
 			}
+			variants, err = target.cookieVariants(cookie, s.now())
+			if err != nil {
+				return receipt, err
+			}
+			variant = 0
 			continue
 		}
-		if !retry || attempt == 3 {
+		if errors.Is(err, errDownloadForbidden) && variant+1 < len(variants) && attempt < downloadMaxCookieTries {
+			variant++
+			continue
+		}
+		if !retry || attempt >= downloadMaxAttempts {
 			return receipt, err
 		}
 		if err = waitDownload(ctx, time.Duration(attempt)*time.Second); err != nil {
@@ -181,7 +197,8 @@ func wrapDownloadTakeLinkError(err error) error {
 	if err == nil || errors.Is(err, ErrSourceNotFound) || errors.Is(err, ErrDownloadLinkResponse) ||
 		errors.Is(err, ErrDownloadUntrustedTarget) || errors.Is(err, ErrDownloadThrottled) ||
 		errors.Is(err, ErrCredentialChanged) || errors.Is(err, ErrInvalidAuthorization) ||
-		errors.Is(err, ErrUnconfigured) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		errors.Is(err, ErrUnconfigured) || errors.Is(err, ErrDownloadTakeLink) || errors.Is(err, ErrRequestBudgetExhausted) ||
+		errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 		return err
 	}
 	return errors.Join(ErrDownloadTakeLink, err)
@@ -198,7 +215,7 @@ func resetDownloadSink(sink DownloadSink) error {
 	return nil
 }
 
-// validDownloadURL 在播放链接的域边界之上强制 HTTPS；内容请求不携带 Cookie 且逐跳复查。
+// validDownloadURL 在播放链接的域边界之上强制 HTTPS；内容请求逐跳复查。
 func validDownloadURL(raw string) bool {
 	u, err := url.Parse(raw)
 	return err == nil && u.Scheme == "https" && validPlaybackURL(raw)
@@ -210,8 +227,11 @@ var errDownloadExpired = ErrDownloadLinkExpired
 // errDownloadTarget 标记目标边界校验失败，安全拒绝不得作为临时网络错误重试。
 var errDownloadTarget = errors.New("115 sidecar untrusted target")
 
-// downloadAttempt 执行一个有界内容 GET；TLS 使用标准验证，每跳可信且最多五跳，不转发 Cookie。
-func (s *Service) downloadAttempt(parent context.Context, target string, expected *int64, limit int64, sink DownloadSink, check func(context.Context) error, gate *downloadGate) (int64, bool, error) {
+// errDownloadForbidden 标记未明确过期的 CDN 403，只有尚未尝试的 Cookie 组合才能继续。
+var errDownloadForbidden = errors.New("115 sidecar forbidden")
+
+// downloadAttempt 执行有界 HTTPS 内容 GET，每跳校验可信目标且最多五跳，跨主机后不再携带 Cookie。
+func (s *Service) downloadAttempt(parent context.Context, target downloadTarget, cookie string, expected *int64, limit int64, sink DownloadSink, check func(context.Context) error, gate *downloadGate) (int64, bool, error) {
 	ctx, cancel := context.WithTimeout(parent, downloadAttemptTimeout)
 	defer cancel()
 	if err := check(ctx); err != nil {
@@ -221,14 +241,20 @@ func (s *Service) downloadAttempt(parent context.Context, target string, expecte
 		if len(via) > 5 || !validDownloadURL(req.URL.String()) {
 			return &downloadError{"untrusted_redirect", errors.Join(ErrDownloadUntrustedTarget, errDownloadTarget)}
 		}
-		req.Header = downloadHeaders()
+		for _, prev := range via {
+			if prev.URL.Host != req.URL.Host {
+				cookie = ""
+				break
+			}
+		}
+		req.Header = downloadHeaders(target.UserAgent, cookie)
 		return check(req.Context())
 	}}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target.URL, nil)
 	if err != nil {
 		return 0, false, &downloadError{"invalid_target", errors.Join(ErrDownloadUntrustedTarget, ErrUpstream)}
 	}
-	req.Header = downloadHeaders()
+	req.Header = downloadHeaders(target.UserAgent, cookie)
 	resp, err := client.Do(req)
 	if err != nil {
 		if resp != nil && resp.Body != nil {
@@ -245,8 +271,11 @@ func (s *Service) downloadAttempt(parent context.Context, target string, expecte
 			s.observeDownloadThrottle(gate, resp.Header.Get("Retry-After"))
 			return 0, true, &downloadError{"content_throttled", errors.Join(errPlaybackThrottled, ErrDownloadContentStatus, closeErr)}
 		}
-		if resp.StatusCode == http.StatusForbidden && expiredDownloadURL(target, time.Now()) {
-			return 0, false, &downloadError{"content_link_expired", errors.Join(errDownloadExpired, closeErr)}
+		if resp.StatusCode == http.StatusForbidden {
+			if expiredDownloadURL(target.URL, s.now()) {
+				return 0, false, &downloadError{"content_link_expired", errors.Join(errDownloadExpired, closeErr)}
+			}
+			return 0, false, &downloadError{"content_status", errors.Join(ErrDownloadContentStatus, ErrUpstream, errDownloadForbidden, closeErr)}
 		}
 		retry := resp.StatusCode == 502 || resp.StatusCode == 503 || resp.StatusCode == 504
 		return 0, retry, &downloadError{"content_status", errors.Join(ErrDownloadContentStatus, ErrUpstream, closeErr)}
@@ -287,10 +316,66 @@ func (s *Service) downloadAttempt(parent context.Context, target string, expecte
 	return written, false, nil
 }
 
-// downloadHeaders 固定下载上下文，要求原始字节，绝不借用管理员会话、播放器头或网盘 Cookie。
-func downloadHeaders() http.Header {
+// cookieVariants 生成去重的受控组合；登录 Cookie 只用于签发目标仍在 115.com 账号域的情况。
+func (target downloadTarget) cookieVariants(login string, now time.Time) ([]string, error) {
+	if !validDownloadURL(target.URL) {
+		return nil, &downloadError{"untrusted_target", errors.Join(ErrDownloadUntrustedTarget, ErrUpstream)}
+	}
+	u, err := url.Parse(target.URL)
+	if err != nil {
+		return nil, &downloadError{"untrusted_target", errors.Join(ErrDownloadUntrustedTarget, ErrUpstream)}
+	}
+	host := strings.ToLower(u.Hostname())
+	var accountCookies *http.Request
+	if host != "115.com" && !strings.HasSuffix(host, ".115.com") {
+		accountCookies = &http.Request{Header: http.Header{"Cookie": {login}}}
+		login = ""
+	}
+	var signed []string
+	for _, cookie := range target.Cookies {
+		if cookie == nil {
+			continue
+		}
+		domain := strings.TrimPrefix(strings.ToLower(cookie.Domain), ".")
+		if cookie.Valid() != nil || cookie.MaxAge < 0 || (!cookie.Expires.IsZero() && !cookie.Expires.After(now)) ||
+			(domain != "" && host != domain && !strings.HasSuffix(host, "."+domain)) {
+			continue
+		}
+		if accountCookies != nil {
+			if _, lookupErr := accountCookies.Cookie(cookie.Name); lookupErr == nil {
+				continue
+			}
+		}
+		pair := http.Cookie{Name: cookie.Name, Value: cookie.Value, Quoted: cookie.Quoted}
+		signed = append(signed, pair.String())
+	}
+	var variants []string
+	response := strings.Join(signed, "; ")
+	if response != "" {
+		variants = append(variants, response)
+	}
+	variants = append(variants, "")
+	if login != "" {
+		if response != "" {
+			variants = append(variants, response+"; "+login)
+		}
+		if !slices.Contains(variants, login) {
+			variants = append(variants, login)
+		}
+	}
+	return variants, nil
+}
+
+// downloadHeaders 固定下载上下文，保留签发 UA 并只发送当前尝试通过校验的 Cookie 组合。
+func downloadHeaders(userAgent, cookie string) http.Header {
 	h := make(http.Header)
-	h.Set("User-Agent", downloadUserAgent)
+	if userAgent == "" {
+		userAgent = downloadUserAgent
+	}
+	h.Set("User-Agent", userAgent)
+	if cookie != "" {
+		h.Set("Cookie", cookie)
+	}
 	h.Set("Referer", "https://115.com/")
 	h.Set("Accept-Encoding", "identity")
 	return h

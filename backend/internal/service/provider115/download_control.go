@@ -18,7 +18,7 @@ import (
 type downloadState struct {
 	mu       sync.Mutex
 	accounts map[string]*downloadGate
-	resolve  func(context.Context, string, string, string) (string, error)
+	resolve  func(context.Context, string, string, string) (downloadTarget, error)
 }
 
 // downloadGate 在 downloadState.mu 下访问；一个活跃项覆盖取链与有限内容重试，但不持有 API 锁。

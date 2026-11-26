@@ -381,6 +381,43 @@ func TestOperationDeadlines(t *testing.T) {
 	}
 }
 
+// TestDownloadEndpointMatrix 验证取链白名单按 HTTPS 主机、精确路径和 HTTP 方法约束发送。
+func TestDownloadEndpointMatrix(t *testing.T) {
+	for _, tc := range []struct {
+		address, method string
+		allowed         bool
+	}{
+		{"https://proapi.115.com/android/2.0/ufile/download", http.MethodPost, true},
+		{"https://pro.api.115.com/android/2.0/ufile/download", http.MethodPost, true},
+		{"https://proapi.115.com/app/chrome/downurl?t=1", http.MethodPost, true},
+		{"https://webapi.115.com/files/download", http.MethodPost, true},
+		{"https://webapi.115.com/files/download?pickcode=example", http.MethodGet, true},
+		{"http://pro.api.115.com/android/2.0/ufile/download", http.MethodPost, false},
+		{"https://proapi.115.com/android/2.0/ufile/download", http.MethodGet, false},
+		{"https://pro.api.115.com/app/chrome/downurl", http.MethodPost, false},
+		{"https://proapi.115.com/files/download", http.MethodGet, false},
+		{"https://webapi.115.com/files/%64ownload", http.MethodGet, false},
+		{"https://webapi.115.com.evil.test/files/download", http.MethodGet, false},
+	} {
+		t.Run(tc.method+" "+tc.address, func(t *testing.T) {
+			calls := 0
+			c := testClient(t, time.Second, func(*http.Request) (*http.Response, error) {
+				calls++
+				return response(200, "ok"), nil
+			})
+			for _, op := range []Operation{DownloadLink, Playback} {
+				_, err := c.Do(t.Context(), Request{Operation: op, Scope: string(op), Method: tc.method, URL: tc.address})
+				if (err == nil) != tc.allowed {
+					t.Fatalf("wrong endpoint classification for %s: %v", op, err)
+				}
+			}
+			if tc.allowed && calls != 2 || !tc.allowed && calls != 0 {
+				t.Fatalf("unexpected send count: %d", calls)
+			}
+		})
+	}
+}
+
 // TestEndpointAndResponseSafety 验证信任端点、大小边界、截断响应、状态分类及重定向不跟随。
 func TestEndpointAndResponseSafety(t *testing.T) {
 	tests := []struct {

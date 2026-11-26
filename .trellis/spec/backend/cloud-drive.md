@@ -40,4 +40,52 @@ Wrong: set `o=file_name` and assume the provider sorted accordingly, or search o
 - Recursive full synchronization can use `RapidScan`: a verified root/path anchor, identity-checked `/category/get` pickcode, recursive `/files?show_dir=0` pages of 1150, and `/app/chrome/downfolders` pages of 5000. Reject duplicate/conflicting IDs, changing counts, missing parents, cycles and changed final root/credential. The maximum full ancestor path is 256 components, including cached prefixes; caching cannot bypass the depth limit. Adopt only a complete snapshot. Unsupported or untrustworthy snapshots permit one standard fallback; authorization, throttling, cancellation and exhausted budgets do not. `MEDIAHUB_115_FAST_SCAN=false` selects the standard path. Nonrecursive libraries use standard enumeration. These are observed private APIs, so simulation success does not establish live-provider compatibility.
 - Preview uses only standard pages with its own request counter consumed at the actual send boundary, including retry attempts. Keep response limits separate: ordinary 1 MiB, playback 64 KiB, large file pages 4 MiB, directory tables 8 MiB.
 
-附属文件取链使用同一 Cookie 账号配额的后台 `DownloadLink` 操作，不能复用播放解析的 15 秒总预算；后台请求预算至少覆盖配置间隔加一次请求窗口。取链完成后释放 API 配额，内容流由账号级最多 2 个并发、16 个等待槽的独立有界队列处理。NFO 上限 8 MiB、图片上限 64 MiB，单文件总预算 120 秒、单次内容请求 30 秒、最多 3 次尝试；CDN `Retry-After` 冷却共享且不能缩短。内容请求只带受控 UA/必要头，不转发 Cookie，HTTPS/可信 115 域和每次重定向均需校验。
+附属文件和播放取链都使用同一 Cookie 账号配额，但操作类型分别是后台 `DownloadLink` 和前台 `Playback`。Cookie 下载取链按固定顺序尝试：
+
+1. `POST https://proapi.115.com/android/2.0/ufile/download`，加密载荷字段为 `pick_code`；
+2. `POST https://pro.api.115.com/android/2.0/ufile/download`，同上；
+3. `POST https://proapi.115.com/app/chrome/downurl`，兼容载荷字段 `pickcode`，带时间查询参数；
+4. `POST https://webapi.115.com/files/download`，加密载荷字段 `pickcode`；
+5. `GET https://webapi.115.com/files/download?pickcode=...`。
+
+每个取链通道最多实际发送一次，单次上游预算 5 秒；授权失败、明确文件缺失、限流、取消、凭据变更和不可信目标不得回退，协议/临时网络失败才可进入下一个通道。Android/Web POST 的解密结果是单 URL 或 `file_url`，Chrome 结果按源文件 ID 索引并核对 `pick_code`，Web GET 兼容顶层或嵌套 `url`。取链目标只在内存中保留签发 UA 和响应 `Set-Cookie`。
+
+取链完成后释放 API 配额，内容流由账号级最多 2 个并发、16 个等待槽的独立有界队列处理。NFO 上限 8 MiB、图片上限 64 MiB，单文件总预算 120 秒、单次内容请求 30 秒，普通临时错误最多 3 次；连续 CDN 403 仅可在该预算内尝试最多 4 个去重的 UA/Cookie 组合。登录 Cookie 只允许发送到 `115.com` 账号域；`115cdn.com`/`115cdn.net` 只接收取链响应下发且域名匹配的临时 Cookie，跨主机重定向后永久移除 Cookie。CDN `Retry-After` 冷却共享且不能缩短，HTTPS/可信 115 域和每次重定向均需校验。播放 302 不下发或转发必须 Cookie 的 `f=3` 直链。
+
+### 下载接口矩阵的代码规范
+
+#### 1. Scope / Trigger
+
+- 触发：115 私有下载接口存在 Chrome、Android 和 WebAPI 多种协议，附属文件同步必须在取链失败时有受控回退。
+
+#### 2. Signatures
+
+- `DownloadSidecar(ctx, DownloadRequest, DownloadSink) (DownloadReceipt, error)` 使用后台 `DownloadLink` 取链和内容队列。
+- `ResolvePlayback(ctx, accountID, sourceFileID, playbackCode, userAgent, requestID) (string, error)` 只返回不需要额外 Cookie 的播放地址。
+
+#### 3. Contracts
+
+- 所有取链请求经过 `internal/adapter/provider115` 的固定端点白名单、账号冷却和实际发送预算。
+- `pick_code`、`pickcode` 只在对应协议编码器中生成；不得把一个端点的响应解析器用于另一个端点。
+- 下载头和 Cookie 不进入日志、STRM、数据库、任务错误或公共 API。
+
+#### 4. Validation & Error Matrix
+
+- 认证、限流、明确文件缺失、取消、凭据变更 → 保留稳定 `errors.Is` 身份并停止回退。
+- 协议无效、临时 HTTP/网络失败 → 按固定顺序进入下一取链端点。
+- 不可信 URL、跨域重定向或无 URL 响应 → 拒绝，不回退到其他下载目标。
+
+#### 5. Good / Base / Bad Cases
+
+- Good：Android 端点失败后 Web POST/GET 成功，CDN 403 使用签发响应 Cookie 成功。
+- Base：Chrome 接口直接成功，或 CDN 不返回 Cookie 时无额外组合请求。
+- Bad：把登录 Cookie 发往 `115cdn.*`，或把 `pickcode` 发送到 Android `pick_code` 接口。
+
+#### 6. Tests Required
+
+- 覆盖五通道顺序、每通道一次、账号间隔、字段拼写、四种 CDN 403 组合、跨主机 Cookie 清理、`f=3` 播放拒绝、错误停止回退和日志脱敏。
+
+#### 7. Wrong vs Correct
+
+- Wrong：只调用 `/app/chrome/downurl`，失败后直接返回 `sidecar_take_link_failed`。
+- Correct：按固定端点矩阵受控回退，并将已识别的授权、限流、文件缺失和协议错误分别保留。

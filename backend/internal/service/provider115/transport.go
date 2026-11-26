@@ -34,7 +34,11 @@ func WithRequestBudget(ctx context.Context, b *RequestBudget) context.Context {
 func (s *Service) doRequest(ctx context.Context, request adapter.Request) ([]byte, error) {
 	s.adapterOnce.Do(func() {
 		var endpoints []string
-		for _, address := range []string{s.baseURL, s.navURL, s.spaceURL, s.filesURL, s.playbackURL, s.categoryURL, s.directoriesURL} {
+		addresses := []string{s.baseURL, s.navURL, s.spaceURL, s.filesURL, s.categoryURL, s.directoriesURL}
+		for _, link := range s.downloadLinks {
+			addresses = append(addresses, link.address)
+		}
+		for _, address := range addresses {
 			u, err := url.Parse(address)
 			if err == nil && (u.Hostname() == "127.0.0.1" || u.Hostname() == "localhost" || u.Hostname() == "::1") {
 				endpoints = append(endpoints, u.Scheme+"://"+u.Host)
@@ -135,6 +139,7 @@ func (s *Service) businessError(data []byte, cookie string) error {
 		State    *upstreamState  `json:"state"`
 		Code     json.RawMessage `json:"errno"`
 		Fallback json.RawMessage `json:"errcode"`
+		AltCode  json.RawMessage `json:"errNo"`
 		Error    string          `json:"error"`
 		Message  string          `json:"msg"`
 	}
@@ -147,6 +152,9 @@ func (s *Service) businessError(data []byte, cookie string) error {
 	code := parseInteger(envelope.Code)
 	if code == nil {
 		code = parseInteger(envelope.Fallback)
+	}
+	if code == nil {
+		code = parseInteger(envelope.AltCode)
 	}
 	if code != nil {
 		switch *code {

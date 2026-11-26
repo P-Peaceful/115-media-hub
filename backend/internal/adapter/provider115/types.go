@@ -94,6 +94,10 @@ type Request struct {
 	Check     func(context.Context) error
 	Inspect   func(context.Context, []byte) error
 	Budget    *Budget
+	// SingleDownloadAttempt 让取链编排器在一次发送后决定回退，仍登记账号冷却。
+	SingleDownloadAttempt bool
+	// DownloadCookies 在释放账号资格前同步传递凭据复查通过的成功响应 Cookie；回调不能执行外部 I/O。
+	DownloadCookies func([]*http.Cookie)
 }
 
 // Budget 为一轮预览共享实际发送次数；等待、无效输入及凭据失效不消耗次数。

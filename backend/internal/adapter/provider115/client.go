@@ -74,11 +74,28 @@ func (c *Client) validEndpoint(r Request) bool {
 	case Files, FastFiles:
 		return u.Host == "webapi.115.com" && u.Path == "/files"
 	case Playback, DownloadLink:
-		return u.Host == "proapi.115.com" && u.Path == "/app/chrome/downurl"
+		return validDownloadEndpoint(u, r.Method)
 	case Directories:
 		return u.Host == "proapi.115.com" && u.Path == "/app/chrome/downfolders"
 	}
 	return false
+}
+
+// validDownloadEndpoint 限定携带登录 Cookie 的取链请求使用固定主机、路径和方法。
+func validDownloadEndpoint(u *url.URL, method string) bool {
+	if u.EscapedPath() != u.Path {
+		return false
+	}
+	switch u.Path {
+	case "/android/2.0/ufile/download":
+		return method == http.MethodPost && (u.Host == "proapi.115.com" || u.Host == "pro.api.115.com")
+	case "/app/chrome/downurl":
+		return method == http.MethodPost && u.Host == "proapi.115.com"
+	case "/files/download":
+		return (method == http.MethodPost || method == http.MethodGet) && u.Host == "webapi.115.com"
+	default:
+		return false
+	}
 }
 
 // policy 返回显式操作的只读性、总期限及最大响应；未知操作绝不发出请求。
@@ -104,11 +121,14 @@ func policy(op Operation) (time.Duration, int64, bool, bool) {
 // Do 在同一总期限内重建并执行有限次请求；预算、凭据和取消在实际发送边界再次校验。
 func (c *Client) Do(parent context.Context, r Request) ([]byte, error) {
 	total, maxBytes, retry, known := policy(r.Operation)
+	if r.Method == "" {
+		r.Method = http.MethodGet
+	}
 	if !known || !c.validEndpoint(r) || (r.Operation != QR && r.Operation != Login && r.Scope == "") || (r.Priority != Foreground && r.Priority != Background) {
 		return nil, &Error{Operation: r.Operation, Kind: Protocol}
 	}
-	if r.Method == "" {
-		r.Method = http.MethodGet
+	if (r.SingleDownloadAttempt || r.DownloadCookies != nil) && r.Operation != DownloadLink && r.Operation != Playback {
+		return nil, &Error{Operation: r.Operation, Kind: Protocol}
 	}
 	allowedMethod := r.Method == http.MethodGet || r.Method == http.MethodPost && (r.Operation == Login || r.Operation == Playback || r.Operation == DownloadLink)
 	if !allowedMethod {
@@ -131,7 +151,7 @@ func (c *Client) Do(parent context.Context, r Request) ([]byte, error) {
 		budget, _ = ctx.Value(budgetKey{}).(*Budget)
 	}
 	attempts := 1
-	if retry {
+	if retry && !r.SingleDownloadAttempt {
 		attempts = 3
 	}
 	for attempt := 1; attempt <= attempts; attempt++ {
@@ -205,7 +225,11 @@ func (c *Client) attempt(ctx context.Context, r Request, maxBytes int64, budget 
 			return nil, checkError(r.Operation, err)
 		}
 	}
-	attemptCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	attemptTimeout := 15 * time.Second
+	if r.SingleDownloadAttempt {
+		attemptTimeout = 5 * time.Second
+	}
+	attemptCtx, cancel := context.WithTimeout(ctx, attemptTimeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(attemptCtx, r.Method, r.URL, bytes.NewReader(r.Body))
 	if err != nil {
@@ -283,6 +307,9 @@ func (c *Client) attempt(ctx context.Context, r Request, maxBytes int64, budget 
 	kind := Protocol
 	switch resp.StatusCode {
 	case http.StatusOK:
+		if r.DownloadCookies != nil {
+			r.DownloadCookies(resp.Cookies())
+		}
 		return data, nil
 	case http.StatusBadGateway, http.StatusServiceUnavailable, http.StatusGatewayTimeout:
 		kind = Temporary

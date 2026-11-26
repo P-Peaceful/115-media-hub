@@ -1,23 +1,16 @@
-// playback.go：负责 Cookie 下载取链协议、响应解码及目标校验，按登记源身份解析临时播放地址。
+// playback.go：按登记源身份为播放器解析临时地址，定义取链领域错误和共享跳转边界。
 
 package provider115
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
-	"io"
-	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
-
 	"time"
 
 	adapter "github.com/wenzhengcheng/115-media-hub/backend/internal/adapter/provider115"
-
-	"github.com/SheltonZhu/115driver/pkg/crypto/m115"
 )
 
 // ErrSourceNotFound 表示 115 已确认找不到登记对应的源文件。
@@ -79,76 +72,10 @@ func (s *Service) ResolvePlayback(ctx context.Context, accountID, sourceFileID, 
 	return target, nil
 }
 
-// requestPlayback 编码下载取链请求并透传播放器 UA；禁用带 Cookie 请求的跳转，分类处理认证和限流失败。
+// requestPlayback 透传播放器 UA；只将临时 URL 交给播放出口，不发布取链响应 Cookie。
 func (s *Service) requestPlayback(ctx context.Context, cookie, sourceFileID, playbackCode, userAgent string) (string, error) {
-	return s.requestDownloadLink(ctx, cookie, sourceFileID, playbackCode, userAgent, adapter.Playback, adapter.Foreground)
-}
-
-// requestDownloadLink 复用实际 m115 协议和源身份校验，播放与后台附件各自保留明确的期限和优先级。
-func (s *Service) requestDownloadLink(ctx context.Context, cookie, sourceFileID, playbackCode, userAgent string, operation adapter.Operation, priority adapter.Priority) (string, error) {
-	payload, err := json.Marshal(struct {
-		PickCode string `json:"pickcode"`
-	}{PickCode: playbackCode})
-	if err != nil {
-		return "", ErrUpstream
-	}
-	// Cookie 客户端的下载接口使用 115 自有的请求编码，TLS 仍由标准 HTTP 客户端校验。
-	key := m115.GenerateKey()
-	form := url.Values{"data": {m115.Encode(payload, key)}}
-	query := url.Values{"t": {strconv.FormatInt(s.now().Unix(), 10)}}
-	data, err := s.doRequest(ctx, adapter.Request{Scope: accountScope(cookie), Operation: operation, Priority: priority, Method: http.MethodPost, URL: s.playbackURL + "?" + query.Encode(), Header: requestHeaders(cookie, userAgent), Body: []byte(form.Encode()), MaxBytes: 64 << 10, Check: s.checkCredential(cookie), Inspect: s.inspectBusiness(cookie)})
-	if err != nil {
-		return "", mapRequestError(err, ErrSourceNotFound)
-	}
-	return readPlaybackResponse(bytes.NewReader(data), key, sourceFileID, playbackCode)
-}
-
-// readPlaybackResponse 有界读取取链响应，先判断错误信封，再解码并核对源文件和可信目标。
-func readPlaybackResponse(body io.Reader, key m115.Key, sourceFileID, playbackCode string) (string, error) {
-	const maxResponse = 64 << 10
-	data, err := io.ReadAll(io.LimitReader(body, maxResponse+1))
-	if err != nil || len(data) > maxResponse {
-		return "", errors.Join(ErrDownloadLinkResponse, ErrUpstream)
-	}
-	// 错误响应的 data 可能是空数组，先读取状态和错误语义。
-	var envelope struct {
-		State   upstreamState   `json:"state"`
-		Code    json.RawMessage `json:"errno"`
-		ErrCode json.RawMessage `json:"errcode"`
-		Error   string          `json:"error"`
-		Message string          `json:"msg"`
-		Data    json.RawMessage `json:"data"`
-	}
-	if json.Unmarshal(data, &envelope) != nil {
-		return "", errors.Join(ErrDownloadLinkResponse, ErrUpstream)
-	}
-	if !bool(envelope.State) {
-		return "", playbackUpstreamError(envelope.Code, envelope.ErrCode, envelope.Error, envelope.Message)
-	}
-	var encoded string
-	if json.Unmarshal(envelope.Data, &encoded) != nil || encoded == "" {
-		return "", errors.Join(ErrDownloadLinkResponse, ErrUpstream)
-	}
-	decoded, err := decodePlaybackData(encoded, key)
-	if err != nil {
-		return "", errors.Join(ErrDownloadLinkResponse, err)
-	}
-	return playbackTarget(decoded, sourceFileID, playbackCode)
-}
-
-// decodePlaybackData 解码上游下载协议，并将第三方解码器处理畸形数据的 panic 收敛为上游错误。
-func decodePlaybackData(encoded string, key m115.Key) (_ []byte, resultErr error) {
-	// 第三方解码器假设解包后至少有一个密钥头。把畸形上游数据限制在适配器边界。
-	defer func() {
-		if recover() != nil {
-			resultErr = ErrUpstream
-		}
-	}()
-	decoded, err := m115.Decode(encoded, key)
-	if err != nil {
-		return nil, ErrUpstream
-	}
-	return decoded, nil
+	target, err := s.resolveDownloadTarget(ctx, cookie, sourceFileID, playbackCode, userAgent, adapter.Playback, adapter.Foreground)
+	return target.URL, err
 }
 
 // playbackUpstreamError 将已知上游错误码和登录、文件缺失提示转换为稳定领域错误。

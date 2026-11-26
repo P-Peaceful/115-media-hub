@@ -72,7 +72,7 @@ type Service struct {
 	navURL          string
 	spaceURL        string
 	filesURL        string
-	playbackURL     string
+	downloadLinks   []downloadEndpoint
 	adapterOnce     sync.Once
 	adapterClient   *adapter.Client
 	adapterErr      error
@@ -99,7 +99,7 @@ func NewWithConfig(repo Repository, logger *slog.Logger, interval time.Duration,
 		repo: repo, logger: logger.With("module", "provider_115"), client: &http.Client{Timeout: 65 * time.Second},
 		baseURL: "https://qrcodeapi.115.com", navURL: "https://my.115.com/?ct=ajax&ac=nav",
 		spaceURL: "https://webapi.115.com/files/index_info", filesURL: "https://webapi.115.com/files",
-		playbackURL: "https://proapi.115.com/app/chrome/downurl", now: time.Now,
+		downloadLinks: downloadEndpoints(), now: time.Now,
 	}
 }
 

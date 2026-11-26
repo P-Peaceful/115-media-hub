@@ -64,7 +64,7 @@ func TestResolvePlaybackUpstreamFailuresAndRedaction(t *testing.T) {
 			defer upstream.Close()
 			var logs strings.Builder
 			service := New(&detailsRepository{credential: cookie}, slog.New(slog.NewJSONHandler(&logs, nil)))
-			service.playbackURL = upstream.URL
+			service.downloadLinks = []downloadEndpoint{{chromeLink, upstream.URL}}
 			got, err := service.ResolvePlayback(t.Context(), "1234", "235", code, agent, "playback-req")
 			if got != "" || !errors.Is(err, tc.want) {
 				t.Fatalf("resolve returned a link: %t, error: %v", got != "", err)
@@ -95,7 +95,7 @@ func TestResolvePlaybackRequiresAccountOwnership(t *testing.T) {
 	}
 	for _, tc := range cases {
 		service := New(&detailsRepository{credential: tc.cookie}, slog.New(slog.NewJSONHandler(io.Discard, nil)))
-		service.playbackURL = "://otherwise fails with upstream error"
+		service.downloadLinks = []downloadEndpoint{{chromeLink, "://otherwise fails with upstream error"}}
 		_, err := service.ResolvePlayback(t.Context(), "1234", "5", "loc", "", "req")
 		if !errors.Is(err, tc.want) {
 			t.Fatalf("expected %v, got %v", tc.want, err)

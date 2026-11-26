@@ -14,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -54,8 +55,8 @@ func newDownloadFixture(t *testing.T, transport http.RoundTripper) (*Service, *d
 	repo := &downloadRepository{cookie: "UID=123_A1_private; CID=secret; SEID=private"}
 	s := New(repo, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	s.client.Transport = transport
-	s.downloads.resolve = func(context.Context, string, string, string) (string, error) {
-		return "https://media.115cdn.net/original?signature=private", nil
+	s.downloads.resolve = func(context.Context, string, string, string) (downloadTarget, error) {
+		return downloadTarget{URL: "https://media.115cdn.net/original?signature=private"}, nil
 	}
 	file, err := os.Create(filepath.Join(t.TempDir(), "staging"))
 	if err != nil {
@@ -178,20 +179,28 @@ func TestDownloadSidecarRetryAndFailureBounds(t *testing.T) {
 func TestDownloadSidecarStableErrorCodes(t *testing.T) {
 	cases := []struct {
 		name, want   string
-		resolve      func(context.Context, string, string, string) (string, error)
+		resolve      func(context.Context, string, string, string) (downloadTarget, error)
 		status       int
 		transportErr error
 	}{
-		{name: "source not found", want: "sidecar_source_not_found", resolve: func(context.Context, string, string, string) (string, error) { return "", ErrSourceNotFound }},
-		{name: "invalid authorization", want: "provider_auth_invalid", resolve: func(context.Context, string, string, string) (string, error) { return "", ErrInvalidAuthorization }},
-		{name: "unconfigured", want: "provider_not_configured", resolve: func(context.Context, string, string, string) (string, error) { return "", ErrUnconfigured }},
-		{name: "take link failed", want: "sidecar_take_link_failed", resolve: func(context.Context, string, string, string) (string, error) {
-			return "", errors.New("take link unavailable")
+		{name: "source not found", want: "sidecar_source_not_found", resolve: func(context.Context, string, string, string) (downloadTarget, error) {
+			return downloadTarget{}, ErrSourceNotFound
 		}},
-		{name: "take link response", want: "sidecar_take_link_response_invalid", resolve: func(context.Context, string, string, string) (string, error) {
-			return "", errors.Join(ErrDownloadLinkResponse, ErrUpstream)
+		{name: "invalid authorization", want: "provider_auth_invalid", resolve: func(context.Context, string, string, string) (downloadTarget, error) {
+			return downloadTarget{}, ErrInvalidAuthorization
 		}},
-		{name: "untrusted target", want: "sidecar_untrusted_target", resolve: func(context.Context, string, string, string) (string, error) { return "https://example.test/file", nil }},
+		{name: "unconfigured", want: "provider_not_configured", resolve: func(context.Context, string, string, string) (downloadTarget, error) {
+			return downloadTarget{}, ErrUnconfigured
+		}},
+		{name: "take link failed", want: "sidecar_take_link_failed", resolve: func(context.Context, string, string, string) (downloadTarget, error) {
+			return downloadTarget{}, errors.New("take link unavailable")
+		}},
+		{name: "take link response", want: "sidecar_take_link_response_invalid", resolve: func(context.Context, string, string, string) (downloadTarget, error) {
+			return downloadTarget{}, errors.Join(ErrDownloadLinkResponse, ErrUpstream)
+		}},
+		{name: "untrusted target", want: "sidecar_untrusted_target", resolve: func(context.Context, string, string, string) (downloadTarget, error) {
+			return downloadTarget{URL: "https://example.test/file"}, nil
+		}},
 		{name: "content status", want: "sidecar_content_status_failed", status: http.StatusNotFound},
 		{name: "content request", want: "sidecar_content_request_failed", transportErr: errors.New("network unavailable")},
 	}
@@ -239,9 +248,9 @@ func TestDownloadSidecarExpectedSizeRejectsBeforeLink(t *testing.T) {
 		t.Fatal("unexpected content request")
 		return nil, ErrUpstream
 	}))
-	s.downloads.resolve = func(context.Context, string, string, string) (string, error) {
+	s.downloads.resolve = func(context.Context, string, string, string) (downloadTarget, error) {
 		t.Fatal("unexpected take-link")
-		return "", ErrUpstream
+		return downloadTarget{}, ErrUpstream
 	}
 	for _, kind := range []string{"nfo", "image"} {
 		request.Kind = kind
@@ -297,6 +306,77 @@ func TestDownloadSidecarTrustedRedirects(t *testing.T) {
 	}
 }
 
+// TestDownloadSidecarCookieFallback 验证收到 403 才切换组合，登录 Cookie 保持在账号域。
+func TestDownloadSidecarCookieFallback(t *testing.T) {
+	for _, tc := range []struct {
+		host string
+		want []string
+	}{
+		{"media.115.com", []string{"dl_session=signed", "", "dl_session=signed; UID=123_A1_private; CID=secret; SEID=private", "UID=123_A1_private; CID=secret; SEID=private"}},
+		{"media.115cdn.net", []string{"dl_session=signed", ""}},
+	} {
+		t.Run(tc.host, func(t *testing.T) {
+			var cookies []string
+			s, _, sink, request := newDownloadFixture(t, scanTransport(func(r *http.Request) (*http.Response, error) {
+				if r.UserAgent() != "signed-agent" {
+					t.Error("did not preserve signed UA")
+				}
+				cookies = append(cookies, r.Header.Get("Cookie"))
+				if len(cookies) == len(tc.want) {
+					return downloadResponse(200, "ok", 2), nil
+				}
+				return downloadResponse(403, "", 0), nil
+			}))
+			s.downloads.resolve = func(context.Context, string, string, string) (downloadTarget, error) {
+				return downloadTarget{
+					URL:       "https://" + tc.host + "/asset",
+					UserAgent: "signed-agent",
+					Cookies:   []*http.Cookie{{Name: "dl_session", Value: "signed"}},
+				}, nil
+			}
+			receipt, err := s.DownloadSidecar(t.Context(), request, sink)
+			if err != nil || receipt.Bytes != 2 || !slices.Equal(cookies, tc.want) {
+				t.Fatalf("unexpected attempts=%d or download result bytes=%d err=%v", len(cookies), receipt.Bytes, err)
+			}
+		})
+	}
+}
+
+// TestDownloadSidecarDropsCookieOnCrossHostRedirect 验证第二个受信主机以及跳回后均不会收到初始主机 Cookie。
+func TestDownloadSidecarDropsCookieOnCrossHostRedirect(t *testing.T) {
+	calls := 0
+	s, _, sink, request := newDownloadFixture(t, scanTransport(func(r *http.Request) (*http.Response, error) {
+		calls++
+		resp := downloadResponse(http.StatusFound, "", 0)
+		switch calls {
+		case 1:
+			if r.Header.Get("Cookie") != "dl_session=signed" {
+				t.Error("missing initial signed cookie")
+			}
+			resp.Header.Set("Location", "https://other.115cdn.net/redirect")
+		case 2:
+			if r.Header.Get("Cookie") != "" {
+				t.Error("signed cookie crossed hosts")
+			}
+			resp.Header.Set("Location", "https://media.115cdn.net/final")
+		case 3:
+			if r.Header.Get("Cookie") != "" {
+				t.Error("signed cookie was reintroduced after cross-host redirect")
+			}
+			return downloadResponse(200, "ok", 2), nil
+		default:
+			t.Fatal("unexpected CDN attempt")
+		}
+		return resp, nil
+	}))
+	s.downloads.resolve = func(context.Context, string, string, string) (downloadTarget, error) {
+		return downloadTarget{URL: "https://media.115cdn.net/asset", Cookies: []*http.Cookie{{Name: "dl_session", Value: "signed"}}}, nil
+	}
+	if _, err := s.DownloadSidecar(t.Context(), request, sink); err != nil || calls != 3 {
+		t.Fatalf("redirect unwound after %d requests: %v", calls, err)
+	}
+}
+
 // TestDownloadSidecarExpiredRefreshBound 验证仅有明确签名过期秒数的 403 刷新一次，且仍计入三次内容预算。
 func TestDownloadSidecarExpiredRefreshBound(t *testing.T) {
 	for _, proven := range []bool{false, true} {
@@ -309,17 +389,17 @@ func TestDownloadSidecarExpiredRefreshBound(t *testing.T) {
 				}
 				return downloadResponse(200, "ok", 2), nil
 			}))
-			s.downloads.resolve = func(context.Context, string, string, string) (string, error) {
+			s.downloads.resolve = func(context.Context, string, string, string) (downloadTarget, error) {
 				links++
 				if !proven || links == 1 {
-					return "https://media.115cdn.net/file?t=1", nil
+					return downloadTarget{URL: "https://media.115cdn.net/file?t=1"}, nil
 				}
-				return "https://media.115cdn.net/file?t=9999999999", nil
+				return downloadTarget{URL: "https://media.115cdn.net/file?t=9999999999"}, nil
 			}
 			if !proven {
-				s.downloads.resolve = func(context.Context, string, string, string) (string, error) {
+				s.downloads.resolve = func(context.Context, string, string, string) (downloadTarget, error) {
 					links++
-					return "https://media.115cdn.net/file?signature=private", nil
+					return downloadTarget{URL: "https://media.115cdn.net/file?signature=private"}, nil
 				}
 				s.client.Transport = scanTransport(func(*http.Request) (*http.Response, error) { calls++; return downloadResponse(403, "", 0), nil })
 			}
@@ -476,6 +556,7 @@ func TestDownloadLinkRealAdapterBackgroundBudget(t *testing.T) {
 	synctest.Test(t, func(t *testing.T) {
 		s, _, _, _ := newDownloadFixture(t, nil)
 		s.requestInterval = time.Minute
+		s.downloadLinks = []downloadEndpoint{{chromeLink, chromeDownloadURL}}
 		calls := 0
 		s.client.Transport = scanTransport(func(r *http.Request) (*http.Response, error) {
 			calls++
@@ -493,7 +574,7 @@ func TestDownloadLinkRealAdapterBackgroundBudget(t *testing.T) {
 			return downloadResponse(200, `{"state":false,"errno":50003}`, 31), nil
 		})
 		for range 2 {
-			if _, err := s.requestDownloadLink(t.Context(), "UID=123_A1_private; CID=secret; SEID=private", "456", "privateLocator", downloadUserAgent, adapter.DownloadLink, adapter.Background); !errors.Is(err, ErrSourceNotFound) {
+			if _, err := s.resolveDownloadTarget(t.Context(), "UID=123_A1_private; CID=secret; SEID=private", "456", "privateLocator", downloadUserAgent, adapter.DownloadLink, adapter.Background); !errors.Is(err, ErrSourceNotFound) {
 				t.Fatal(err)
 			}
 		}
