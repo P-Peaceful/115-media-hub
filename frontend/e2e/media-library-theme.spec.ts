@@ -104,8 +104,8 @@ test("媒体库沿用工作台主题且弹窗和输入可辨认", async ({ page 
     await themeColor("overlay"),
   );
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: /选择绑定目录/ }).click();
-  const dialog = page.getByRole("dialog", { name: "选择 115 网盘目录" });
+  await page.getByRole("button", { name: "媒体库目录 *", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "选择媒体库目录" });
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveCSS(
     "background-color",

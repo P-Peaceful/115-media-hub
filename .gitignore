@@ -57,3 +57,6 @@ __pycache__/
 # Trellis-specific identity, session, and update state is covered by
 # .trellis/.gitignore. Keep its scripts, specs, tasks, journals, version,
 # template hashes, and shared .agents/.codex integration under version control.
+/.agent/
+/.agents/
+/.codex/
