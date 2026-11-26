@@ -1,0 +1,12 @@
+{"file": ".trellis/spec/guides/project-baseline.md", "reason": "Shared API, SSE, pagination, and architecture conventions"}
+{"file": ".trellis/spec/guides/cross-layer-thinking-guide.md", "reason": "Cross-layer OpenAPI, backend, and frontend data flow"}
+{"file": ".trellis/spec/backend/logging-guidelines.md", "reason": "slog, redaction, volume, SSE buffering, and audit contract"}
+{"file": ".trellis/spec/backend/database-guidelines.md", "reason": "SQLite WAL, migrations, short transactions, and repository rules"}
+{"file": ".trellis/spec/backend/error-handling.md", "reason": "Backend error classification and HTTP status mapping"}
+{"file": ".trellis/spec/backend/directory-structure.md", "reason": "Backend package boundaries and dependency direction"}
+{"file": ".trellis/spec/backend/quality-guidelines.md", "reason": "Required Chinese comments, Go idioms, and quality gates"}
+{"file": ".trellis/spec/frontend/component-guidelines.md", "reason": "HeroUI v3 components, themes, and accessibility"}
+{"file": ".trellis/spec/frontend/hook-guidelines.md", "reason": "TanStack Query keys, cancellation, and SSE lifecycle"}
+{"file": ".trellis/spec/frontend/state-management.md", "reason": "URL, Query, and SSE state ownership"}
+{"file": ".trellis/spec/frontend/type-safety.md", "reason": "Strict TypeScript and runtime API/SSE decoding"}
+{"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "Frontend lint, test, and verification gates"}
