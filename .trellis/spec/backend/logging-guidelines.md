@@ -64,6 +64,8 @@ Never log passwords, hashes, cookies, session/CSRF tokens, authorization headers
 
 附件取链与内容传输只记录操作、源文件 ID、类型、字节数、耗时、结果和稳定错误码；不记录文件名、路径、临时 URL、响应正文或凭据。CDN 403、429、长度/大小错误分别归类，不能把内容域拒绝误报为账号失效。
 
+附属下载错误码至少区分 `sidecar_source_not_found`、`sidecar_take_link_failed`、`sidecar_take_link_response_invalid`、`sidecar_untrusted_target`、`sidecar_link_expired`、`sidecar_content_request_failed`、`sidecar_content_status_failed`、`sidecar_download_throttled`、`sidecar_length_mismatch` 和 `sidecar_size_limit`；未知上游错误才使用 `provider_unavailable`。
+
 ## Audit
 
 Persist audit records separately from operational log files for authentication/security changes, credentials/settings changes, destructive actions including automatic cleanup, and other defined critical operations. Record actor identity, action, target identifiers, timestamp, outcome, and correlation ID without secret values. Services own auditing policy; do not infer a durable audit trail from an INFO message. Define handling of an audit persistence failure with the affected use case, especially before destructive operations.
