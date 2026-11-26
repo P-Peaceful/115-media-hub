@@ -76,13 +76,19 @@ type Execution struct {
 	RetryItems func(context.Context, domain.Page) (domain.ItemPage, error)
 }
 
+// Options 配置任务日志的可选观察者，在任务日志持久化成功后调用。
+type Options struct {
+	ObserveLog func(domain.Job, domain.JobLog)
+}
+
 // Service 持有业务模块、运行生命周期、活动执行取消句柄和受锁保护的事件订阅。
 type Service struct {
-	repo    Repository
-	library Libraries
-	modules map[domain.Type]Module
-	logger  *slog.Logger
-	now     func() time.Time
+	repo       Repository
+	library    Libraries
+	modules    map[domain.Type]Module
+	logger     *slog.Logger
+	now        func() time.Time
+	observeLog func(domain.Job, domain.JobLog)
 
 	runtimeMu sync.Mutex
 	stop      context.CancelFunc
@@ -98,12 +104,16 @@ type Service struct {
 }
 
 // New 复制模块注册表并创建任务服务，后台循环由 Start 显式启动。
-func New(repo Repository, libraries Libraries, modules map[domain.Type]Module, logger *slog.Logger) *Service {
-	return &Service{
+func New(repo Repository, libraries Libraries, modules map[domain.Type]Module, logger *slog.Logger, options ...Options) *Service {
+	service := &Service{
 		repo: repo, library: libraries, modules: maps.Clone(modules), logger: logger.With("module", "jobs"),
 		now: time.Now, wake: make(chan struct{}, 1), active: make(map[runAttempt]context.CancelCauseFunc),
 		events: make(map[chan domain.Event]struct{}),
 	}
+	if len(options) > 0 {
+		service.observeLog = options[0].ObserveLog
+	}
+	return service
 }
 
 // Capabilities 列出所有任务类型，仅为已注册且可执行的模块开放其声明能力。

@@ -35,7 +35,13 @@ type authBrowser struct {
 // newAuthBrowser 建立临时 SQLite 与可控认证服务，返回模拟浏览器；数据库由测试清理关闭。
 func newAuthBrowser(t *testing.T, secure bool, now func() time.Time) (*authBrowser, *auth.Service, *sqlite.Database) {
 	t.Helper()
-	db, err := sqlite.Open(t.Context(), filepath.Join(t.TempDir(), "auth.db"))
+	return newAuthBrowserAt(t, filepath.Join(t.TempDir(), "auth.db"), secure, now)
+}
+
+// newAuthBrowserAt 允许故障注入测试连接同一个临时数据库并保留模拟浏览器及认证的默认行为。
+func newAuthBrowserAt(t *testing.T, databasePath string, secure bool, now func() time.Time) (*authBrowser, *auth.Service, *sqlite.Database) {
+	t.Helper()
+	db, err := sqlite.Open(t.Context(), databasePath)
 	if err != nil {
 		t.Fatal(err)
 	}

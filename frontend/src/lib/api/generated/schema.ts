@@ -179,6 +179,74 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
+  "/api/v1/logs": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Returns persisted runtime logs ordered by timestamp and ID, newest first. */
+    get: operations["listRuntimeLogs"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/logs/stream": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Named log.created events carry RuntimeLogEntry JSON. Named log.cleared events carry ClearRuntimeLogsResponse JSON. IDs are scoped to the connection. Reconnect by refetching history. */
+    get: operations["streamRuntimeLogs"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/logs/export": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** @description Streams up to 10000 matching runtime logs, newest first. */
+    get: operations["exportRuntimeLogs"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/logs/clear": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** @description Deletes runtime logs in the requested scope and records the action in the security audit. */
+    post: operations["clearRuntimeLogs"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
   "/api/v1/libraries": {
     parameters: {
       query?: never;
@@ -600,6 +668,56 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
   schemas: {
+    /**
+     * @default 24h
+     * @enum {string}
+     */
+    RuntimeLogRange: "1h" | "24h" | "7d" | "30d" | "all";
+    /** @enum {string} */
+    RuntimeLogLevel: "debug" | "info" | "warn" | "error";
+    /** @enum {string} */
+    RuntimeLogModule:
+      | "sync"
+      | "scan"
+      | "strm"
+      | "upload"
+      | "jobs"
+      | "library"
+      | "provider_115"
+      | "auth"
+      | "system";
+    /** @enum {string} */
+    RuntimeLogExportFormat: "log" | "jsonl";
+    RuntimeLogDetail: string | number | boolean;
+    RuntimeLogEntry: {
+      id: string;
+      /** Format: date-time */
+      occurred_at: string;
+      level: components["schemas"]["RuntimeLogLevel"];
+      module: components["schemas"]["RuntimeLogModule"];
+      operation: string;
+      job_id: string | null;
+      request_id: string | null;
+      error_code: string | null;
+      message: string;
+      details?: {
+        [key: string]: components["schemas"]["RuntimeLogDetail"];
+      };
+    };
+    RuntimeLogPage: {
+      items: components["schemas"]["RuntimeLogEntry"][];
+      next_cursor: string | null;
+    };
+    /** @enum {string} */
+    ClearRuntimeLogsScope: "before_7d" | "before_30d" | "all";
+    ClearRuntimeLogsRequest: {
+      scope: components["schemas"]["ClearRuntimeLogsScope"];
+    };
+    ClearRuntimeLogsResponse: {
+      /** Format: int64 */
+      deleted_count: number;
+      scope: components["schemas"]["ClearRuntimeLogsScope"];
+    };
     /** @enum {string} */
     TaskType:
       "scan" | "strm" | "sync" | "check" | "cleanup" | "scrape" | "upload";
@@ -1094,6 +1212,15 @@ export interface components {
     };
   };
   responses: {
+    /** @description Runtime log storage or stream temporarily unavailable (service_unavailable) */
+    RuntimeLogsUnavailable: {
+      headers: {
+        [name: string]: unknown;
+      };
+      content: {
+        "application/json": components["schemas"]["ErrorResponse"];
+      };
+    };
     /** @description Invalid request (validation_failed) */
     TaskCenterValidationError: {
       headers: {
@@ -1209,6 +1336,12 @@ export interface components {
     };
   };
   parameters: {
+    RuntimeLogRangeFilter: components["schemas"]["RuntimeLogRange"];
+    RuntimeLogLevelFilter: components["schemas"]["RuntimeLogLevel"];
+    RuntimeLogModuleFilter: components["schemas"]["RuntimeLogModule"];
+    RuntimeLogJobID: string;
+    /** @description Literal substring matched against message, operation, error code, task ID or request ID. */
+    RuntimeLogQuery: string;
     CSRFToken: string;
   };
   requestBodies: never;
@@ -1626,6 +1759,133 @@ export interface operations {
       };
       401: components["responses"]["TaskCenterAuthenticationRequired"];
       503: components["responses"]["TaskCenterUnavailable"];
+    };
+  };
+  listRuntimeLogs: {
+    parameters: {
+      query?: {
+        range?: components["parameters"]["RuntimeLogRangeFilter"];
+        level?: components["parameters"]["RuntimeLogLevelFilter"];
+        module?: components["parameters"]["RuntimeLogModuleFilter"];
+        job_id?: components["parameters"]["RuntimeLogJobID"];
+        /** @description Literal substring matched against message, operation, error code, task ID or request ID. */
+        q?: components["parameters"]["RuntimeLogQuery"];
+        limit?: number;
+        /** @description Opaque next page cursor from the previous response */
+        cursor?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Runtime log page */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["RuntimeLogPage"];
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      503: components["responses"]["RuntimeLogsUnavailable"];
+    };
+  };
+  streamRuntimeLogs: {
+    parameters: {
+      query?: {
+        level?: components["parameters"]["RuntimeLogLevelFilter"];
+        module?: components["parameters"]["RuntimeLogModuleFilter"];
+        job_id?: components["parameters"]["RuntimeLogJobID"];
+        /** @description Literal substring matched against message, operation, error code, task ID or request ID. */
+        q?: components["parameters"]["RuntimeLogQuery"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Authenticated live stream of committed runtime log changes */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "text/event-stream": string;
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      503: components["responses"]["RuntimeLogsUnavailable"];
+    };
+  };
+  exportRuntimeLogs: {
+    parameters: {
+      query: {
+        format: components["schemas"]["RuntimeLogExportFormat"];
+        range?: components["parameters"]["RuntimeLogRangeFilter"];
+        level?: components["parameters"]["RuntimeLogLevelFilter"];
+        module?: components["parameters"]["RuntimeLogModuleFilter"];
+        job_id?: components["parameters"]["RuntimeLogJobID"];
+        /** @description Literal substring matched against message, operation, error code, task ID or request ID. */
+        q?: components["parameters"]["RuntimeLogQuery"];
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Runtime log attachment */
+      200: {
+        headers: {
+          "Content-Disposition"?: string;
+          /** @description Whether more than 10000 records matched at export start */
+          "X-Export-Truncated"?: boolean;
+          [name: string]: unknown;
+        };
+        content: {
+          "text/plain": string;
+          "application/x-ndjson": string;
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      503: components["responses"]["RuntimeLogsUnavailable"];
+    };
+  };
+  clearRuntimeLogs: {
+    parameters: {
+      query?: never;
+      header: {
+        "X-CSRF-Token": components["parameters"]["CSRFToken"];
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ClearRuntimeLogsRequest"];
+      };
+    };
+    responses: {
+      /** @description Logged clear operation and affected row count */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ClearRuntimeLogsResponse"];
+        };
+      };
+      400: components["responses"]["AuthError"];
+      401: components["responses"]["AuthError"];
+      403: components["responses"]["AuthError"];
+      503: components["responses"]["RuntimeLogsUnavailable"];
     };
   };
   listLibraries: {

@@ -76,6 +76,27 @@ func (e APIErrorCode) Valid() bool {
 	}
 }
 
+// Defines values for ClearRuntimeLogsScope.
+const (
+	ClearRuntimeLogsScopeAll       ClearRuntimeLogsScope = "all"
+	ClearRuntimeLogsScopeBefore30d ClearRuntimeLogsScope = "before_30d"
+	ClearRuntimeLogsScopeBefore7d  ClearRuntimeLogsScope = "before_7d"
+)
+
+// Valid indicates whether the value is a known member of the ClearRuntimeLogsScope enum.
+func (e ClearRuntimeLogsScope) Valid() bool {
+	switch e {
+	case ClearRuntimeLogsScopeAll:
+		return true
+	case ClearRuntimeLogsScopeBefore30d:
+		return true
+	case ClearRuntimeLogsScopeBefore7d:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for FullSyncOutputCheckStatus.
 const (
 	FullSyncOutputCheckStatusMissing          FullSyncOutputCheckStatus = "missing"
@@ -535,6 +556,114 @@ func (e Provider115QRStatus) Valid() bool {
 	}
 }
 
+// Defines values for RuntimeLogExportFormat.
+const (
+	RuntimeLogExportFormatJsonl RuntimeLogExportFormat = "jsonl"
+	RuntimeLogExportFormatLog   RuntimeLogExportFormat = "log"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeLogExportFormat enum.
+func (e RuntimeLogExportFormat) Valid() bool {
+	switch e {
+	case RuntimeLogExportFormatJsonl:
+		return true
+	case RuntimeLogExportFormatLog:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeLogLevel.
+const (
+	RuntimeLogLevelDebug RuntimeLogLevel = "debug"
+	RuntimeLogLevelError RuntimeLogLevel = "error"
+	RuntimeLogLevelInfo  RuntimeLogLevel = "info"
+	RuntimeLogLevelWarn  RuntimeLogLevel = "warn"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeLogLevel enum.
+func (e RuntimeLogLevel) Valid() bool {
+	switch e {
+	case RuntimeLogLevelDebug:
+		return true
+	case RuntimeLogLevelError:
+		return true
+	case RuntimeLogLevelInfo:
+		return true
+	case RuntimeLogLevelWarn:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeLogModule.
+const (
+	RuntimeLogModuleAuth        RuntimeLogModule = "auth"
+	RuntimeLogModuleJobs        RuntimeLogModule = "jobs"
+	RuntimeLogModuleLibrary     RuntimeLogModule = "library"
+	RuntimeLogModuleProvider115 RuntimeLogModule = "provider_115"
+	RuntimeLogModuleScan        RuntimeLogModule = "scan"
+	RuntimeLogModuleStrm        RuntimeLogModule = "strm"
+	RuntimeLogModuleSync        RuntimeLogModule = "sync"
+	RuntimeLogModuleSystem      RuntimeLogModule = "system"
+	RuntimeLogModuleUpload      RuntimeLogModule = "upload"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeLogModule enum.
+func (e RuntimeLogModule) Valid() bool {
+	switch e {
+	case RuntimeLogModuleAuth:
+		return true
+	case RuntimeLogModuleJobs:
+		return true
+	case RuntimeLogModuleLibrary:
+		return true
+	case RuntimeLogModuleProvider115:
+		return true
+	case RuntimeLogModuleScan:
+		return true
+	case RuntimeLogModuleStrm:
+		return true
+	case RuntimeLogModuleSync:
+		return true
+	case RuntimeLogModuleSystem:
+		return true
+	case RuntimeLogModuleUpload:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for RuntimeLogRange.
+const (
+	RuntimeLogRangeAll  RuntimeLogRange = "all"
+	RuntimeLogRangeN1h  RuntimeLogRange = "1h"
+	RuntimeLogRangeN24h RuntimeLogRange = "24h"
+	RuntimeLogRangeN30d RuntimeLogRange = "30d"
+	RuntimeLogRangeN7d  RuntimeLogRange = "7d"
+)
+
+// Valid indicates whether the value is a known member of the RuntimeLogRange enum.
+func (e RuntimeLogRange) Valid() bool {
+	switch e {
+	case RuntimeLogRangeAll:
+		return true
+	case RuntimeLogRangeN1h:
+		return true
+	case RuntimeLogRangeN24h:
+		return true
+	case RuntimeLogRangeN30d:
+		return true
+	case RuntimeLogRangeN7d:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SchedulePeriod.
 const (
 	Custom  SchedulePeriod = "custom"
@@ -894,6 +1023,20 @@ type AuthSession struct {
 	ExpiresAt     time.Time     `json:"expires_at"`
 }
 
+// ClearRuntimeLogsRequest defines model for ClearRuntimeLogsRequest.
+type ClearRuntimeLogsRequest struct {
+	Scope ClearRuntimeLogsScope `json:"scope"`
+}
+
+// ClearRuntimeLogsResponse defines model for ClearRuntimeLogsResponse.
+type ClearRuntimeLogsResponse struct {
+	DeletedCount int64                 `json:"deleted_count"`
+	Scope        ClearRuntimeLogsScope `json:"scope"`
+}
+
+// ClearRuntimeLogsScope defines model for ClearRuntimeLogsScope.
+type ClearRuntimeLogsScope string
+
 // CloudDriveItem defines model for CloudDriveItem.
 type CloudDriveItem struct {
 	FileType    string     `json:"file_type"`
@@ -1192,6 +1335,41 @@ type Provider115Space struct {
 	UsedBytes string `json:"used_bytes"`
 }
 
+// RuntimeLogDetail defines model for RuntimeLogDetail.
+type RuntimeLogDetail = any
+
+// RuntimeLogEntry defines model for RuntimeLogEntry.
+type RuntimeLogEntry struct {
+	Details    *map[string]RuntimeLogDetail `json:"details,omitempty"`
+	ErrorCode  *string                      `json:"error_code"`
+	Id         string                       `json:"id"`
+	JobId      *string                      `json:"job_id"`
+	Level      RuntimeLogLevel              `json:"level"`
+	Message    string                       `json:"message"`
+	Module     RuntimeLogModule             `json:"module"`
+	OccurredAt time.Time                    `json:"occurred_at"`
+	Operation  string                       `json:"operation"`
+	RequestId  *string                      `json:"request_id"`
+}
+
+// RuntimeLogExportFormat defines model for RuntimeLogExportFormat.
+type RuntimeLogExportFormat string
+
+// RuntimeLogLevel defines model for RuntimeLogLevel.
+type RuntimeLogLevel string
+
+// RuntimeLogModule defines model for RuntimeLogModule.
+type RuntimeLogModule string
+
+// RuntimeLogPage defines model for RuntimeLogPage.
+type RuntimeLogPage struct {
+	Items      []RuntimeLogEntry `json:"items"`
+	NextCursor *string           `json:"next_cursor"`
+}
+
+// RuntimeLogRange defines model for RuntimeLogRange.
+type RuntimeLogRange string
+
 // Schedule defines model for Schedule.
 type Schedule struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -1422,6 +1600,21 @@ type TaskTypeCapability struct {
 // CSRFToken defines model for CSRFToken.
 type CSRFToken = string
 
+// RuntimeLogJobID defines model for RuntimeLogJobID.
+type RuntimeLogJobID = string
+
+// RuntimeLogLevelFilter defines model for RuntimeLogLevelFilter.
+type RuntimeLogLevelFilter = RuntimeLogLevel
+
+// RuntimeLogModuleFilter defines model for RuntimeLogModuleFilter.
+type RuntimeLogModuleFilter = RuntimeLogModule
+
+// RuntimeLogQuery defines model for RuntimeLogQuery.
+type RuntimeLogQuery = string
+
+// RuntimeLogRangeFilter defines model for RuntimeLogRangeFilter.
+type RuntimeLogRangeFilter = RuntimeLogRange
+
 // AuthError defines model for AuthError.
 type AuthError = ErrorResponse
 
@@ -1430,6 +1623,9 @@ type Healthy = HealthResponse
 
 // LibraryResult defines model for LibraryResult.
 type LibraryResult = Library
+
+// RuntimeLogsUnavailable defines model for RuntimeLogsUnavailable.
+type RuntimeLogsUnavailable = ErrorResponse
 
 // SessionStarted defines model for SessionStarted.
 type SessionStarted = AuthSession
@@ -1529,6 +1725,48 @@ type SetLibraryEnabledJSONBody struct {
 // SetLibraryEnabledParams defines parameters for SetLibraryEnabled.
 type SetLibraryEnabledParams struct {
 	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
+// ListRuntimeLogsParams defines parameters for ListRuntimeLogs.
+type ListRuntimeLogsParams struct {
+	Range  *RuntimeLogRangeFilter  `form:"range,omitempty" json:"range,omitempty"`
+	Level  *RuntimeLogLevelFilter  `form:"level,omitempty" json:"level,omitempty"`
+	Module *RuntimeLogModuleFilter `form:"module,omitempty" json:"module,omitempty"`
+	JobId  *RuntimeLogJobID        `form:"job_id,omitempty" json:"job_id,omitempty"`
+
+	// Q Literal substring matched against message, operation, error code, task ID or request ID.
+	Q     *RuntimeLogQuery `form:"q,omitempty" json:"q,omitempty"`
+	Limit *int             `form:"limit,omitempty" json:"limit,omitempty"`
+
+	// Cursor Opaque next page cursor from the previous response
+	Cursor *string `form:"cursor,omitempty" json:"cursor,omitempty"`
+}
+
+// ClearRuntimeLogsParams defines parameters for ClearRuntimeLogs.
+type ClearRuntimeLogsParams struct {
+	XCSRFToken CSRFToken `json:"X-CSRF-Token"`
+}
+
+// ExportRuntimeLogsParams defines parameters for ExportRuntimeLogs.
+type ExportRuntimeLogsParams struct {
+	Format RuntimeLogExportFormat  `form:"format" json:"format"`
+	Range  *RuntimeLogRangeFilter  `form:"range,omitempty" json:"range,omitempty"`
+	Level  *RuntimeLogLevelFilter  `form:"level,omitempty" json:"level,omitempty"`
+	Module *RuntimeLogModuleFilter `form:"module,omitempty" json:"module,omitempty"`
+	JobId  *RuntimeLogJobID        `form:"job_id,omitempty" json:"job_id,omitempty"`
+
+	// Q Literal substring matched against message, operation, error code, task ID or request ID.
+	Q *RuntimeLogQuery `form:"q,omitempty" json:"q,omitempty"`
+}
+
+// StreamRuntimeLogsParams defines parameters for StreamRuntimeLogs.
+type StreamRuntimeLogsParams struct {
+	Level  *RuntimeLogLevelFilter  `form:"level,omitempty" json:"level,omitempty"`
+	Module *RuntimeLogModuleFilter `form:"module,omitempty" json:"module,omitempty"`
+	JobId  *RuntimeLogJobID        `form:"job_id,omitempty" json:"job_id,omitempty"`
+
+	// Q Literal substring matched against message, operation, error code, task ID or request ID.
+	Q *RuntimeLogQuery `form:"q,omitempty" json:"q,omitempty"`
 }
 
 // ListSchedulesParams defines parameters for ListSchedules.
@@ -1654,6 +1892,9 @@ type UpdateLibraryJSONRequestBody = LibraryConfig
 
 // SetLibraryEnabledJSONRequestBody defines body for SetLibraryEnabled for application/json ContentType.
 type SetLibraryEnabledJSONRequestBody SetLibraryEnabledJSONBody
+
+// ClearRuntimeLogsJSONRequestBody defines body for ClearRuntimeLogs for application/json ContentType.
+type ClearRuntimeLogsJSONRequestBody = ClearRuntimeLogsRequest
 
 // CreateScheduleJSONRequestBody defines body for CreateSchedule for application/json ContentType.
 type CreateScheduleJSONRequestBody = ScheduleInput

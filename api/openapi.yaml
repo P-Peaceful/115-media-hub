@@ -273,6 +273,100 @@ paths:
               schema: {type: string}
         "401": {$ref: "#/components/responses/TaskCenterAuthenticationRequired"}
         "503": {$ref: "#/components/responses/TaskCenterUnavailable"}
+  /api/v1/logs:
+    get:
+      operationId: listRuntimeLogs
+      security: [{adminSession: []}]
+      description: Returns persisted runtime logs ordered by timestamp and ID, newest first.
+      parameters:
+        - {$ref: "#/components/parameters/RuntimeLogRangeFilter"}
+        - {$ref: "#/components/parameters/RuntimeLogLevelFilter"}
+        - {$ref: "#/components/parameters/RuntimeLogModuleFilter"}
+        - {$ref: "#/components/parameters/RuntimeLogJobID"}
+        - {$ref: "#/components/parameters/RuntimeLogQuery"}
+        - {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 200, default: 50}}
+        - {name: cursor, in: query, description: Opaque next page cursor from the previous response, schema: {type: string, maxLength: 256}}
+      responses:
+        "200":
+          description: Runtime log page
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/RuntimeLogPage"}
+        "400": {$ref: "#/components/responses/AuthError"}
+        "401": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/RuntimeLogsUnavailable"}
+  /api/v1/logs/stream:
+    get:
+      operationId: streamRuntimeLogs
+      security: [{adminSession: []}]
+      description: >
+        Named log.created events carry RuntimeLogEntry JSON. Named log.cleared events carry
+        ClearRuntimeLogsResponse JSON. IDs are scoped to the connection. Reconnect by refetching history.
+      parameters:
+        - {$ref: "#/components/parameters/RuntimeLogLevelFilter"}
+        - {$ref: "#/components/parameters/RuntimeLogModuleFilter"}
+        - {$ref: "#/components/parameters/RuntimeLogJobID"}
+        - {$ref: "#/components/parameters/RuntimeLogQuery"}
+      responses:
+        "200":
+          description: Authenticated live stream of committed runtime log changes
+          content:
+            text/event-stream:
+              schema: {type: string}
+        "400": {$ref: "#/components/responses/AuthError"}
+        "401": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/RuntimeLogsUnavailable"}
+  /api/v1/logs/export:
+    get:
+      operationId: exportRuntimeLogs
+      security: [{adminSession: []}]
+      description: Streams up to 10000 matching runtime logs, newest first.
+      parameters:
+        - {name: format, in: query, required: true, schema: {$ref: "#/components/schemas/RuntimeLogExportFormat"}}
+        - {$ref: "#/components/parameters/RuntimeLogRangeFilter"}
+        - {$ref: "#/components/parameters/RuntimeLogLevelFilter"}
+        - {$ref: "#/components/parameters/RuntimeLogModuleFilter"}
+        - {$ref: "#/components/parameters/RuntimeLogJobID"}
+        - {$ref: "#/components/parameters/RuntimeLogQuery"}
+      responses:
+        "200":
+          description: Runtime log attachment
+          headers:
+            Content-Disposition:
+              schema: {type: string}
+            X-Export-Truncated:
+              description: Whether more than 10000 records matched at export start
+              schema: {type: boolean}
+          content:
+            text/plain:
+              schema: {type: string, format: binary}
+            application/x-ndjson:
+              schema: {type: string, format: binary}
+        "400": {$ref: "#/components/responses/AuthError"}
+        "401": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/RuntimeLogsUnavailable"}
+  /api/v1/logs/clear:
+    post:
+      operationId: clearRuntimeLogs
+      security: [{adminSession: []}]
+      description: Deletes runtime logs in the requested scope and records the action in the security audit.
+      parameters:
+        - {$ref: "#/components/parameters/CSRFToken"}
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: {$ref: "#/components/schemas/ClearRuntimeLogsRequest"}
+      responses:
+        "200":
+          description: Logged clear operation and affected row count
+          content:
+            application/json:
+              schema: {$ref: "#/components/schemas/ClearRuntimeLogsResponse"}
+        "400": {$ref: "#/components/responses/AuthError"}
+        "401": {$ref: "#/components/responses/AuthError"}
+        "403": {$ref: "#/components/responses/AuthError"}
+        "503": {$ref: "#/components/responses/RuntimeLogsUnavailable"}
   /api/v1/libraries:
     get:
       operationId: listLibraries
@@ -865,6 +959,27 @@ components:
       in: cookie
       name: mediahub_session
   parameters:
+    RuntimeLogRangeFilter:
+      name: range
+      in: query
+      schema: {$ref: "#/components/schemas/RuntimeLogRange"}
+    RuntimeLogLevelFilter:
+      name: level
+      in: query
+      schema: {$ref: "#/components/schemas/RuntimeLogLevel"}
+    RuntimeLogModuleFilter:
+      name: module
+      in: query
+      schema: {$ref: "#/components/schemas/RuntimeLogModule"}
+    RuntimeLogJobID:
+      name: job_id
+      in: query
+      schema: {type: string, minLength: 1, maxLength: 128}
+    RuntimeLogQuery:
+      name: q
+      in: query
+      description: Literal substring matched against message, operation, error code, task ID or request ID.
+      schema: {type: string, maxLength: 128}
     CSRFToken:
       name: X-CSRF-Token
       in: header
@@ -881,6 +996,11 @@ components:
         maxLength: 64
         pattern: "^[A-Za-z0-9._-]+$"
   responses:
+    RuntimeLogsUnavailable:
+      description: Runtime log storage or stream temporarily unavailable (service_unavailable)
+      content:
+        application/json:
+          schema: {$ref: "#/components/schemas/ErrorResponse"}
     TaskCenterValidationError:
       description: Invalid request (validation_failed)
       content:
@@ -962,6 +1082,68 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
   schemas:
+    RuntimeLogRange:
+      type: string
+      enum: ["1h", "24h", "7d", "30d", all]
+      x-enum-varnames: [RuntimeLogRangeN1h, RuntimeLogRangeN24h, RuntimeLogRangeN7d, RuntimeLogRangeN30d, RuntimeLogRangeAll]
+      default: "24h"
+    RuntimeLogLevel:
+      type: string
+      enum: [debug, info, warn, error]
+      x-enum-varnames: [RuntimeLogLevelDebug, RuntimeLogLevelInfo, RuntimeLogLevelWarn, RuntimeLogLevelError]
+    RuntimeLogModule:
+      type: string
+      enum: [sync, scan, strm, upload, jobs, library, provider_115, auth, system]
+      x-enum-varnames: [RuntimeLogModuleSync, RuntimeLogModuleScan, RuntimeLogModuleStrm, RuntimeLogModuleUpload, RuntimeLogModuleJobs, RuntimeLogModuleLibrary, RuntimeLogModuleProvider115, RuntimeLogModuleAuth, RuntimeLogModuleSystem]
+    RuntimeLogExportFormat:
+      type: string
+      enum: [log, jsonl]
+      x-enum-varnames: [RuntimeLogExportFormatLog, RuntimeLogExportFormatJsonl]
+    RuntimeLogDetail:
+      x-go-type: any
+      anyOf:
+        - {type: string}
+        - {type: number}
+        - {type: boolean}
+    RuntimeLogEntry:
+      type: object
+      required: [id, occurred_at, level, module, operation, job_id, request_id, error_code, message]
+      properties:
+        id: {type: string}
+        occurred_at: {type: string, format: date-time}
+        level: {$ref: "#/components/schemas/RuntimeLogLevel"}
+        module: {$ref: "#/components/schemas/RuntimeLogModule"}
+        operation: {type: string}
+        job_id: {type: string, nullable: true}
+        request_id: {type: string, nullable: true}
+        error_code: {type: string, nullable: true}
+        message: {type: string}
+        details:
+          type: object
+          additionalProperties: {$ref: "#/components/schemas/RuntimeLogDetail"}
+    RuntimeLogPage:
+      type: object
+      required: [items, next_cursor]
+      properties:
+        items:
+          type: array
+          items: {$ref: "#/components/schemas/RuntimeLogEntry"}
+        next_cursor: {type: string, nullable: true}
+    ClearRuntimeLogsScope:
+      type: string
+      enum: [before_7d, before_30d, all]
+      x-enum-varnames: [ClearRuntimeLogsScopeBefore7d, ClearRuntimeLogsScopeBefore30d, ClearRuntimeLogsScopeAll]
+    ClearRuntimeLogsRequest:
+      type: object
+      required: [scope]
+      properties:
+        scope: {$ref: "#/components/schemas/ClearRuntimeLogsScope"}
+    ClearRuntimeLogsResponse:
+      type: object
+      required: [deleted_count, scope]
+      properties:
+        deleted_count: {type: integer, format: int64, minimum: 0}
+        scope: {$ref: "#/components/schemas/ClearRuntimeLogsScope"}
     TaskType:
       type: string
       enum: [scan, strm, sync, check, cleanup, scrape, upload]

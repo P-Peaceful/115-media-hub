@@ -410,13 +410,15 @@ func (s *Service) execution(job domain.Job, target library.Library) (Execution, 
 		if level != "info" && level != "warn" && level != "error" {
 			return domain.ErrInvalid
 		}
-		err := s.repo.InsertJobLog(ctx, job.ID, job.Attempt, domain.JobLog{
-			ID: rand.Text(), Level: level, Message: safeText(message, 2048), CreatedAt: s.now().UTC(),
-		})
-		if err == nil {
-			updates.report()
+		entry := domain.JobLog{ID: rand.Text(), Level: level, Message: safeText(message, 2048), CreatedAt: s.now().UTC()}
+		if err := s.repo.InsertJobLog(ctx, job.ID, job.Attempt, entry); err != nil {
+			return err
 		}
-		return err
+		if s.observeLog != nil {
+			s.observeLog(job, entry)
+		}
+		updates.report()
+		return nil
 	}
 	if job.ParentID != nil && job.RetryScope == domain.RetryFailures {
 		execution.RetryItems = func(ctx context.Context, page domain.Page) (domain.ItemPage, error) {

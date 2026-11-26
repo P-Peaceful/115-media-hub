@@ -24,6 +24,7 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/jobs"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
+	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/logs"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/provider115"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/strm"
 )
@@ -42,6 +43,7 @@ type AuthOptions struct {
 	Library      *library.Service
 	Jobs         *jobs.Service
 	STRM         *strm.Service
+	Logs         *logs.Service
 }
 
 // authenticationHandler 将会话认证、CSRF 和 Cookie 策略集中在 HTTP 边界。

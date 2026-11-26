@@ -3,18 +3,22 @@
 package app
 
 import (
+	"bufio"
 	"context"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
 
 	domain "github.com/wenzhengcheng/115-media-hub/backend/internal/domain/auth"
+	logdomain "github.com/wenzhengcheng/115-media-hub/backend/internal/domain/logs"
+	"github.com/wenzhengcheng/115-media-hub/backend/internal/repository/sqlite"
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
 )
 
@@ -23,7 +27,8 @@ func TestServeAndGracefulShutdown(t *testing.T) {
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 	logger := slog.New(slog.NewJSONHandler(io.Discard, nil))
-	application, err := New(ctx, Config{DatabasePath: filepath.Join(t.TempDir(), "app.db"), ShutdownTimeout: time.Second}, logger, nil)
+	databasePath := filepath.Join(t.TempDir(), "app.db")
+	application, err := New(ctx, Config{DatabasePath: databasePath, ShutdownTimeout: time.Second}, logger, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,6 +82,25 @@ func TestServeAndGracefulShutdown(t *testing.T) {
 	if stream.StatusCode != http.StatusOK || stream.Header.Get("Content-Type") != "text/event-stream" {
 		t.Fatalf("event stream unavailable: %d", stream.StatusCode)
 	}
+	logRequest := request.Clone(t.Context())
+	logRequest.URL.Path = "/api/v1/logs/stream"
+	logRequest.URL.RawQuery = "module=upload"
+	logStream, err := streamClient.Do(logRequest)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := logStream.Body.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	if logStream.StatusCode != http.StatusOK || logStream.Header.Get("Content-Type") != "text/event-stream" {
+		t.Fatalf("runtime log stream unavailable: %d", logStream.StatusCode)
+	}
+	logReader := bufio.NewReader(logStream.Body)
+	if line, err := logReader.ReadString('\n'); err != nil || line != ": connected\n" {
+		t.Fatalf("runtime log stream did not establish: %q, %v", line, err)
+	}
 	cancel()
 	select {
 	case err := <-finished:
@@ -89,10 +113,26 @@ func TestServeAndGracefulShutdown(t *testing.T) {
 	if data, err := io.ReadAll(stream.Body); err != nil || string(data) != ": connected\n\n" {
 		t.Fatalf("event stream did not close cleanly: %q, %v", data, err)
 	}
+	if data, err := io.ReadAll(logReader); err != nil || strings.TrimSpace(string(data)) != "" {
+		t.Fatalf("runtime log stream did not close cleanly: %q, %v", data, err)
+	}
 	if events, _ := application.jobs.Subscribe(); events != nil {
 		t.Fatal("task center still accepting subscriptions after shutdown")
 	}
 	if err := application.database.Ping(t.Context()); err != nil {
 		t.Fatalf("database closed before owner cleanup: %v", err)
+	}
+	reopened, err := sqlite.Open(t.Context(), databasePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := reopened.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	entries, err := reopened.ListRuntimeLogs(t.Context(), logdomain.Filter{Module: "system", Limit: 10})
+	if err != nil || len(entries) < 3 || entries[0].Operation != "shutdown" {
+		t.Fatalf("startup and shutdown logs were not persisted: %+v, %v", entries, err)
 	}
 }

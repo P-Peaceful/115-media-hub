@@ -53,6 +53,9 @@ func NewRouter(database Readiness, logger *slog.Logger, assets fs.FS, options ..
 	authHandler := &authenticationHandler{service: authOptions.Service, provider: authOptions.Provider, secure: authOptions.CookieSecure, logger: logger}
 	router.Use(authHandler.managementBoundary())
 	if authOptions.Service != nil {
+		if authOptions.Logs != nil {
+			(&runtimeLogHandler{service: authOptions.Logs, auth: authOptions.Service, logger: logger}).register(router)
+		}
 		authHandler.register(router)
 		if authOptions.Library != nil {
 			(&libraryHandler{service: authOptions.Library}).register(router)
@@ -104,7 +107,10 @@ func requestMiddleware(logger *slog.Logger) gin.HandlerFunc {
 		c.Set("request_id", requestID)
 		c.Header("X-Request-ID", requestID)
 		defer func() {
-			if recover() != nil {
+			if recovered := recover(); recovered != nil {
+				if recovered == http.ErrAbortHandler {
+					panic(http.ErrAbortHandler)
+				}
 				logger.ErrorContext(c.Request.Context(), "request panic", "module", "http", "operation", "request", "request_id", requestID, "error_code", "internal_error")
 				if !c.Writer.Written() {
 					writeError(c, http.StatusInternalServerError, generated.InternalError, "Internal server error")

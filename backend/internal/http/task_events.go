@@ -15,11 +15,11 @@ import (
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/auth"
 )
 
-// taskEventHeartbeat 控制空闲连接保活及会话有效性复核的间隔。
-const taskEventHeartbeat = 15 * time.Second
+// eventHeartbeat 控制空闲连接保活及会话有效性复核的间隔。
+const eventHeartbeat = 15 * time.Second
 
-// taskEventWriteTimeout 限制单帧发送时间，避免慢客户端持续占用连接。
-const taskEventWriteTimeout = 5 * time.Second
+// eventWriteTimeout 限制单帧发送时间，避免慢客户端持续占用连接。
+const eventWriteTimeout = 5 * time.Second
 
 // taskEventPayload 只传资源失效提示和可选结果通知，客户端须重读持久状态。
 type taskEventPayload struct {
@@ -41,19 +41,14 @@ func (h *taskHandler) events(c *gin.Context) {
 	c.Header("Content-Type", "text/event-stream")
 	c.Header("Cache-Control", "no-store, no-transform")
 	c.Header("X-Accel-Buffering", "no")
-	// Gin 的 Flush 不返回底层错误，因此解包后由服务器写入器刷新并检查连接状态。
-	writer := http.ResponseWriter(c.Writer)
-	if wrapper, ok := writer.(interface{ Unwrap() http.ResponseWriter }); ok {
-		writer = wrapper.Unwrap()
-	}
-	controller := http.NewResponseController(writer)
-	if !writeTaskEvent(c.Writer, controller, ": connected\n\n") {
+	controller := streamingResponseController(c)
+	if !writeEventFrame(c.Writer, controller, ": connected\n\n") {
 		return
 	}
 
 	ctx := c.Request.Context()
 	token, _ := c.Cookie(sessionCookie)
-	ticker := time.NewTicker(taskEventHeartbeat)
+	ticker := time.NewTicker(eventHeartbeat)
 	defer ticker.Stop()
 	var sequence uint64
 	for {
@@ -88,16 +83,25 @@ func (h *taskHandler) events(c *gin.Context) {
 			}
 			return
 		}
-		if !writeTaskEvent(c.Writer, controller, frame) {
+		if !writeEventFrame(c.Writer, controller, frame) {
 			return
 		}
 	}
 }
 
-// writeTaskEvent 在单帧写入期限内写出并刷新 SSE，完成后清除写入期限；不支持期限控制的写入器仍可使用。
-func writeTaskEvent(w http.ResponseWriter, controller *http.ResponseController, frame string) bool {
+// streamingResponseController 使用底层写入器，以便观测 Gin Flush 不返回的连接错误。
+func streamingResponseController(c *gin.Context) *http.ResponseController {
+	writer := http.ResponseWriter(c.Writer)
+	if wrapper, ok := writer.(interface{ Unwrap() http.ResponseWriter }); ok {
+		writer = wrapper.Unwrap()
+	}
+	return http.NewResponseController(writer)
+}
+
+// writeEventFrame 在单帧写入期限内写出并刷新 SSE，完成后清除写入期限；不支持期限控制的写入器仍可使用。
+func writeEventFrame(w http.ResponseWriter, controller *http.ResponseController, frame string) bool {
 	// 每帧单独设置期限，避免将服务器的一次性写超时套用于整个长连接。
-	if err := controller.SetWriteDeadline(time.Now().Add(taskEventWriteTimeout)); err != nil && !errors.Is(err, http.ErrNotSupported) {
+	if err := controller.SetWriteDeadline(time.Now().Add(eventWriteTimeout)); err != nil && !errors.Is(err, http.ErrNotSupported) {
 		return false
 	}
 	if _, err := fmt.Fprint(w, frame); err != nil || controller.Flush() != nil {

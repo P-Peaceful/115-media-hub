@@ -20,6 +20,7 @@ Read the [project baseline](../guides/project-baseline.md) first for Notion sour
 | [Database](./database-guidelines.md) | SQLite configuration, repositories, migrations, task claims |
 | [Error handling](./error-handling.md) | Error propagation, classification, HTTP mapping |
 | [Logging](./logging-guidelines.md) | slog, rotation, audit, redaction |
+| [Runtime logs](./runtime-logs.md) | Collection, retention, history, SSE, export, and audited clearing |
 | [Quality](./quality-guidelines.md) | Required Chinese file/method comments, idiomatic Go, tooling, tests, review |
 
 ## Pre-Development Checklist
