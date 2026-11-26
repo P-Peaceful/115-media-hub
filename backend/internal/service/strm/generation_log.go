@@ -60,6 +60,9 @@ func (counts generationCounts) attributes() []any {
 	return []any{
 		"generated_files", counts.generated, "failed_files", counts.failed,
 		"skipped_files", counts.skipped, "conflicting_files", counts.conflicts,
+		"strm_succeeded", counts.strm.succeeded, "strm_skipped", counts.strm.skipped, "strm_failed", counts.strm.failed,
+		"nfo_succeeded", counts.nfo.succeeded, "nfo_skipped", counts.nfo.skipped, "nfo_failed", counts.nfo.failed,
+		"image_succeeded", counts.image.succeeded, "image_skipped", counts.image.skipped, "image_failed", counts.image.failed,
 	}
 }
 

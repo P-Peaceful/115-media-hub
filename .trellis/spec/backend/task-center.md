@@ -57,3 +57,5 @@ SQLite owns schedules, runs, items, and logs in [migration 00005](../../../backe
 ## 7. Responsibility boundary
 
 Keep business commands in the owning service. Wire module registration at application construction and call it through the job service interface. The scheduler supplies identifiers and the saved library configuration. Network requests, paths, overwrite decisions, and other processing rules belong to the module.
+
+STRM 全量任务的通用 `total_items`、成功、跳过和失败数包含 STRM、NFO、图片全部条目；分类终态由 STRM 服务分别记录。附件条目键为 `sidecar:nfo:<file_id>` 或 `sidecar:image:<file_id>`，单个附件失败不回滚已成功的 STRM。任务日志只记录分类计数和稳定错误码，不记录附件正文、文件名、路径、Cookie 或签名链接。

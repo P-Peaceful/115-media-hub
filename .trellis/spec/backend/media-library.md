@@ -26,6 +26,8 @@ The library-list deletion confirmation uses HeroUI `AlertDialog` with Header/Ico
 
 The existing-file policy concerns an already-present STRM at the same target output path: `skip` preserves it, `overwrite` requests replacement of a same-source managed file with matching content per the [STRM contract](./strm.md). The form labels it `STRM 已存在时` in output settings. Disabling STRM generation disables the policy control but retains and persists the selected value. Saving configuration has no filesystem side effects. Run full synchronization to apply it.
 
+附属同步沿用 `generate_nfo` 与 `generate_poster_cover` 两个开关：NFO 按 `.nfo` 后缀、图片按 `.jpg`、`.jpeg`、`.png`、`.gif`、`.webp`、`.bmp`（大小写不敏感）筛选，不按 `poster`/`cover` 等文件名筛选。它只同步网盘已有文件；同一源目录必须先有本轮成功生成或已验证为当前库、账号和源文件的 STRM，父子目录不继承资格。预览不取附件链接、不下载、不写本地文件。附件已有普通本地文件在取链前跳过，且不受 STRM 覆盖策略控制。
+
 Persisted-read exception: records saved before this policy was introduced may lack its JSON key. `sqlite.libraryFromModel` supplies `skip` only when `strm_existing_file_policy` is absent; explicit empty/null/unknown/wrong-type values are errors, not defaults. This read must not rewrite JSON, revision, or timestamps. New create/update requests still require the field. This narrowly scoped addition does not introduce conversion of other legacy configuration fields. SQL column defaults do not populate keys inside existing `config_json` values.
 
 The STRM format row aligns its label and tabs. In 302 mode the non-clickable example uses `/p/artifact-id/playback-token/{name}` with illustrative placeholders. The suffix is `Movie%20Name.mkv` or `123456789`. A valid address updates the scheme, host and port. Blank uses `https://media.example.com`.

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/wenzhengcheng/115-media-hub/backend/internal/service/library"
@@ -29,6 +30,8 @@ type sourceFile struct {
 	key, path, relative, name, id, accountID, playbackCode string
 	directoryID                                            string
 	isVideo                                                bool
+	kind                                                   string
+	expectedBytes                                          *int64
 	err                                                    error
 }
 
@@ -219,8 +222,7 @@ func (s *Service) scanDirectoryPages(ctx context.Context, config library.Config,
 				directories = append(directories, sourceDirectory{
 					id: item.ID, parentID: directory.id, relative: filepath.Join(directory.relative, item.Name), display: path,
 				})
-			} else if item.FileType == "video" {
-				file := sourceVideo(item, directory.relative, relative, *accountID)
+			} else if file, selected := sourceCandidate(item, directory.relative, relative, *accountID, config); selected {
 				file.directoryID = directory.id
 				files = append(files, file)
 			}
@@ -292,4 +294,42 @@ func sourceVideo(item provider115.FileItem, outputDir, sourceDir, accountID stri
 		file.err = errPlaybackCode
 	}
 	return file
+}
+
+// sourceCandidate 在同一清单中选择视频和已开启的附件类型，保留源大小与下载定位信息。
+func sourceCandidate(item provider115.FileItem, outputDir, sourceDir, accountID string, config library.Config) (sourceFile, bool) {
+	if item.FileType == "video" {
+		return sourceVideo(item, outputDir, sourceDir, accountID), true
+	}
+	kind := sidecarKind(item.Name)
+	if kind == "" || (kind == "nfo" && !config.GenerateNFO) || (kind == "image" && !config.GeneratePosterCover) {
+		return sourceFile{}, false
+	}
+	file := sourceFile{key: "sidecar:" + kind + ":" + item.ID, path: "/" + strings.TrimPrefix(sourceDir+"/"+item.Name, "/"), name: item.Name, id: item.ID, accountID: accountID, playbackCode: item.PlaybackCode, kind: kind, relative: filepath.Join(outputDir, item.Name)}
+	if !providerID(item.ID) || !validPathPart(item.Name) || !validOutputPath(file.relative) {
+		file.err = errSourcePath
+	} else if file.playbackCode == "" {
+		file.err = errPlaybackCode
+	}
+	if item.SizeBytes != nil {
+		size, err := strconv.ParseInt(*item.SizeBytes, 10, 64)
+		if err != nil || size < 0 {
+			file.err = errSourcePath
+		} else {
+			file.expectedBytes = &size
+		}
+	}
+	return file, true
+}
+
+// sidecarKind 仅按大小写不敏感后缀分类 NFO 与常见图片，不限制图片主干名称。
+func sidecarKind(name string) string {
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".nfo":
+		return "nfo"
+	case ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp":
+		return "image"
+	default:
+		return ""
+	}
 }

@@ -467,7 +467,7 @@ test("详情统计与执行记录摘要展示当前媒体库的数据", async ({
   await expect(rows.nth(1).locator("time")).toHaveText("昨天 12:00");
   await expect(rows.nth(2).locator("time")).toHaveText("11-23 11:00");
   await expect(rows.first()).toContainText("全量同步");
-  await expect(rows.first()).toContainText(/生成\s*128/);
+  await expect(rows.first()).toContainText(/成功处理\s*128\s*项/);
   await expect(rows.first()).toContainText(/跳过\s*3/);
   await expect(rows.first()).toContainText("耗时 2 分 17 秒");
   await expect(rows.first()).toContainText("成功");

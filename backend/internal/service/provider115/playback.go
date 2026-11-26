@@ -69,6 +69,11 @@ func (s *Service) ResolvePlayback(ctx context.Context, accountID, sourceFileID, 
 
 // requestPlayback 编码下载取链请求并透传播放器 UA；禁用带 Cookie 请求的跳转，分类处理认证和限流失败。
 func (s *Service) requestPlayback(ctx context.Context, cookie, sourceFileID, playbackCode, userAgent string) (string, error) {
+	return s.requestDownloadLink(ctx, cookie, sourceFileID, playbackCode, userAgent, adapter.Playback, adapter.Foreground)
+}
+
+// requestDownloadLink 复用实际 m115 协议和源身份校验，播放与后台附件各自保留明确的期限和优先级。
+func (s *Service) requestDownloadLink(ctx context.Context, cookie, sourceFileID, playbackCode, userAgent string, operation adapter.Operation, priority adapter.Priority) (string, error) {
 	payload, err := json.Marshal(struct {
 		PickCode string `json:"pickcode"`
 	}{PickCode: playbackCode})
@@ -79,7 +84,7 @@ func (s *Service) requestPlayback(ctx context.Context, cookie, sourceFileID, pla
 	key := m115.GenerateKey()
 	form := url.Values{"data": {m115.Encode(payload, key)}}
 	query := url.Values{"t": {strconv.FormatInt(s.now().Unix(), 10)}}
-	data, err := s.doRequest(ctx, adapter.Request{Scope: accountScope(cookie), Operation: adapter.Playback, Method: http.MethodPost, URL: s.playbackURL + "?" + query.Encode(), Header: requestHeaders(cookie, userAgent), Body: []byte(form.Encode()), MaxBytes: 64 << 10, Check: s.checkCredential(cookie), Inspect: s.inspectBusiness(cookie)})
+	data, err := s.doRequest(ctx, adapter.Request{Scope: accountScope(cookie), Operation: operation, Priority: priority, Method: http.MethodPost, URL: s.playbackURL + "?" + query.Encode(), Header: requestHeaders(cookie, userAgent), Body: []byte(form.Encode()), MaxBytes: 64 << 10, Check: s.checkCredential(cookie), Inspect: s.inspectBusiness(cookie)})
 	if err != nil {
 		return "", mapRequestError(err, ErrSourceNotFound)
 	}

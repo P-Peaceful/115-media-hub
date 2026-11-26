@@ -41,6 +41,8 @@ Use real temporary-file SQLite databases to test WAL, foreign keys on pooled con
 
 Backups must use a SQLite-consistent mechanism; copying only the main database file while WAL writes continue is unsafe. Keep database files on local disk and reconcile file state after restore before cleanup/overwrites resume.
 
+附属下载意图使用迁移 `00008_sidecar_download_intents.sql` 独立持久化，不复用 STRM 登记或写入意图。目标路径唯一，阶段只能按 `reserved → staging → staged → published` 相邻推进，并用完整旧快照条件更新保护并发。记录不包含 Cookie、临时 URL 或正文；网络和文件 I/O 均在事务外。Down 在表非空时拒绝回退，恢复只能清理能由设备号/inode 证明归属的暂存文件，不能扫前缀删除不确定文件或正式文件。
+
 References: [GORM transactions](https://gorm.io/docs/transactions.html), [SQLite WAL](https://sqlite.org/wal.html), [goose provider](https://pressly.github.io/goose/documentation/provider/).
 
 ## Persistent development schema inspection

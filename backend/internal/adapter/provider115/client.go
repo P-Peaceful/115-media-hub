@@ -73,7 +73,7 @@ func (c *Client) validEndpoint(r Request) bool {
 		return (u.Host == "my.115.com" && u.Path == "/") || (u.Host == "webapi.115.com" && (u.Path == "/files/index_info" || u.Path == "/category/get"))
 	case Files, FastFiles:
 		return u.Host == "webapi.115.com" && u.Path == "/files"
-	case Playback:
+	case Playback, DownloadLink:
 		return u.Host == "proapi.115.com" && u.Path == "/app/chrome/downurl"
 	case Directories:
 		return u.Host == "proapi.115.com" && u.Path == "/app/chrome/downfolders"
@@ -94,6 +94,8 @@ func policy(op Operation) (time.Duration, int64, bool, bool) {
 		return 45 * time.Second, 8 << 20, true, true
 	case Playback:
 		return 15 * time.Second, 64 << 10, true, true
+	case DownloadLink:
+		return 45 * time.Second, 64 << 10, true, true
 	default:
 		return 0, 0, false, false
 	}
@@ -108,7 +110,7 @@ func (c *Client) Do(parent context.Context, r Request) ([]byte, error) {
 	if r.Method == "" {
 		r.Method = http.MethodGet
 	}
-	allowedMethod := r.Method == http.MethodGet || r.Method == http.MethodPost && (r.Operation == Login || r.Operation == Playback)
+	allowedMethod := r.Method == http.MethodGet || r.Method == http.MethodPost && (r.Operation == Login || r.Operation == Playback || r.Operation == DownloadLink)
 	if !allowedMethod {
 		return nil, &Error{Operation: r.Operation, Kind: Protocol}
 	}

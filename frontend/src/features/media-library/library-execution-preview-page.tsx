@@ -101,7 +101,18 @@ export function LibraryExecutionPreviewPage() {
             <dd>{existingFilePolicyLabels[item.strm_existing_file_policy]}</dd>
             <dt className="text-muted">文件编码</dt>
             <dd>{item.file_encoding}</dd>
+            <dt className="text-muted">附属文件</dt>
+            <dd>
+              NFO {item.generate_nfo ? "开启" : "关闭"}，图片{" "}
+              {item.generate_poster_cover ? "开启" : "关闭"}
+            </dd>
           </dl>
+          {(item.generate_nfo || item.generate_poster_cover) && (
+            <p className="mt-3 text-xs text-muted">
+              确认同步后，仅在同目录有有效 STRM
+              时下载网盘已有的附属文件，本地已有文件跳过。预览不下载附属文件。
+            </p>
+          )}
           {item.link_type === "proxy" && item.strm_direct_domain && (
             <p className="mt-3 text-xs text-muted">
               <span className="mr-2">链接示例</span>

@@ -58,3 +58,9 @@ Cover traversal, overlap, same-stem sources, filesystem and database interruptio
 ## 7. Correct file and playback boundaries
 
 Derive output paths from registry-controlled identifiers and repeat ownership checks at publication. Serve the stable artifact URL and request a short-lived upstream URL only during playback. Persist the output ownership and playback credential across process restarts.
+
+## 8. Sidecar synchronization boundary
+
+一次正式全量扫描同时保留视频、NFO 和支持的图片候选；标准扫描只采用完整目录，快速扫描只采用完整可信快照。先按现有 STRM 归属和内容校验生成/验证视频，再处理附件。附件资格严格绑定源目录 ID、库 ID、账号 ID 和源文件身份；无视频、视频 STRM 生成失败/冲突/缺失/被外部修改时，附件不得发起取链或内容请求。抽样预览继续只读并保持 3 目录、5 次实际请求、15 秒和 20 条样例预算。
+
+附件使用 `sidecar:nfo:<file_id>` 与 `sidecar:image:<file_id>` 稳定条目键，不写入 `strm_artifacts`，不放宽 STRM `.strm`/16 KiB 校验。目标为普通本地文件时在取链前跳过；目录、符号链接和其他非常规叶项报告冲突。下载流写入同目录 O_EXCL 暂存文件，记录设备号/inode，凭据快照、目录绑定和 STRM 资格在不可覆盖硬链接发布前再次核对。正式文件不覆盖。

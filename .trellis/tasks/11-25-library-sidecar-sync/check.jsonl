@@ -12,3 +12,4 @@
 {"file": ".trellis/spec/frontend/task-center.md", "reason": "任务计数、失败条目和日志展示"}
 {"file": ".trellis/spec/frontend/strm-management.md", "reason": "不把附件混入 STRM 数量和预览下载"}
 {"file": ".trellis/spec/frontend/quality-guidelines.md", "reason": "必要前端说明与浏览器验证"}
+{"file": ".trellis/tasks/11-25-library-sidecar-sync/research/sdk-handoff.md", "reason": "SDK实际内部API、预算修正、凭据快照及扫描/发布交接边界"}

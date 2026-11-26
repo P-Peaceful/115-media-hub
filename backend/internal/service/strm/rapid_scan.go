@@ -81,17 +81,19 @@ func (s *Service) adoptRapidSnapshot(ctx context.Context, target library.Library
 		}
 		summary.completedDirectories++
 		for _, item := range entries[id] {
-			if item.FileType != "video" {
+			file, selected := sourceCandidate(item, directory.relative, relative, snapshot.AccountID, target.Config)
+			if !selected {
 				continue
 			}
-			file := sourceVideo(item, directory.relative, relative, snapshot.AccountID)
 			file.directoryID = id
 			if seen[file.key] {
 				continue
 			}
 			seen[file.key] = true
 			files = append(files, file)
-			summary.scannedVideos++
+			if file.isVideo {
+				summary.scannedVideos++
+			}
 			if file.err == nil {
 				summary.candidateFiles++
 			} else {

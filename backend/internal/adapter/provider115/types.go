@@ -16,13 +16,14 @@ import (
 type Operation string
 
 const (
-	QR          Operation = "qr"
-	Login       Operation = "login"
-	Metadata    Operation = "metadata"
-	Files       Operation = "files"
-	Playback    Operation = "playback"
-	FastFiles   Operation = "fast_files"
-	Directories Operation = "directories"
+	QR           Operation = "qr"
+	Login        Operation = "login"
+	Metadata     Operation = "metadata"
+	Files        Operation = "files"
+	Playback     Operation = "playback"
+	DownloadLink Operation = "download_link"
+	FastFiles    Operation = "fast_files"
+	Directories  Operation = "directories"
 )
 
 // Priority 区分交互与后台分页；后台在前台连续四次后获得一次机会。

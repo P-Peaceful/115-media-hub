@@ -135,6 +135,11 @@ func (s *Service) writeArtifact(ctx context.Context, root, directory *os.Root, i
 // recoverGeneration 供任务中心恢复中断任务；只有意图核对无冲突且无错误时才允许重新排队。
 func (s *Service) recoverGeneration(ctx context.Context, execution jobs.Execution) (bool, error) {
 	conflicts, err := s.reconcileIntents(ctx, execution)
+	if err == nil {
+		var other int
+		other, err = s.reconcileSidecars(ctx, execution)
+		conflicts += other
+	}
 	return conflicts == 0 && err == nil, err
 }
 

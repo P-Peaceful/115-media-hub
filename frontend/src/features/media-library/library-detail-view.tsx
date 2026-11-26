@@ -253,7 +253,7 @@ function SyncHistoryRow({ task }: { task: Task }) {
   const type = taskTypes[task.type];
   const Icon = task.type === "strm" ? RefreshCw : type.icon;
   const time = task.started_at ?? task.created_at;
-  const counts = `生成 ${formatCount(task.succeeded_items)} 个 STRM，跳过 ${formatCount(task.skipped_items)} 个，失败 ${formatCount(task.failed_items)} 个`;
+  const counts = `成功处理 ${formatCount(task.succeeded_items)} 项，跳过 ${formatCount(task.skipped_items)} 项，失败 ${formatCount(task.failed_items)} 项`;
   const duration =
     task.duration_ms === null
       ? ""

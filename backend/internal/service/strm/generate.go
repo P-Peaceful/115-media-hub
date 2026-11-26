@@ -53,6 +53,7 @@ func (s *Service) Module() jobs.Module {
 // generationCounts 汇总生成、失败、跳过及其中的冲突数量。
 type generationCounts struct {
 	generated, failed, skipped, conflicts int
+	strm, nfo, image                      itemCounts
 }
 
 // generate 使用任务配置快照完成输出准备、意图恢复、全量扫描和文件生成；阶段终态统一记录。
@@ -83,6 +84,11 @@ func (s *Service) generate(ctx context.Context, execution jobs.Execution) (resul
 	logger.InfoContext(ctx, "STRM output directory ready", "phase", phase, "duration_ms", time.Since(preparing).Milliseconds())
 	phase = "reconcile_outputs"
 	recoveryConflicts, err := s.reconcileIntents(ctx, execution)
+	if err == nil {
+		var sidecarConflicts int
+		sidecarConflicts, err = s.reconcileSidecars(ctx, execution)
+		recoveryConflicts += sidecarConflicts
+	}
 	if err != nil {
 		return reportGenerationError(ctx, execution, err)
 	}
@@ -140,15 +146,48 @@ func (s *Service) generateFiles(ctx context.Context, execution jobs.Execution, o
 	if err := execution.Report(ctx, progress); err != nil {
 		return err
 	}
+	// STRM 先于所有附件处理；扫描仍只有一轮。
+	ordered := make([]sourceFile, 0, len(files))
+	for _, source := range files {
+		if source.kind == "" {
+			ordered = append(ordered, source)
+		}
+	}
+	for _, source := range files {
+		if source.kind != "" {
+			ordered = append(ordered, source)
+		}
+	}
+	var qualifiedVideos []sourceFile
+	files = ordered
 	nextReport := time.Now()
 	nextLog := started.Add(generationLogInterval)
 	for index, source := range files {
 		item := domain.Item{Key: source.key, Path: source.path, Status: domain.ItemFailed}
-		result, err := s.generateFile(ctx, execution.Library, origin, root, canonical, source)
+		var result, sidecarSkipped bool
+		var finish func(context.Context) error
+		var err error
+		if source.kind == "" {
+			result, err = s.generateFile(ctx, execution.Library, origin, root, canonical, source)
+			// 无论本轮新写入还是按策略跳过，都把无错误视频交给资格复核；
+			// qualifiedDirectory 会再次核对当前媒体库、来源身份和本地内容。
+			if err == nil && source.isVideo {
+				qualifiedVideos = append(qualifiedVideos, source)
+			}
+		} else {
+			result, sidecarSkipped, finish, err = s.processSidecar(ctx, execution, root, canonical, source, qualifiedVideos)
+		}
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
 		switch {
+		case sidecarSkipped && (err == nil || errors.Is(err, errSidecarQualification)):
+			counts.skipped++
+			item.Status = domain.ItemSkipped
+			item.Reason = "已存在本地附属文件"
+			if errors.Is(err, errSidecarQualification) {
+				item.Reason = errSidecarQualification.Error()
+			}
 		case err != nil:
 			counts.failed++
 			if errors.Is(err, ErrConflict) {
@@ -166,8 +205,14 @@ func (s *Service) generateFiles(ctx context.Context, execution jobs.Execution, o
 			counts.skipped++
 			item.Status, item.Reason = domain.ItemSkipped, "已存在同源的可用 STRM 文件"
 		}
+		counts.classify(source.kind, item.Status)
 		if err := execution.Item(ctx, item); err != nil {
 			return err
+		}
+		if finish != nil {
+			if err := finish(ctx); err != nil {
+				return errors.Join(errRegistry, err)
+			}
 		}
 		now := time.Now()
 		if !now.Before(nextLog) {
@@ -190,7 +235,11 @@ func (s *Service) generateFiles(ctx context.Context, execution jobs.Execution, o
 		return err
 	}
 	if counts.failed > 0 && counts.generated+counts.skipped == 0 {
-		return reportGenerationError(ctx, execution, errGenerationItems)
+		failure := reportGenerationError(ctx, execution, errGenerationItems)
+		return errors.Join(failure, execution.Log(ctx, "info", counts.summary()))
+	}
+	if err := execution.Log(ctx, "info", counts.summary()); err != nil {
+		return err
 	}
 	return nil
 }
@@ -221,6 +270,14 @@ func reportGenerationError(ctx context.Context, execution jobs.Execution, err er
 func generationError(err error) (code, message string) {
 	var outputErr *outputRootError
 	switch {
+	case errors.Is(err, provider115.ErrDownloadTooLarge):
+		return "sidecar_size_limit", "附属文件超过下载大小上限"
+	case errors.Is(err, provider115.ErrDownloadLength):
+		return "sidecar_length_mismatch", "附属文件内容长度不完整，未发布"
+	case errors.Is(err, provider115.ErrDownloadQueueFull):
+		return "sidecar_queue_full", "附属文件下载等待队列已满，请重试"
+	case errors.Is(err, errSidecarQualification):
+		return "sidecar_no_valid_strm", errSidecarQualification.Error()
 	case errors.Is(err, errPlaybackOrigin):
 		return "strm_playback_origin_unavailable", errPlaybackOrigin.Error()
 	case errors.Is(err, errUnownedOutput):
@@ -237,6 +294,8 @@ func generationError(err error) (code, message string) {
 		return "strm_registry_unavailable", errRegistry.Error()
 	case errors.Is(err, errAccountChanged):
 		return "strm_115_account_changed", errAccountChanged.Error()
+	case errors.Is(err, provider115.ErrCredentialChanged):
+		return "provider_credential_changed", "115 授权在同步期间发生变化"
 	case errors.Is(err, provider115.ErrUnconfigured):
 		return "provider_not_configured", "请先绑定 115 账号"
 	case errors.Is(err, provider115.ErrInvalidAuthorization):

@@ -911,6 +911,10 @@ function LibraryForm({
                   }
                 />
               </div>
+              <p className="text-xs text-muted lg:col-start-2">
+                NFO 和图片同步网盘已有文件，仅在同目录有有效 STRM
+                时下载，本地已有文件跳过。
+              </p>
             </div>
             <LibrarySelect
               label="STRM 已存在时"

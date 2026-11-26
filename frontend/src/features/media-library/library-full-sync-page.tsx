@@ -38,7 +38,7 @@ export function LibraryFullSyncPage() {
     <div className="space-y-4">
       <SyncPageHeader
         title="全量同步"
-        description="扫描媒体库绑定的 115 目录，按已保存的配置生成 STRM 文件。"
+        description="扫描媒体库绑定的 115 目录，按已保存的配置生成 STRM 并同步网盘已有附属文件。"
         icon={RefreshCw}
       />
       <div className="grid gap-4 xl:grid-cols-[1.1fr_1fr]">
@@ -46,6 +46,9 @@ export function LibraryFullSyncPage() {
           <ul className="list-inside list-disc space-y-2 text-sm marker:text-accent">
             <li>扫描绑定目录，并按配置处理子目录和排除目录。</li>
             <li>为识别到的视频生成 302 播放链接，并按配置处理已有 STRM。</li>
+            <li>
+              按配置同步同目录且已有有效 STRM 的 NFO 和图片，本地已有文件跳过。
+            </li>
             <li>同步完成后，可在任务详情查看处理数量和失败原因。</li>
           </ul>
         </SyncSection>

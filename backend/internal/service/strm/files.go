@@ -27,7 +27,12 @@ func validPathPart(name string) bool {
 
 // validArtifactPath 校验规范的本地相对 .strm 路径，逐层拒绝非法路径片段。
 func validArtifactPath(relative string) bool {
-	if !filepath.IsLocal(relative) || filepath.Clean(relative) != relative || filepath.Ext(relative) != ".strm" {
+	return filepath.Ext(relative) == ".strm" && validOutputPath(relative)
+}
+
+// validOutputPath 校验规范的本地相对路径，供 STRM 与附件共用逐层安全约束。
+func validOutputPath(relative string) bool {
+	if !filepath.IsLocal(relative) || filepath.Clean(relative) != relative {
 		return false
 	}
 	for part := range strings.SplitSeq(relative, string(filepath.Separator)) {
@@ -90,6 +95,14 @@ func openArtifactDirectory(root *os.Root, relative string, create bool) (*os.Roo
 	if !validArtifactPath(relative) {
 		return nil, ErrConflict
 	}
+	return openOutputDirectory(root, relative, create)
+}
+
+// openOutputDirectory 逐层打开已校验相对路径的父目录，所有子目录必须为真实目录。
+func openOutputDirectory(root *os.Root, relative string, create bool) (*os.Root, error) {
+	if !validOutputPath(relative) {
+		return nil, ErrConflict
+	}
 	directory, err := root.OpenRoot(".")
 	if err != nil || filepath.Dir(relative) == "." {
 		return directory, err
@@ -145,6 +158,14 @@ func readArtifactFile(root *os.Root, relative string) (_ string, resultErr error
 
 // verifyArtifactDirectory 复核根路径和产物父目录仍对应已打开句柄，防止改名后的旧目录被误登记。
 func verifyArtifactDirectory(root, directory *os.Root, canonical, relative string) (resultErr error) {
+	if !validArtifactPath(relative) {
+		return ErrConflict
+	}
+	return verifyOutputDirectory(root, directory, canonical, relative)
+}
+
+// verifyOutputDirectory 复核根路径及相对父目录的句柄身份，避免向被移动的旧目录发布。
+func verifyOutputDirectory(root, directory *os.Root, canonical, relative string) (resultErr error) {
 	// Root 句柄会继续指向改名后的目录。登记前确认此句柄仍对应登记路径。
 	rootInfo, err := os.Lstat(canonical)
 	if err != nil {
@@ -153,7 +174,7 @@ func verifyArtifactDirectory(root, directory *os.Root, canonical, relative strin
 	if err := matchOutputDirectory(root, rootInfo); err != nil {
 		return err
 	}
-	current, err := openArtifactDirectory(root, relative, false)
+	current, err := openOutputDirectory(root, relative, false)
 	if err != nil {
 		return err
 	}

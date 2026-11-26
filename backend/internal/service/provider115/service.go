@@ -80,6 +80,7 @@ type Service struct {
 	fastScan        bool
 	categoryURL     string
 	directoriesURL  string
+	downloads       downloadState
 	now             func() time.Time
 }
 
