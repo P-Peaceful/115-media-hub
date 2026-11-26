@@ -44,6 +44,6 @@
 - [x] 执行完整集成脚本、make build smoke 及 Docker 构建/冒烟；集成脚本在真实账号初始化/健康状态旧场景有 7 项环境相关失败，受影响媒体库/STRM 场景 9/9 通过。
 - [x] trellis-check 检查跨层、下载控制、发布恢复与中文注释；修复后重跑相关门禁。
 - [x] 更新 backend media-library/strm/task-center/database/logging 和 frontend 相应合同，以实际实现为准。
-- [ ] 独立提交附属同步，父任务验收三项交付；提交后加载 finish-work 做 journal/归档。
+- [x] 独立提交附属同步，父任务验收三项交付；提交后加载 finish-work 做 journal/归档。
 
 回退：关闭对应内容开关停止后续下载，保留正式文件；数据库 Down 受未恢复意图保护，不通过回退删除用户文件。
