@@ -392,3 +392,26 @@ Implemented persistent media library configuration, management UI and shared pag
 ### Status
 
 [OK] **Completed**
+
+
+## Session 16: 运行日志模块开发
+<!-- trellis-session: v=2 fp=38dc40be2b37fda4 -->
+
+**Date**: 2026-11-27
+**Task**: 运行日志模块开发
+**Branch**: `main`
+
+### Summary
+
+完成运行日志模块全栈规划与交付：前端基于 HeroUI v3 + Tailwind CSS 实现 /logs 页面、五维筛选、错误高亮、SSE 实时跟随、.log/.jsonl 下载与清理弹窗，并通过单测、构建及 13 项 Playwright E2E 验证；同步提交后端采集/查询/SSE/导出/清理、OpenAPI 契约与规范并完成任务归档。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `36aecae` | feat: add runtime logs frontend page and stream integration |
+| `2e42f9c` | feat: add runtime logs backend, OpenAPI contract, and spec |
+
+### Status
+
+[OK] **Completed**
