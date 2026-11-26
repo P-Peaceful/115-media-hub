@@ -270,6 +270,12 @@ func reportGenerationError(ctx context.Context, execution jobs.Execution, err er
 func generationError(err error) (code, message string) {
 	var outputErr *outputRootError
 	switch {
+	case errors.Is(err, provider115.ErrCredentialChanged):
+		return "provider_credential_changed", "115 授权在同步期间发生变化"
+	case errors.Is(err, provider115.ErrUnconfigured):
+		return "provider_not_configured", "请先绑定 115 账号"
+	case errors.Is(err, provider115.ErrInvalidAuthorization):
+		return "provider_auth_invalid", "115 授权已失效，请重新登录"
 	case errors.Is(err, provider115.ErrDownloadTooLarge):
 		return "sidecar_size_limit", "附属文件超过下载大小上限"
 	case errors.Is(err, provider115.ErrDownloadLength):
@@ -310,12 +316,6 @@ func generationError(err error) (code, message string) {
 		return "strm_registry_unavailable", errRegistry.Error()
 	case errors.Is(err, errAccountChanged):
 		return "strm_115_account_changed", errAccountChanged.Error()
-	case errors.Is(err, provider115.ErrCredentialChanged):
-		return "provider_credential_changed", "115 授权在同步期间发生变化"
-	case errors.Is(err, provider115.ErrUnconfigured):
-		return "provider_not_configured", "请先绑定 115 账号"
-	case errors.Is(err, provider115.ErrInvalidAuthorization):
-		return "provider_auth_invalid", "115 授权已失效，请重新登录"
 	case errors.Is(err, provider115.ErrDirectoryNotFound):
 		return "provider_directory_not_found", "115 源目录不存在，请检查媒体库配置"
 	case errors.Is(err, provider115.ErrUpstream):

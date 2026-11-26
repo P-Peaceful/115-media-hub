@@ -183,6 +183,8 @@ func TestDownloadSidecarStableErrorCodes(t *testing.T) {
 		transportErr error
 	}{
 		{name: "source not found", want: "sidecar_source_not_found", resolve: func(context.Context, string, string, string) (string, error) { return "", ErrSourceNotFound }},
+		{name: "invalid authorization", want: "provider_auth_invalid", resolve: func(context.Context, string, string, string) (string, error) { return "", ErrInvalidAuthorization }},
+		{name: "unconfigured", want: "provider_not_configured", resolve: func(context.Context, string, string, string) (string, error) { return "", ErrUnconfigured }},
 		{name: "take link failed", want: "sidecar_take_link_failed", resolve: func(context.Context, string, string, string) (string, error) {
 			return "", errors.New("take link unavailable")
 		}},

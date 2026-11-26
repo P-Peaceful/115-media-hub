@@ -131,9 +131,7 @@ func (s *Service) DownloadSidecar(parent context.Context, request DownloadReques
 	}
 	target, err := resolve(ctx, cookie, request.SourceFileID, request.PlaybackCode)
 	if err != nil {
-		if !errors.Is(err, ErrSourceNotFound) && !errors.Is(err, ErrDownloadLinkResponse) && !errors.Is(err, ErrDownloadUntrustedTarget) {
-			err = errors.Join(ErrDownloadTakeLink, err)
-		}
+		err = wrapDownloadTakeLinkError(err)
 		return receipt, downloadContextError(ctx, err)
 	}
 	refreshed := false
@@ -163,9 +161,7 @@ func (s *Service) DownloadSidecar(parent context.Context, request DownloadReques
 			refreshed = true
 			target, err = resolve(ctx, cookie, request.SourceFileID, request.PlaybackCode)
 			if err != nil {
-				if !errors.Is(err, ErrSourceNotFound) && !errors.Is(err, ErrDownloadLinkResponse) && !errors.Is(err, ErrDownloadUntrustedTarget) {
-					err = errors.Join(ErrDownloadTakeLink, err)
-				}
+				err = wrapDownloadTakeLinkError(err)
 				return receipt, downloadContextError(ctx, err)
 			}
 			continue
@@ -178,6 +174,17 @@ func (s *Service) DownloadSidecar(parent context.Context, request DownloadReques
 		}
 	}
 	return receipt, ErrUpstream
+}
+
+// wrapDownloadTakeLinkError 只给未知取链错误增加阶段标记；授权、限流、取消和已知响应错误保留原始分类。
+func wrapDownloadTakeLinkError(err error) error {
+	if err == nil || errors.Is(err, ErrSourceNotFound) || errors.Is(err, ErrDownloadLinkResponse) ||
+		errors.Is(err, ErrDownloadUntrustedTarget) || errors.Is(err, ErrDownloadThrottled) ||
+		errors.Is(err, ErrCredentialChanged) || errors.Is(err, ErrInvalidAuthorization) ||
+		errors.Is(err, ErrUnconfigured) || errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	return errors.Join(ErrDownloadTakeLink, err)
 }
 
 // resetDownloadSink 丢弃上次失败尝试的所有暂存字节，禁止把重试内容追加到旧半文件。
@@ -338,6 +345,10 @@ func (s *Service) logDownload(ctx context.Context, request DownloadRequest, star
 		code = "download_timeout"
 	case errors.Is(err, ErrCredentialChanged):
 		code = "provider_credential_changed"
+	case errors.Is(err, ErrInvalidAuthorization):
+		code = "provider_auth_invalid"
+	case errors.Is(err, ErrUnconfigured):
+		code = "provider_not_configured"
 	case errors.Is(err, ErrSourceNotFound):
 		code = "sidecar_source_not_found"
 	case errors.Is(err, ErrDownloadLinkResponse):

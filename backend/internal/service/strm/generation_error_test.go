@@ -16,6 +16,7 @@ func TestGenerationErrorClassifiesSidecarFailures(t *testing.T) {
 		err  error
 		code string
 	}{
+		{name: "invalid authorization", err: errors.Join(provider115.ErrDownloadTakeLink, provider115.ErrInvalidAuthorization), code: "provider_auth_invalid"},
 		{name: "throttled", err: errors.Join(provider115.ErrDownloadThrottled, provider115.ErrDownloadContentStatus), code: "sidecar_download_throttled"},
 		{name: "source missing", err: provider115.ErrSourceNotFound, code: "sidecar_source_not_found"},
 		{name: "response", err: errors.Join(provider115.ErrDownloadLinkResponse, provider115.ErrUpstream), code: "sidecar_take_link_response_invalid"},
