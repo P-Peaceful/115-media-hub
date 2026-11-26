@@ -370,3 +370,25 @@ Implemented persistent media library configuration, management UI and shared pag
 ### Status
 
 [OK] **Completed**
+
+
+## Session 15: 对齐115-station下载接口
+<!-- trellis-session: v=2 fp=10c5769266a86ac6 -->
+
+**Date**: 2026-11-27
+**Task**: 对齐115-station下载接口
+**Branch**: `codex/backend-provider115-sidecars`
+
+### Summary
+
+将 provider115 下载 SDK 对齐 115-station：新增 Android 双端点、Chrome 兼容、WebAPI POST/GET 回退，统一 pick_code/pickcode 解析，透传签发 UA/Set-Cookie，增加 CDN Cookie 组合重试与播放 f=3 安全拒绝；同步更新云盘规范并通过完整后端质量门禁。
+
+### Git Commits
+
+| Hash | Message |
+|------|---------|
+| `801210b` | feat: align provider115 download interfaces |
+
+### Status
+
+[OK] **Completed**
