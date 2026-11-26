@@ -23,8 +23,20 @@ import (
 // ErrSourceNotFound 表示 115 已确认找不到登记对应的源文件。
 var ErrSourceNotFound = errors.New("115 source file not found")
 
-// errPlaybackThrottled 标记取链遭到上游限流，供错误分类和脱敏日志使用。
-var errPlaybackThrottled = errors.New("115 playback lookup throttled")
+// ErrDownloadLinkResponse 表示 115 取链响应无法解析、解码或通过源身份核验。
+var ErrDownloadLinkResponse = errors.New("115 download link response invalid")
+
+// ErrDownloadUntrustedTarget 表示取链得到的目标不在允许的 115 CDN 域名边界内。
+var ErrDownloadUntrustedTarget = errors.New("115 download target untrusted")
+
+// ErrDownloadThrottled 表示取链或 CDN 内容请求明确遭到限流。
+var ErrDownloadThrottled = errors.New("115 sidecar download throttled")
+
+// ErrDownloadLinkExpired 表示 CDN 明确拒绝了已过期的签名地址。
+var ErrDownloadLinkExpired = errors.New("115 sidecar signed link expired")
+
+// errPlaybackThrottled 保留播放服务内部的历史错误身份，后台下载复用同一限流标记。
+var errPlaybackThrottled = ErrDownloadThrottled
 
 // playbackTimeout 限制单次播放解析的总时长。
 const playbackTimeout = 15 * time.Second
@@ -96,7 +108,7 @@ func readPlaybackResponse(body io.Reader, key m115.Key, sourceFileID, playbackCo
 	const maxResponse = 64 << 10
 	data, err := io.ReadAll(io.LimitReader(body, maxResponse+1))
 	if err != nil || len(data) > maxResponse {
-		return "", ErrUpstream
+		return "", errors.Join(ErrDownloadLinkResponse, ErrUpstream)
 	}
 	// 错误响应的 data 可能是空数组，先读取状态和错误语义。
 	var envelope struct {
@@ -108,18 +120,18 @@ func readPlaybackResponse(body io.Reader, key m115.Key, sourceFileID, playbackCo
 		Data    json.RawMessage `json:"data"`
 	}
 	if json.Unmarshal(data, &envelope) != nil {
-		return "", ErrUpstream
+		return "", errors.Join(ErrDownloadLinkResponse, ErrUpstream)
 	}
 	if !bool(envelope.State) {
 		return "", playbackUpstreamError(envelope.Code, envelope.ErrCode, envelope.Error, envelope.Message)
 	}
 	var encoded string
 	if json.Unmarshal(envelope.Data, &encoded) != nil || encoded == "" {
-		return "", ErrUpstream
+		return "", errors.Join(ErrDownloadLinkResponse, ErrUpstream)
 	}
 	decoded, err := decodePlaybackData(encoded, key)
 	if err != nil {
-		return "", err
+		return "", errors.Join(ErrDownloadLinkResponse, err)
 	}
 	return playbackTarget(decoded, sourceFileID, playbackCode)
 }
@@ -162,7 +174,7 @@ func playbackUpstreamError(code, fallback json.RawMessage, description, message 
 	if strings.Contains(description, "文件不存在") || strings.Contains(description, "文件已删除") {
 		return ErrSourceNotFound
 	}
-	return ErrUpstream
+	return errors.Join(ErrDownloadLinkResponse, ErrUpstream)
 }
 
 // playbackTarget 按源文件 ID 和可选定位码核对响应，仅返回通过域名与 URL 结构校验的下载目标。
@@ -172,7 +184,7 @@ func playbackTarget(data []byte, sourceFileID, playbackCode string) (string, err
 		URL      json.RawMessage `json:"url"`
 	}
 	if json.Unmarshal(data, &files) != nil {
-		return "", ErrUpstream
+		return "", errors.Join(ErrDownloadLinkResponse, ErrUpstream)
 	}
 	file, found := files[sourceFileID]
 	if !found || (file.PickCode != "" && file.PickCode != playbackCode) {
@@ -182,7 +194,7 @@ func playbackTarget(data []byte, sourceFileID, playbackCode string) (string, err
 		URL string `json:"url"`
 	}
 	if json.Unmarshal(file.URL, &target) != nil || !validPlaybackURL(target.URL) {
-		return "", ErrUpstream
+		return "", errors.Join(ErrDownloadUntrustedTarget, ErrUpstream)
 	}
 	return target.URL, nil
 }

@@ -174,6 +174,48 @@ func TestDownloadSidecarRetryAndFailureBounds(t *testing.T) {
 	})
 }
 
+// TestDownloadSidecarStableErrorCodes 验证取链、目标和 CDN 阶段均输出稳定脱敏错误码。
+func TestDownloadSidecarStableErrorCodes(t *testing.T) {
+	cases := []struct {
+		name, want   string
+		resolve      func(context.Context, string, string, string) (string, error)
+		status       int
+		transportErr error
+	}{
+		{name: "source not found", want: "sidecar_source_not_found", resolve: func(context.Context, string, string, string) (string, error) { return "", ErrSourceNotFound }},
+		{name: "take link failed", want: "sidecar_take_link_failed", resolve: func(context.Context, string, string, string) (string, error) {
+			return "", errors.New("take link unavailable")
+		}},
+		{name: "take link response", want: "sidecar_take_link_response_invalid", resolve: func(context.Context, string, string, string) (string, error) {
+			return "", errors.Join(ErrDownloadLinkResponse, ErrUpstream)
+		}},
+		{name: "untrusted target", want: "sidecar_untrusted_target", resolve: func(context.Context, string, string, string) (string, error) { return "https://example.test/file", nil }},
+		{name: "content status", want: "sidecar_content_status_failed", status: http.StatusNotFound},
+		{name: "content request", want: "sidecar_content_request_failed", transportErr: errors.New("network unavailable")},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				var logs bytes.Buffer
+				s, _, sink, request := newDownloadFixture(t, scanTransport(func(*http.Request) (*http.Response, error) {
+					if tc.transportErr != nil {
+						return nil, tc.transportErr
+					}
+					return downloadResponse(tc.status, "", 0), nil
+				}))
+				s.logger = slog.New(slog.NewJSONHandler(&logs, nil))
+				if tc.resolve != nil {
+					s.downloads.resolve = tc.resolve
+				}
+				_, _ = s.DownloadSidecar(t.Context(), request, sink)
+				if !strings.Contains(logs.String(), `"error_code":"`+tc.want+`"`) {
+					t.Fatalf("missing error code %s in %s", tc.want, logs.String())
+				}
+			})
+		})
+	}
+}
+
 // brokenDownloadBody 模拟成功返回一部分内容后网络截断，首次落盘字节必须由下一次尝试清空。
 type brokenDownloadBody struct{ sent bool }
 

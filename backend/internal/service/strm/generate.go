@@ -276,6 +276,22 @@ func generationError(err error) (code, message string) {
 		return "sidecar_length_mismatch", "附属文件内容长度不完整，未发布"
 	case errors.Is(err, provider115.ErrDownloadQueueFull):
 		return "sidecar_queue_full", "附属文件下载等待队列已满，请重试"
+	case errors.Is(err, provider115.ErrDownloadThrottled):
+		return "sidecar_download_throttled", "附属文件下载受到 115 限流，请稍后重试"
+	case errors.Is(err, provider115.ErrSourceNotFound):
+		return "sidecar_source_not_found", "115 未找到附属文件，可能已移动、删除或定位码已失效"
+	case errors.Is(err, provider115.ErrDownloadLinkResponse):
+		return "sidecar_take_link_response_invalid", "115 附属文件取链响应无效"
+	case errors.Is(err, provider115.ErrDownloadUntrustedTarget):
+		return "sidecar_untrusted_target", "115 返回的附属文件地址未通过安全校验"
+	case errors.Is(err, provider115.ErrDownloadLinkExpired):
+		return "sidecar_link_expired", "115 附属文件下载地址已过期"
+	case errors.Is(err, provider115.ErrDownloadTakeLink):
+		return "sidecar_take_link_failed", "115 附属文件取链请求失败"
+	case errors.Is(err, provider115.ErrDownloadContentRequest):
+		return "sidecar_content_request_failed", "附属文件内容请求失败"
+	case errors.Is(err, provider115.ErrDownloadContentStatus):
+		return "sidecar_content_status_failed", "附属文件服务器返回非成功状态"
 	case errors.Is(err, errSidecarQualification):
 		return "sidecar_no_valid_strm", errSidecarQualification.Error()
 	case errors.Is(err, errPlaybackOrigin):

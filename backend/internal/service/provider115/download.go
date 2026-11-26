@@ -29,6 +29,15 @@ var ErrDownloadLength = errors.New("115 sidecar length mismatch")
 // ErrDownloadQueueFull 表示本账号下载的有界等待队列已满。
 var ErrDownloadQueueFull = errors.New("115 sidecar download queue full")
 
+// ErrDownloadTakeLink 表示后台下载取链请求或取链业务响应失败。
+var ErrDownloadTakeLink = errors.New("115 sidecar take-link failed")
+
+// ErrDownloadContentRequest 表示已取链后建立 CDN 内容请求失败。
+var ErrDownloadContentRequest = errors.New("115 sidecar content request failed")
+
+// ErrDownloadContentStatus 表示 CDN 返回非成功 HTTP 状态。
+var ErrDownloadContentStatus = errors.New("115 sidecar content status failed")
+
 // DownloadRequest 仅接受已通过同步层资格与输出检查的源身份；不接收外部 URL 或任意头。
 // ExpectedBytes 为 nil 时大小未知，非 nil 必须非负；Kind 只接受 nfo/image。
 type DownloadRequest struct {
@@ -122,6 +131,9 @@ func (s *Service) DownloadSidecar(parent context.Context, request DownloadReques
 	}
 	target, err := resolve(ctx, cookie, request.SourceFileID, request.PlaybackCode)
 	if err != nil {
+		if !errors.Is(err, ErrSourceNotFound) && !errors.Is(err, ErrDownloadLinkResponse) && !errors.Is(err, ErrDownloadUntrustedTarget) {
+			err = errors.Join(ErrDownloadTakeLink, err)
+		}
 		return receipt, downloadContextError(ctx, err)
 	}
 	refreshed := false
@@ -130,7 +142,7 @@ func (s *Service) DownloadSidecar(parent context.Context, request DownloadReques
 			return receipt, err
 		}
 		if !validDownloadURL(target) {
-			return receipt, &downloadError{"untrusted_target", ErrUpstream}
+			return receipt, &downloadError{"untrusted_target", errors.Join(ErrDownloadUntrustedTarget, ErrUpstream)}
 		}
 		if err = resetDownloadSink(sink); err != nil {
 			return receipt, err
@@ -151,6 +163,9 @@ func (s *Service) DownloadSidecar(parent context.Context, request DownloadReques
 			refreshed = true
 			target, err = resolve(ctx, cookie, request.SourceFileID, request.PlaybackCode)
 			if err != nil {
+				if !errors.Is(err, ErrSourceNotFound) && !errors.Is(err, ErrDownloadLinkResponse) && !errors.Is(err, ErrDownloadUntrustedTarget) {
+					err = errors.Join(ErrDownloadTakeLink, err)
+				}
 				return receipt, downloadContextError(ctx, err)
 			}
 			continue
@@ -182,8 +197,8 @@ func validDownloadURL(raw string) bool {
 	return err == nil && u.Scheme == "https" && validPlaybackURL(raw)
 }
 
-// errDownloadExpired 只用于有明确过期时间证据的 403；不把一般拒绝当作账号授权过期。
-var errDownloadExpired = errors.New("115 sidecar signed link expired")
+// errDownloadExpired 保留内部过期判定名称，公开错误身份供任务日志分类。
+var errDownloadExpired = ErrDownloadLinkExpired
 
 // errDownloadTarget 标记目标边界校验失败，安全拒绝不得作为临时网络错误重试。
 var errDownloadTarget = errors.New("115 sidecar untrusted target")
@@ -197,14 +212,14 @@ func (s *Service) downloadAttempt(parent context.Context, target string, expecte
 	}
 	client := &http.Client{Transport: s.client.Transport, CheckRedirect: func(req *http.Request, via []*http.Request) error {
 		if len(via) > 5 || !validDownloadURL(req.URL.String()) {
-			return &downloadError{"untrusted_redirect", errDownloadTarget}
+			return &downloadError{"untrusted_redirect", errors.Join(ErrDownloadUntrustedTarget, errDownloadTarget)}
 		}
 		req.Header = downloadHeaders()
 		return check(req.Context())
 	}}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
 	if err != nil {
-		return 0, false, &downloadError{"invalid_target", ErrUpstream}
+		return 0, false, &downloadError{"invalid_target", errors.Join(ErrDownloadUntrustedTarget, ErrUpstream)}
 	}
 	req.Header = downloadHeaders()
 	resp, err := client.Do(req)
@@ -214,20 +229,20 @@ func (s *Service) downloadAttempt(parent context.Context, target string, expecte
 				err = errors.Join(err, closeErr)
 			}
 		}
-		return 0, !errors.Is(err, ErrCredentialChanged) && !errors.Is(err, errDownloadTarget), &downloadError{"content_request", err}
+		return 0, !errors.Is(err, ErrCredentialChanged) && !errors.Is(err, errDownloadTarget), &downloadError{"content_request", errors.Join(ErrDownloadContentRequest, err)}
 	}
 	// 主动关闭错误响应，不读取或记录其可能含凭据的正文。
 	if resp.StatusCode != http.StatusOK {
 		closeErr := resp.Body.Close()
 		if resp.StatusCode == http.StatusTooManyRequests {
 			s.observeDownloadThrottle(gate, resp.Header.Get("Retry-After"))
-			return 0, true, &downloadError{"content_throttled", errors.Join(errPlaybackThrottled, closeErr)}
+			return 0, true, &downloadError{"content_throttled", errors.Join(errPlaybackThrottled, ErrDownloadContentStatus, closeErr)}
 		}
 		if resp.StatusCode == http.StatusForbidden && expiredDownloadURL(target, time.Now()) {
 			return 0, false, &downloadError{"content_link_expired", errors.Join(errDownloadExpired, closeErr)}
 		}
 		retry := resp.StatusCode == 502 || resp.StatusCode == 503 || resp.StatusCode == 504
-		return 0, retry, &downloadError{"content_status", errors.Join(ErrUpstream, closeErr)}
+		return 0, retry, &downloadError{"content_status", errors.Join(ErrDownloadContentStatus, ErrUpstream, closeErr)}
 	}
 	if err = check(ctx); err != nil {
 		if closeErr := resp.Body.Close(); closeErr != nil {
@@ -323,6 +338,18 @@ func (s *Service) logDownload(ctx context.Context, request DownloadRequest, star
 		code = "download_timeout"
 	case errors.Is(err, ErrCredentialChanged):
 		code = "provider_credential_changed"
+	case errors.Is(err, ErrSourceNotFound):
+		code = "sidecar_source_not_found"
+	case errors.Is(err, ErrDownloadLinkResponse):
+		code = "sidecar_take_link_response_invalid"
+	case errors.Is(err, ErrDownloadUntrustedTarget):
+		code = "sidecar_untrusted_target"
+	case errors.Is(err, errDownloadExpired):
+		code = "sidecar_link_expired"
+	case errors.Is(err, ErrDownloadTakeLink):
+		code = "sidecar_take_link_failed"
+	case errors.Is(err, ErrDownloadContentRequest):
+		code = "sidecar_content_request_failed"
 	case errors.Is(err, ErrDownloadTooLarge):
 		code = "download_too_large"
 	case errors.Is(err, ErrDownloadLength):
@@ -331,6 +358,8 @@ func (s *Service) logDownload(ctx context.Context, request DownloadRequest, star
 		code = "download_queue_full"
 	case errors.Is(err, errPlaybackThrottled):
 		code = "download_throttled"
+	case errors.Is(err, ErrDownloadContentStatus):
+		code = "sidecar_content_status_failed"
 	}
 	s.logger.WarnContext(ctx, "115 sidecar unavailable", append(attrs, "outcome", outcome, "error_code", code)...)
 }
