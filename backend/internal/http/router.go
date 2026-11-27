@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
+	"errors"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -93,6 +94,10 @@ func NewRouter(database Readiness, logger *slog.Logger, assets fs.FS, options ..
 
 // writeError 中止当前请求并输出携带请求标识的统一错误响应，消息应由调用方提供脱敏文本。
 func writeError(c *gin.Context, status int, code generated.APIErrorCode, message string) {
+	if errors.Is(c.Request.Context().Err(), context.Canceled) && !c.Writer.Written() {
+		c.Abort()
+		return
+	}
 	c.AbortWithStatusJSON(status, generated.ErrorResponse{Error: generated.APIError{Code: code, Message: message, RequestId: c.GetString("request_id")}})
 }
 
@@ -107,7 +112,8 @@ func requestMiddleware(logger *slog.Logger) gin.HandlerFunc {
 		c.Set("request_id", requestID)
 		c.Header("X-Request-ID", requestID)
 		defer func() {
-			if recovered := recover(); recovered != nil {
+			recovered := recover()
+			if recovered != nil {
 				if recovered == http.ErrAbortHandler {
 					panic(http.ErrAbortHandler)
 				}
@@ -126,7 +132,12 @@ func requestMiddleware(logger *slog.Logger) gin.HandlerFunc {
 			if strings.HasPrefix(route, "/health/") {
 				level = slog.LevelDebug
 			}
-			logger.Log(c.Request.Context(), level, "http request", "module", "http", "operation", "request", "request_id", requestID, "method", c.Request.Method, "route", route, "status", c.Writer.Status(), "duration_ms", time.Since(started).Milliseconds())
+			attributes := []any{"module", "http", "operation", "request", "request_id", requestID, "method", c.Request.Method, "route", route, "status", c.Writer.Status(), "duration_ms", time.Since(started).Milliseconds()}
+			if recovered == nil && errors.Is(c.Request.Context().Err(), context.Canceled) {
+				level = slog.LevelDebug
+				attributes = append(attributes, "outcome", "canceled")
+			}
+			logger.Log(c.Request.Context(), level, "http request", attributes...)
 		}()
 		c.Next()
 	}

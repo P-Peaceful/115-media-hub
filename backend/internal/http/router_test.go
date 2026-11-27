@@ -121,6 +121,31 @@ func TestRequestIDsAndSafeAccessLogs(t *testing.T) {
 	}
 }
 
+// TestCanceledRequestsAreDebugAccessOnly 验证客户端取消统一停止错误响应，并将访问记录降级为可选诊断。
+func TestCanceledRequestsAreDebugAccessOnly(t *testing.T) {
+	var logs bytes.Buffer
+	logger := slog.New(slog.NewJSONHandler(&logs, &slog.HandlerOptions{Level: slog.LevelDebug}))
+	router, err := NewRouter(readinessStub{}, logger, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	router.(*gin.Engine).GET("/api/cancel", func(c *gin.Context) {
+		writeError(c, http.StatusServiceUnavailable, generated.ServiceUnavailable, "unavailable")
+	})
+	requestContext, cancel := context.WithCancel(context.Background())
+	cancel()
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequestWithContext(requestContext, http.MethodGet, "/api/cancel", nil))
+
+	var access map[string]any
+	if err := json.Unmarshal(logs.Bytes(), &access); err != nil {
+		t.Fatal(err)
+	}
+	if response.Code != http.StatusOK || response.Body.Len() != 0 || access["level"] != "DEBUG" || access["outcome"] != "canceled" {
+		t.Fatalf("canceled request was not downgraded: status=%d body=%q log=%v", response.Code, response.Body.String(), access)
+	}
+}
+
 // TestSPAFallbackBoundaries 验证普通页面回退首页，保留 API、健康、播放、缺失资源与隐藏文件的错误边界。
 func TestSPAFallbackBoundaries(t *testing.T) {
 	assets := fstest.MapFS{"index.html": {Data: []byte("<h1>application</h1>")}, "assets/app.js": {Data: []byte("console.log('asset')")}}

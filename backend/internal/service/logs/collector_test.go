@@ -68,11 +68,13 @@ func TestCollectorFiltersInfrastructureNoise(t *testing.T) {
 	logger.Info("常规访问", "module", "http", "status", 302)
 	logger.Error("采集诊断", "module", "logging", "operation", "flush")
 	logger.Info("http request", "module", "http", "status", 500, "route", "/api/v1/tasks")
+	logger.Error("request panic", "module", "http", "operation", "request", "status", 500, "route", "/api/v1/tasks")
+	logger.Debug("已取消访问", "module", "http", "outcome", "canceled")
 	logger.Info("导出完成", "module", "logging", "operation", "export")
 	logger.Debug("级别已禁用", "module", "app")
 	stopService(t, service)
-	if got := repo.entries; len(got) != 2 || got[0].Level != "error" || got[0].Message != "HTTP 请求返回 500" ||
-		got[1].Operation != "export" || got[1].Module != "system" {
+	if got := repo.entries; len(got) != 2 || got[0].Level != "error" || got[0].Message != "处理 HTTP 请求时发生内部错误" ||
+		got[0].Operation != "request" || got[0].Module != "system" || got[1].Operation != "export" || got[1].Module != "system" {
 		t.Fatalf("采集筛选或级别有误: %+v", got)
 	}
 }

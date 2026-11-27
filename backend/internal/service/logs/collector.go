@@ -8,9 +8,7 @@ import (
 	"log/slog"
 	"maps"
 	"math"
-	"net/http"
 	"reflect"
-	"strings"
 	"time"
 
 	domain "github.com/wenzhengcheng/115-media-hub/backend/internal/domain/logs"
@@ -105,24 +103,17 @@ func (h *collectorHandler) entry(record slog.Record) (domain.Entry, bool) {
 			return true
 		})
 	}
+	if attrString(attrs, "outcome") == "canceled" {
+		return domain.Entry{}, false
+	}
 	module, operation := attrString(attrs, "module"), attrString(attrs, "operation")
 	level := record.Level
 	switch module {
 	case "health":
 		return domain.Entry{}, false
 	case "http":
-		route, method := attrString(attrs, "route"), attrString(attrs, "method")
-		if strings.HasPrefix(route, "/health/") ||
-			(method == http.MethodGet && (route == "/api/v1/logs" || strings.HasPrefix(route, "/api/v1/logs/"))) {
-			return domain.Entry{}, false
-		}
-		status, _ := attrs["status"].(int64)
-		switch {
-		case status >= 500 && level < slog.LevelError:
-			level = slog.LevelError
-		case status >= 400 && level < slog.LevelWarn:
-			level = slog.LevelWarn
-		case level < slog.LevelWarn:
+		// 访问日志保留在 stdout/轮转文件；运行日志页只展示业务结果和未捕获 panic。
+		if record.Message != "request panic" {
 			return domain.Entry{}, false
 		}
 	case "logging":

@@ -5,6 +5,7 @@ package http
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -66,4 +67,24 @@ func TestCloudDriveFilesReturnsProviderTotal(t *testing.T) {
 		}
 	}
 
+}
+
+// TestProviderFailureDoesNotFabricate503ForCanceledRequest 验证客户端取消 115 请求时不补发 503 响应。
+func TestProviderFailureDoesNotFabricate503ForCanceledRequest(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	h := providerHandler{}
+	router.GET("/api/v1/settings/115/details", func(c *gin.Context) {
+		h.failure(c, errors.Join(provider115.ErrUpstream, context.Canceled))
+	})
+
+	requestContext, cancel := context.WithCancel(context.Background())
+	cancel()
+	response := httptest.NewRecorder()
+	request := httptest.NewRequestWithContext(requestContext, http.MethodGet, "/api/v1/settings/115/details", nil)
+	router.ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK || response.Body.Len() != 0 {
+		t.Fatalf("canceled request fabricated response: status=%d body=%s", response.Code, response.Body.String())
+	}
 }
